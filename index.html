@@ -215,8 +215,9 @@ defaultUsername: 'guest',
 defaultColor: '#33FF33',
 asciiWidth: 80,
 apps: {
+'adventure': 'adventure.html',
 'snake': 'snakemono.html',
-'sokoban': 'sokoban.html',
+'sokobaned': 'sokobaned.html',
 'tetris': 'tetrismono.html'
 }
 };
@@ -231,10 +232,11 @@ commandNotFound: "Command not found:",
 secretResponse: "Oh, you found my secret command..."
 };
 const introText = `AVAILABLE COMMANDS:                            GAMES:
-play             - Play a local media file     sokoban  - Opens a game of Sokoban
-pause            - Pause playback (audio)      snake    - Opens a game of Snake
-stop             - Stop playback (audio)       tetris   - Opens a game of Tetris
-clear, cls       - Clear the screen
+
+play             - Play a local media file     adventure
+pause            - Pause playback (audio)      snakemono
+stop             - Stop playback (audio)       sokobaned
+clear, cls       - Clear the screen            tetrismono
 date             - Show date and time
 history          - Show command history
 theme [color]    - Change color theme
@@ -242,7 +244,9 @@ nano [filename]  - Open a simple text editor
 pic              - Simple image editor
 say [text]       - Make the terminal speak
 help             - Show this help message
+
 TAB COMMANDS:
+
 Alt + T          - New tab
 Alt + X          - Close active tab
 `;
