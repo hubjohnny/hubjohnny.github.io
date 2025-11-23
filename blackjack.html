@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackjack Card Game</title>
+<meta name="description" content="You start with 1,000 chips, and your objective is to reach the goal of 100,000 chips.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--felt-color: #006400;
+--felt-highlight: #008000;
+--border-color: #4a2c2a;
+--text-color: #f0f0f0;
+--gold-color: #ffcc00;
+--card-bg: #fff;
+--card-shadow: rgba(0, 0, 0, 0.3);
+--red-suit: #D32F2F;
+--black-suit: #212121;
+}
+body::before {
+content: '';
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100vh;
+z-index: -1;
+background-image: url("data:image/svg+xml,<svg width='40' height='40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' fill='%23030328'/><path d='M40 0v40H0' fill='none' stroke='%2300d1ff' stroke-width='0.5'/></svg>");
+background-size: 40px;
+background-repeat: repeat;
+opacity: 0.90;
+}
+body {
+display: flex;
+justify-content: center;
+align-items: center;
+font-family: 'Segoe UI', 'Arial', sans-serif;
+-webkit-user-select: none;
+-moz-user-select: none;
+-ms-user-select: none;
+user-select: none;
+-webkit-tap-highlight-color: transparent;
+background-color: #000;
+margin: 0;
+padding: 0;
+overflow: hidden;
+}
+#blackjack_container {
+display: flex;
+flex-direction: column;
+justify-content: space-between;
+aspect-ratio: 1 / 1;
+max-height: 100vh;
+height: 98vh;
+max-width: 100vw;
+background: radial-gradient(circle, var(--felt-highlight) 0%, var(--felt-color) 70%);
+border: 1.5vmin solid var(--border-color);
+box-shadow: inset 0 0 1.5vmin rgba(0, 0, 0, 0.7), 0 0 2vmin rgba(0, 0, 0, 0.5);
+border-radius: 12px;
+box-sizing: border-box;
+padding: 2vmin 3vmin;
+position: relative;
+}
+#blackjack_dealerArea,
+#blackjack_playerZone {
+flex-shrink: 0;
+display: flex;
+flex-direction: column;
+align-items: center;
+width: 100%;
+}
+#blackjack_emojiArea {
+flex-grow: 1;
+display: flex;
+justify-content: center;
+align-items: center;
+font-size: clamp(40px, 12vmin, 150px);
+text-shadow: 0.2vmin 0.2vmin 1vmin rgba(0, 0, 0, 0.4);
+transition: transform 0.3s ease-in-out;
+min-height: 0;
+}
+#blackjack_emoji.neutral {
+transform: scale(1);
+}
+#blackjack_emoji.happy {
+transform: scale(1.1) rotate(5deg);
+color: #FFD700;
+}
+#blackjack_emoji.sad {
+transform: scale(0.9) rotate(-5deg);
+opacity: 0.8;
+}
+#blackjack_dealerArea h3,
+#blackjack_playerArea h3 {
+font-size: clamp(12px, 2.5vmin, 22px);
+margin: 1vmin 0;
+color: var(--text-color);
+text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+white-space: nowrap;
+}
+.blackjack_cardArea {
+display: flex;
+justify-content: center;
+align-items: center;
+flex-wrap: nowrap;
+min-height: clamp(80px, 15vmin, 140px);
+}
+.blackjack_card {
+width: clamp(50px, 9vmin, 100px);
+height: clamp(70px, 13vmin, 140px);
+background-color: var(--card-bg);
+border: 0.1vmin solid #ccc;
+border-radius: 0.8vmin;
+box-shadow: 0.3vmin 0.3vmin 0.8vmin var(--card-shadow);
+font-size: clamp(15px, 2.6vmin, 22px);
+color: var(--black-suit);
+position: relative;
+flex-shrink: 0;
+}
+.blackjack_card:not(:first-child) {
+margin-left: -5.5vmin;
+}
+.blackjack_card.red {
+color: var(--red-suit);
+}
+.blackjack_card_rank_topleft,
+.blackjack_card_rank_bottomright,
+.blackjack_card_suit_center {
+position: absolute;
+}
+.blackjack_card_rank_topleft {
+top: 0.4em;
+left: 0.4em;
+}
+.blackjack_card_rank_bottomright {
+bottom: 0.4em;
+right: 0.4em;
+transform: rotate(180deg);
+}
+.blackjack_card_suit_center {
+font-size: 3.5em;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+}
+#blackjack_playerZone {
+gap: 1.5vmin;
+}
+#blackjack_bettingArea {
+display: flex;
+flex-wrap: wrap;
+justify-content: center;
+align-items: center;
+gap: 1.5em;
+background-color: rgba(0, 0, 0, 0.25);
+padding: 1vmin 2vmin;
+border-radius: 12px;
+font-size: clamp(12px, 2.2vmin, 20px);
+width: auto;
+max-width: 90%;
+color: var(--gold-color);
+white-space: nowrap;
+}
+#blackjack_bettingArea>div {
+display: flex;
+align-items: center;
+gap: 0.7em;
+}
+#blackjack_bettingBtns {
+display: flex;
+gap: 1vmin;
+}
+#blackjack_controls {
+display: flex;
+justify-content: center;
+gap: 1.5vmin;
+}
+.blackjack_btn {
+padding: 0.8em 1.5em;
+font-size: clamp(12px, 2.2vmin, 18px);
+font-weight: bold;
+cursor: pointer;
+border: none;
+border-radius: 0.8vmin;
+white-space: nowrap;
+color: var(--text-color);
+transition: all 0.2s ease;
+text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+box-shadow: 0 0.4vmin 0.6vmin rgba(0, 0, 0, 0.3), inset 0 -0.2vmin 0.2vmin rgba(0, 0, 0, 0.2);
+}
+.blackjack_btn:not([disabled]):hover {
+transform: translateY(-0.2vmin);
+}
+.blackjack_btn:not([disabled]):active {
+transform: translateY(0.1vmin);
+}
+.blackjack_btn:disabled {
+background-color: #888 !important;
+cursor: not-allowed;
+opacity: 0.6;
+}
+.blackjack_betBtn {
+border-radius: 50px;
+}
+#blackjack_hitBtn {
+background-color: #0099ff;
+}
+#blackjack_standBtn {
+background-color: #cc0000;
+}
+#blackjack_playAgainBtn {
+background-color: #663399;
+}
+.blackjack_betBtn {
+background-color: #2196F3;
+}
+.blackjack_betBtn:hover:not(:disabled) {
+background-color: #1976D2;
+}
+.blackjack_score {
+font-size: 1.2em;
+font-weight: bold;
+color: var(--gold-color);
+}
+#blackjack_message {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+background-color: rgba(0, 0, 0, 0.85);
+color: #fff;
+padding: 1.5em 2em;
+border: 2px solid var(--gold-color);
+border-radius: 10px;
+font-size: clamp(14px, 3.5vmin, 28px);
+text-align: center;
+display: none;
+z-index: 20;
+max-width: 80%;
+box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="blackjack_container">
+<div id="blackjack_dealerArea">
+<h3>Dealer's Hand: <span id="blackjack_dealerScore" class="blackjack_score">0</span></h3>
+<div id="blackjack_dealerCards" class="blackjack_cardArea"></div>
+</div>
+<div id="blackjack_emojiArea">
+<span id="blackjack_emoji" class="neutral">😐</span>
+</div>
+<div id="blackjack_playerZone">
+<div id="blackjack_playerArea">
+<h3>Your Hand: <span id="blackjack_playerScore" class="blackjack_score">0</span></h3>
+<div id="blackjack_playerCards" class="blackjack_cardArea"></div>
+</div>
+<div id="blackjack_bettingArea">
+<div>Chips: <span id="blackjack_chipsDisplay">1000</span></div>
+<div style="opacity: 0.7;">Goal: <span id="blackjack_goalDisplay"></span></div>
+<div id="blackjack_bettingBtns">
+<button class="blackjack_btn blackjack_betBtn" data-bet="10">10</button>
+<button class="blackjack_btn blackjack_betBtn" data-bet="50">50</button>
+<button class="blackjack_btn blackjack_betBtn" data-bet="100">100</button>
+<button class="blackjack_btn blackjack_betBtn" data-bet="200">200</button>
+<button class="blackjack_btn blackjack_betBtn" data-bet="500">500</button>
+</div>
+</div>
+<div id="blackjack_controls">
+<button id="blackjack_hitBtn" class="blackjack_btn" disabled>Hit</button>
+<button id="blackjack_standBtn" class="blackjack_btn" disabled>Stand</button>
+<button id="blackjack_playAgainBtn" class="blackjack_btn" style="display: none;">Play Again</button>
+</div>
+</div>
+<div id="blackjack_message"></div>
+</div>
+<script>
+(function () {
+const emojiSpan = document.getElementById('blackjack_emoji');
+const chipsDisplaySpan = document.getElementById('blackjack_chipsDisplay');
+const goalDisplaySpan = document.getElementById('blackjack_goalDisplay');
+const hitBtn = document.getElementById('blackjack_hitBtn');
+const standBtn = document.getElementById('blackjack_standBtn');
+const playAgainBtn = document.getElementById('blackjack_playAgainBtn');
+const playerCardsDiv = document.getElementById('blackjack_playerCards');
+const dealerCardsDiv = document.getElementById('blackjack_dealerCards');
+const playerScoreSpan = document.getElementById('blackjack_playerScore');
+const dealerScoreSpan = document.getElementById('blackjack_dealerScore');
+const messageDiv = document.getElementById('blackjack_message');
+const bettingBtnsDiv = document.getElementById('blackjack_bettingBtns');
+const betButtons = bettingBtnsDiv.querySelectorAll('.blackjack_betBtn');
+const CONFIG = {
+START_CHIPS: 1000,
+WIN_CONDITION_CHIPS: 100000,
+MIN_BET: 10,
+BLACKJACK_PAYOUT: 2.5,
+WIN_PAYOUT: 2,
+DEALER_STANDS_ON: 17,
+NUM_DECKS: 4,
+RESHUFFLE_AT_CARDS_LEFT: 52 * 4 * 0.25,
+DEALER_THINK_TIME_MS: 800,
+END_ROUND_DELAY_MS: 2500,
+};
+let deck = [];
+let playerHand = [];
+let dealerHand = [];
+let gameActive = false;
+let currentBet = 0;
+let playerChips = CONFIG.START_CHIPS;
+function createDeck(numDecks = 1) {
+const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const suits = ['♠', '♥', '♦', '♣'];
+let newDeck = [];
+for (let i = 0; i < numDecks; i++) {
+for (const suit of suits) {
+for (const rank of ranks) {
+newDeck.push({ rank, suit });
+}
+}
+}
+return newDeck;
+}
+function shuffleDeck(deckToShuffle) {
+for (let i = deckToShuffle.length - 1; i > 0; i--) {
+const j = Math.floor(Math.random() * (i + 1));
+[deckToShuffle[i], deckToShuffle[j]] = [deckToShuffle[j], deckToShuffle[i]];
+}
+}
+function getHandValue(hand) {
+let value = 0;
+let numAces = 0;
+hand.forEach(card => {
+if (card.rank === 'A') {
+numAces++;
+value += 11;
+} else if (['K', 'Q', 'J'].includes(card.rank)) {
+value += 10;
+} else {
+value += parseInt(card.rank);
+}
+});
+while (value > 21 && numAces > 0) {
+value -= 10;
+numAces--;
+}
+return value;
+}
+function resetForNewBet() {
+updateEmoji('neutral');
+gameActive = false;
+playerCardsDiv.innerHTML = '';
+dealerCardsDiv.innerHTML = '';
+playerScoreSpan.textContent = '0';
+dealerScoreSpan.textContent = '0';
+messageDiv.style.display = 'none';
+if (playerChips > 0 && playerChips < CONFIG.MIN_BET) {
+showMessage(`Not enough chips (${playerChips}) for the minimum bet of ${CONFIG.MIN_BET}. Game over.`);
+updateEmoji('sad');
+endGameActions(true);
+return;
+}
+toggleBetButtons(true);
+hitBtn.disabled = true;
+standBtn.disabled = true;
+playAgainBtn.style.display = 'none';
+updateBalanceDisplay();
+}
+function startNewHand() {
+if (deck.length < CONFIG.RESHUFFLE_AT_CARDS_LEFT) {
+deck = createDeck(CONFIG.NUM_DECKS);
+shuffleDeck(deck);
+showMessage("Shuffling the deck...");
+setTimeout(() => messageDiv.style.display = 'none', 1500);
+}
+playerHand = [];
+dealerHand = [];
+gameActive = true;
+playerCardsDiv.innerHTML = '';
+dealerCardsDiv.innerHTML = '';
+messageDiv.style.display = 'none';
+toggleBetButtons(false);
+hitBtn.disabled = false;
+standBtn.disabled = false;
+playAgainBtn.style.display = 'none';
+}
+function placeBet(betAmount) {
+if (betAmount > playerChips) {
+showMessage('You do not have enough chips for that bet.');
+return;
+}
+currentBet = betAmount;
+playerChips -= currentBet;
+updateBalanceDisplay();
+startNewHand();
+dealInitialHands();
+}
+function dealInitialHands() {
+playerHand.push(deck.pop());
+dealerHand.push(deck.pop());
+playerHand.push(deck.pop());
+dealerHand.push(deck.pop());
+displayCards(playerHand, playerCardsDiv);
+displayCards(dealerHand, dealerCardsDiv, true);
+updateScores(false);
+const playerScore = getHandValue(playerHand);
+if (playerScore === 21) {
+const dealerScore = getHandValue(dealerHand);
+displayCards(dealerHand, dealerCardsDiv, false);
+updateScores(true);
+endGame(dealerScore === 21 ? 'push' : 'blackjack');
+}
+}
+function hitPlayer() {
+if (!gameActive) return;
+playerHand.push(deck.pop());
+displayCards(playerHand, playerCardsDiv);
+updateScores(false);
+if (getHandValue(playerHand) > 21) {
+endGame('player_bust');
+}
+}
+async function standPlayer() {
+if (!gameActive) return;
+gameActive = false;
+hitBtn.disabled = true;
+standBtn.disabled = true;
+displayCards(dealerHand, dealerCardsDiv, false);
+updateScores(true);
+while (getHandValue(dealerHand) < CONFIG.DEALER_STANDS_ON) {
+await new Promise(resolve => setTimeout(resolve, CONFIG.DEALER_THINK_TIME_MS));
+dealerHand.push(deck.pop());
+displayCards(dealerHand, dealerCardsDiv, false);
+updateScores(true);
+}
+determineWinner();
+}
+function determineWinner() {
+const playerScore = getHandValue(playerHand);
+const dealerScore = getHandValue(dealerHand);
+if (playerScore > 21) endGame('player_bust');
+else if (dealerScore > 21) endGame('dealer_bust');
+else if (playerScore > dealerScore) endGame('win');
+else if (playerScore < dealerScore) endGame('loss');
+else endGame('push');
+}
+function endGame(outcome) {
+gameActive = false;
+endGameActions(false);
+displayCards(dealerHand, dealerCardsDiv, false);
+updateScores(true);
+let message = '';
+let emojiState = 'neutral';
+switch (outcome) {
+case 'blackjack':
+playerChips += Math.floor(currentBet * CONFIG.BLACKJACK_PAYOUT);
+message = `Blackjack! You win ${Math.floor(currentBet * (CONFIG.BLACKJACK_PAYOUT - 1))}!`;
+emojiState = 'happy';
+break;
+case 'win':
+case 'dealer_bust':
+playerChips += currentBet * CONFIG.WIN_PAYOUT;
+message = outcome === 'win' ? `You win ${currentBet} chips!` : `Dealer busts! You win ${currentBet}!`;
+emojiState = 'happy';
+break;
+case 'player_bust':
+case 'loss':
+message = `You lost ${currentBet} chips.`;
+emojiState = 'sad';
+break;
+case 'push':
+playerChips += currentBet;
+message = `Push! It's a tie.`;
+emojiState = 'neutral';
+break;
+}
+updateEmoji(emojiState);
+showMessage(message);
+setTimeout(() => {
+updateBalanceDisplay();
+if (playerChips > 0 && playerChips < CONFIG.WIN_CONDITION_CHIPS) {
+resetForNewBet();
+}
+}, CONFIG.END_ROUND_DELAY_MS);
+}
+function playAgain() {
+playerChips = CONFIG.START_CHIPS;
+resetForNewBet();
+showMessage('Welcome back!');
+setTimeout(() => {
+if (messageDiv.textContent === 'Welcome back!') {
+messageDiv.style.display = 'none';
+}
+}, 1500);
+}
+function updateEmoji(state) {
+emojiSpan.className = state;
+switch (state) {
+case 'happy': emojiSpan.textContent = '😊'; break;
+case 'sad': emojiSpan.textContent = '😢'; break;
+default: emojiSpan.textContent = '😐';
+}
+}
+function updateBalanceDisplay() {
+chipsDisplaySpan.textContent = playerChips.toLocaleString('en-US');
+goalDisplaySpan.textContent = CONFIG.WIN_CONDITION_CHIPS.toLocaleString('en-US');
+updateBetButtonState();
+if (playerChips >= CONFIG.WIN_CONDITION_CHIPS) {
+showMessage(`Congratulations! You've beaten the house with ${playerChips.toLocaleString('en-US')} chips!`);
+updateEmoji('happy');
+endGameActions(true);
+} else if (playerChips <= 0) {
+showMessage('Game over! You\'ve run out of chips!');
+updateEmoji('sad');
+endGameActions(true);
+}
+}
+function updateScores(revealDealerFullScore = false) {
+playerScoreSpan.textContent = getHandValue(playerHand);
+if (revealDealerFullScore) {
+dealerScoreSpan.textContent = getHandValue(dealerHand);
+} else {
+dealerScoreSpan.textContent = (dealerHand.length > 1) ? getHandValue([dealerHand[1]]) : '0';
+}
+}
+function displayCards(hand, targetDiv, hideFirstDealerCard = false) {
+targetDiv.innerHTML = '';
+hand.forEach((card, index) => {
+const cardDiv = document.createElement('div');
+cardDiv.classList.add('blackjack_card');
+if (card.suit === '♥' || card.suit === '♦') {
+cardDiv.classList.add('red');
+}
+cardDiv.style.zIndex = index + 1;
+if (hideFirstDealerCard && index === 0) {
+cardDiv.innerHTML = `<div style="width:100%; height:100%; background-color:#8B0000; border-radius:inherit;"></div>`;
+} else {
+cardDiv.innerHTML = `
+<div class="blackjack_card_rank_topleft">${card.rank}</div>
+<div class="blackjack_card_suit_center">${card.suit}</div>
+<div class="blackjack_card_rank_bottomright">${card.rank}</div>`;
+}
+targetDiv.appendChild(cardDiv);
+});
+}
+function toggleBetButtons(enable) {
+betButtons.forEach(btn => {
+btn.disabled = !enable;
+});
+if (enable) {
+updateBetButtonState();
+}
+}
+function updateBetButtonState() {
+betButtons.forEach(btn => {
+const betAmount = parseInt(btn.dataset.bet);
+const canAfford = betAmount <= playerChips;
+btn.disabled = !canAfford;
+btn.style.opacity = canAfford ? '1' : '0.4';
+});
+}
+function endGameActions(showPlayAgain) {
+gameActive = false;
+toggleBetButtons(false);
+hitBtn.disabled = true;
+standBtn.disabled = true;
+if (showPlayAgain) {
+playAgainBtn.style.display = 'inline-block';
+}
+}
+function showMessage(msg) {
+messageDiv.textContent = msg;
+messageDiv.style.display = 'block';
+}
+bettingBtnsDiv.addEventListener('click', (event) => {
+const betBtn = event.target.closest('.blackjack_betBtn');
+if (betBtn && !betBtn.disabled) {
+const betAmount = parseInt(betBtn.dataset.bet);
+placeBet(betAmount);
+}
+});
+hitBtn.addEventListener('click', hitPlayer);
+standBtn.addEventListener('click', standPlayer);
+playAgainBtn.addEventListener('click', playAgain);
+function init() {
+deck = createDeck(CONFIG.NUM_DECKS);
+shuffleDeck(deck);
+resetForNewBet();
+}
+init();
+})();
+</script>
+</body>
+</html>

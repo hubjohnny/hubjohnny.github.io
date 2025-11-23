@@ -1,0 +1,2080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Builder Simulation Game</title>
+<meta name="description" content="Your main objective is to grow a thriving metropolis to a population of 400,000 residents while avoiding bankruptcy.">
+<meta name="robots" content="index, follow">
+<style>
+html {
+box-sizing: border-box;
+}
+*,
+*::before,
+*::after {
+box-sizing: inherit;
+}
+html,
+body {
+margin: 0;
+padding: 0;
+height: 100%;
+overflow: hidden;
+font-family: sans-serif;
+background-color: #1a1a1a;
+color: #f0f0f0;
+}
+h1,
+h2,
+h3 {
+text-align: center;
+color: #ffc107;
+margin: 10px 0;
+font-weight: 300;
+}
+hr {
+border: none;
+border-top: 1px solid #444;
+margin: 15px 0;
+}
+#game-container {
+display: flex;
+width: 100vw;
+height: 100vh;
+justify-content: center;
+align-items: center;
+background-color: #000;
+}
+#game-layout {
+display: flex;
+flex-direction: row;
+width: 98vw;
+height: 97vh;
+border: 2px solid #ffc107;
+background-color: #000;
+box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+border-radius: 8px;
+position: relative;
+}
+#ui-panel {
+width: 280px;
+flex-shrink: 0;
+height: 100%;
+padding: 10px 15px;
+overflow-y: auto;
+border-right: 2px solid #444;
+}
+#stats p {
+margin: 5px 0;
+font-size: 14px;
+}
+#budget-details {
+padding-left: 10px;
+border-left: 2px solid #555;
+margin-top: 5px;
+}
+#tax-rate-controls {
+display: flex;
+justify-content: space-around;
+align-items: center;
+gap: 5px;
+padding: 5px 0;
+}
+#map-container {
+flex-grow: 1;
+height: 100%;
+position: relative;
+overflow: auto;
+cursor: default;
+border: 20px solid #282c34;
+}
+#grid-container {
+position: relative;
+border: none;
+}
+#game-canvas {
+position: sticky;
+top: 0;
+left: 0;
+z-index: 1;
+}
+.build-cursor {
+cursor: cell;
+}
+.bulldoze-cursor {
+cursor: not-allowed;
+}
+.tool-btn,
+.tax-btn,
+.action-btn,
+.control-btn,
+#new-game-btn {
+display: inline-flex;
+justify-content: center;
+align-items: center;
+padding: 8px 12px;
+margin: 0;
+border-radius: 5px;
+cursor: pointer;
+font-weight: bold;
+font-size: 14px;
+border: 1px solid #777;
+text-decoration: none;
+transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+.tool-btn-grid {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 5px;
+}
+.tool-btn {
+width: 100%;
+background-color: #333;
+color: #fff;
+text-align: left;
+justify-content: flex-start;
+font-size: 14px;
+font-weight: 400;
+padding: 10px 8px;
+white-space: nowrap;
+}
+.tool-btn:hover {
+background-color: #444;
+border-color: #999;
+}
+.tool-btn.active {
+background-color: #ffc107;
+color: #000;
+border-color: #f39c12;
+}
+.tax-btn {
+background-color: #555;
+color: #fff;
+flex-grow: 1;
+}
+.tax-btn.active {
+background-color: #4caf50;
+border-color: #81c784;
+}
+.button-toolbar {
+display: flex;
+flex-wrap: wrap;
+justify-content: flex-start;
+gap: 8px;
+}
+.button-toolbar h3 {
+width: 100%;
+text-align: center;
+margin-bottom: 10px;
+}
+.action-btn,
+.control-btn,
+#new-game-btn {
+flex-grow: 1;
+}
+#save-btn {
+background-color: #4caf50;
+color: white;
+border-color: #388e3c;
+}
+#city-log-btn {
+background-color: #ff9800;
+color: white;
+border-color: #f57c00;
+}
+#how-to-play-btn {
+background-color: #03a9f4;
+color: white;
+border-color: #0288d1;
+}
+#economy-btn {
+background-color: #673ab7;
+color: white;
+border-color: #512da8;
+}
+#new-game-btn {
+background-color: #f44336;
+color: white;
+border-color: #d32f2f;
+}
+.control-btn {
+background-color: #555;
+color: white;
+font-size: 18px;
+}
+#night-overlay {
+display: none;
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(25, 25, 50, 0.2);
+z-index: 5;
+pointer-events: none;
+}
+.night-mode #night-mode-btn {
+background-color: #ffc107;
+color: #000;
+}
+.night-mode #night-overlay {
+display: block;
+}
+.night-mode .action-btn {
+background-color: #bdc3c7;
+color: #2c3e50;
+border-color: #95a5a6;
+}
+.night-mode .action-btn:hover {
+background-color: #ecf0f1;
+}
+.visual-effect-layer {
+position: absolute;
+top: 0;
+left: 0;
+pointer-events: none;
+z-index: 10;
+overflow: hidden;
+}
+.cloud,
+.cloud-shadow {
+position: absolute;
+border-radius: 50%;
+animation: drift 120s linear infinite;
+}
+.cloud {
+background-color: rgba(255, 255, 255, 0.4);
+}
+.cloud-shadow {
+background-color: rgba(0, 0, 0, 0.2);
+}
+@keyframes drift {
+from {
+transform: translateX(-200px);
+}
+to {
+transform: translateX(3400px);
+}
+}
+#minimap-wrapper {
+position: relative;
+width: 100%;
+aspect-ratio: 1 / 1;
+cursor: crosshair;
+margin: 15px 0;
+}
+#minimap-canvas {
+width: 100%;
+height: 100%;
+background-color: #000;
+border: 1px solid #ffc107;
+image-rendering: pixelated;
+}
+#minimap-viewport {
+position: absolute;
+top: 0;
+left: 0;
+border: 1px solid #fff;
+background-color: rgba(255, 255, 255, 0.3);
+pointer-events: none;
+}
+#tooltip {
+position: fixed;
+display: none;
+background-color: rgba(0, 0, 0, 0.8);
+color: #fff;
+padding: 5px 10px;
+border-radius: 4px;
+font-size: 12px;
+pointer-events: none;
+z-index: 1001;
+white-space: pre-wrap;
+}
+#event-ticker {
+position: absolute;
+top: 10px;
+left: 50%;
+transform: translateX(-50%);
+z-index: 11;
+background-color: rgba(0, 0, 0, 0.7);
+color: #ffc107;
+padding: 5px 15px;
+border-radius: 20px;
+font-size: 14px;
+opacity: 0;
+transition: opacity 0.5s;
+}
+.modal {
+display: none;
+position: fixed;
+z-index: 1000;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.75);
+justify-content: center;
+align-items: center;
+}
+.modal.active {
+display: flex;
+}
+.modal-content {
+background-color: #2c2c2c;
+color: #f0f0f0;
+padding: 20px;
+border: 2px solid #ffc107;
+border-radius: 10px;
+width: 90%;
+max-width: 800px;
+max-height: 85vh;
+overflow-y: auto;
+position: relative;
+box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+}
+.modal-content h2 {
+color: #ffc107;
+}
+.modal-content li {
+padding-bottom: 10px;
+}
+.modal-close {
+position: absolute;
+top: 10px;
+right: 20px;
+font-size: 28px;
+font-weight: bold;
+cursor: pointer;
+color: #aaaaaa;
+transition: color 0.2s ease;
+}
+.modal-close:hover {
+color: #ffc107;
+}
+.text-green {
+color: #81c784;
+}
+.text-red {
+color: #e57373;
+}
+#fireworks-container {
+display: none;
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+z-index: 5000;
+cursor: pointer;
+overflow: hidden;
+}
+#fireworks-container.active {
+display: block;
+}
+.congrats-text {
+position: absolute;
+top: 40%;
+left: 50%;
+transform: translate(-50%, -50%);
+text-align: center;
+z-index: 100;
+width: 90%;
+}
+.congrats-text h1 {
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+font-size: clamp(2.5rem, 7vw, 7rem);
+font-weight: bold;
+color: #ffc107;
+margin-bottom: 20px;
+animation: text-glow 1.5s ease-in-out infinite alternate;
+}
+.congrats-text p {
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+font-size: clamp(1rem, 2.5vw, 2.2rem);
+color: #f0f0f0;
+text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+}
+@keyframes text-glow {
+from {
+text-shadow: 0 0 10px #ffc107, 0 0 20px #ffc107, 0 0 30px #f39c12;
+}
+to {
+text-shadow: 0 0 20px #f39c12, 0 0 35px #f39c12, 0 0 50px #f1c40f;
+}
+}
+.explosion {
+position: absolute;
+width: 4px;
+height: 4px;
+border-radius: 50%;
+transform-origin: 50% 50%;
+animation: explosion-anim 1.2s ease-in-out infinite;
+}
+.explosion::before {
+content: '';
+position: absolute;
+left: -2px;
+top: -2px;
+width: inherit;
+height: inherit;
+border-radius: 50%;
+box-shadow: 15px 23px 5px #ff0040, -11px -20px 6px #00ffb8, 23px -1px 3px #9d00ff, -1px -25px 5px #ffc107, 24px 21px 4px #00aeff, 11px -14px 6px #ff4d00, -12px -24px 3px #00ff73, 21px 11px 5px #ff00d9, -25px 14px 4px #a6ff00, -25px -10px 6px #ff0062, 11px 29px 3px #00ffea, -11px -7px 5px #ffc107, 18px -10px 4px #0066ff, -23px -9px 6px #ff002f, 1px 22px 3px #a6ff00, -2px -23px 5px #00ffd0, 15px -25px 4px #ff00a2, -13px 25px 6px #b300ff;
+}
+@keyframes explosion-anim {
+0% {
+transform: scale(0.1) rotate(0deg);
+opacity: 1;
+}
+60% {
+opacity: 1;
+}
+100% {
+transform: scale(20) rotate(90deg);
+opacity: 0;
+}
+}
+.explosion:nth-child(1) {
+left: 91%;
+top: 32%;
+animation-delay: 0.8s;
+}
+.explosion:nth-child(2) {
+left: 81%;
+top: 69%;
+animation-delay: 0.2s;
+}
+.explosion:nth-child(3) {
+left: 2%;
+top: 60%;
+animation-delay: 1.1s;
+}
+.explosion:nth-child(4) {
+left: 16%;
+top: 8%;
+animation-delay: 1.5s;
+}
+.explosion:nth-child(5) {
+left: 63%;
+top: 5%;
+animation-delay: 0.1s;
+}
+.explosion:nth-child(6) {
+left: 18%;
+top: 68%;
+animation-delay: 2.3s;
+}
+.explosion:nth-child(7) {
+left: 91%;
+top: 88%;
+animation-delay: 1.7s;
+}
+.explosion:nth-child(8) {
+left: 89%;
+top: 22%;
+animation-delay: 2.1s;
+}
+.explosion:nth-child(9) {
+left: 45%;
+top: 45%;
+animation-delay: 0.5s;
+}
+.explosion:nth-child(10) {
+left: 8%;
+top: 23%;
+animation-delay: 2.8s;
+}
+.explosion:nth-child(11) {
+left: 69%;
+top: 82%;
+animation-delay: 0.9s;
+}
+.explosion:nth-child(12) {
+left: 42%;
+top: 12%;
+animation-delay: 3.1s;
+}
+::-webkit-scrollbar {
+width: 8px;
+height: 8px;
+}
+::-webkit-scrollbar-track {
+background: #2c2c2c;
+}
+::-webkit-scrollbar-thumb {
+background: #007bff;
+border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+background: #0056b3;
+}
+* {
+scrollbar-width: thin;
+scrollbar-color: #007bff #2c2c2c;
+}
+.sticky-link {
+position: fixed;
+bottom: 8px;
+right: 8px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="game-container">
+<div id="game-layout">
+<div id="ui-panel">
+<h3>City Stats</h3>
+<div id="stats">
+<p>📅 Year: <span id="year">2025</span></p>
+<p>👨‍👩‍👧‍👦 Population: <span id="population">0</span></p>
+<p>💰 Budget: $<span id="budget">100000</span></p>
+<div id="budget-details">
+<p style="color: #4caf50;">Income: $<span id="income">0</span></p>
+<p style="color: #f44336;">Maintenance: $<span id="maintenance">0</span></p>
+</div>
+</div>
+<div id="tax-rate-controls">
+<span>Taxes:</span>
+<button class="tax-btn" data-rate="0.5" title="Set taxes to Low">Low</button>
+<button class="tax-btn active" data-rate="0.7" title="Set taxes to Medium">Medium</button>
+<button class="tax-btn" data-rate="1.0" title="Set taxes to High">High</button>
+</div>
+<div id="minimap-container">
+<div id="minimap-wrapper">
+<canvas id="minimap-canvas"></canvas>
+<div id="minimap-viewport"></div>
+</div>
+</div>
+<hr>
+<h3>Construction Tools</h3>
+<div class="tool-btn-grid">
+<button class="tool-btn" data-tool="house" title="House">🏠 $700</button>
+<button class="tool-btn" data-tool="store" title="Store">🏬 $900</button>
+<button class="tool-btn" data-tool="industry" title="Industry">🏭 $12k</button>
+<button class="tool-btn" data-tool="road" title="Road">➖ $25</button>
+<button class="tool-btn" data-tool="park" title="Park">🌳 $450</button>
+<button class="tool-btn" data-tool="power-plant" title="Power Plant">⚡️ $8k</button>
+<button class="tool-btn" data-tool="power-line" title="Power Line">🔌 $50</button>
+<button class="tool-btn" data-tool="police-station" title="Police Station">🚓 $10k</button>
+<button class="tool-btn" data-tool="fire-station" title="Fire Station">🚒 $12k</button>
+<button class="tool-btn" data-tool="school" title="School">🏫 $12k</button>
+<button class="tool-btn" data-tool="stadium" title="Stadium">🏟️ $65k</button>
+<button class="tool-btn" data-tool="airport" title="Airport">✈️ $80k</button>
+<button class="tool-btn" data-tool="bulldoze" title="Bulldoze">💣 $50</button>
+<button class="tool-btn" data-tool="decoration1" title="Decoration 1">🌲 $10</button>
+<button class="tool-btn" data-tool="decoration2" title="Decoration 2">🌴 $10</button>
+</div>
+<hr>
+<h3>Game Controls</h3>
+<div class="button-toolbar">
+<button id="night-mode-btn" class="control-btn" title="Night Mode">🌙</button>
+<button id="save-btn" class="action-btn" title="Save Game">💾 Save</button>
+<button id="city-log-btn" class="action-btn" title="City Log">📖 Log</button>
+<button id="economy-btn" class="action-btn" title="Economy">📊 Economy</button>
+<button id="how-to-play-btn" class="action-btn" title="Help">❓ Help</button>
+<button id="new-game-btn" class="action-btn" title="Start a New City">✨ New Game</button>
+</div>
+</div>
+<div id="map-container">
+<div id="grid-container">
+<div id="night-overlay"></div>
+<canvas id="game-canvas"></canvas>
+<div id="cloud-shadow-layer" class="visual-effect-layer"></div>
+<div id="cloud-layer" class="visual-effect-layer"></div>
+</div>
+</div>
+<div id="event-ticker"></div>
+</div>
+</div>
+<div id="tooltip"></div>
+<div id="how-to-play-modal" class="modal">
+<div class="modal-content"></div>
+</div>
+<div id="economy-modal" class="modal">
+<div class="modal-content">
+<span id="economy-modal-close" class="modal-close">&times;</span>
+<h2>📊 Economy</h2>
+<div id="economy-details"></div>
+</div>
+</div>
+<div id="fireworks-container">
+<div class="congrats-text">
+<h1>🏆 Congratulations! 🏆</h1>
+<p>You've built an amazing city!</p>
+</div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+<div class="explosion"></div>
+</div>
+<script>
+const config = {
+gridSize: 100,
+cellSize: 32,
+WIN_CONDITION_POPULATION: 400000,
+MAX_LOG_ENTRIES: 100,
+POWER_PLANT_CAPACITY: 800,
+AIRPORT_INCOME_PER_CITIZEN: 0.25,
+CUSTOMER_RADIUS: 6,
+INCOME_PER_PERSON: 1.5,
+ROAD_MAINTENANCE_PER_WEAR: 5,
+INDUSTRY_INCOME: 1600,
+costs: {
+house: 700,
+store: 900,
+industry: 12000,
+park: 450,
+stadium: 65000,
+airport: 80000,
+'power-plant': 8000,
+'power-line': 50,
+'police-station': 10000,
+'fire-station': 12000,
+school: 12000,
+bulldoze: 50,
+road: 25,
+decoration1: 10,
+decoration2: 10,
+},
+buildingEmojis: {
+house: '🏠',
+store: '🏬',
+industry: '🏭',
+park: '🌳',
+'power-plant': '⚡️',
+'police-station': '🚓',
+'fire-station': '🚒',
+school: '🏫',
+stadium: '🏟️',
+airport: '✈️',
+decoration1: '🌲',
+decoration2: '🌴',
+},
+buildingDisplayNames: {
+house: "House",
+store: "Store",
+industry: "Industrial Zone",
+road: "Road",
+park: "Park",
+fountainPark: "Fountain Park",
+'power-plant': "Power Plant",
+'power-line': "Power Line",
+'police-station': "Police Station",
+'fire-station': "Fire Station",
+school: "School",
+stadium: "Stadium",
+airport: "Airport",
+bulldoze: "Bulldoze",
+lake: "Lake",
+decoration1: "Decoration 1",
+decoration2: "Decoration 2",
+},
+largeBuildings: ['stadium', 'airport'],
+minimapColors: {
+grass: '#225D25',
+road: '#616161',
+lake: '#0077be',
+building: '#f5deb3',
+industry: '#a52a2a',
+fire: '#ff4500',
+},
+terrainColors: {
+grass: '#225D25',
+road: '#444',
+lake: '#0077be',
+},
+nightTerrainColors: {
+grass: '#134216',
+road: '#212121',
+lake: '#0d47a1',
+},
+};
+let gameState = {
+budget: 100000,
+population: 0,
+year: 2025,
+taxRate: 0.7,
+currentTool: '',
+isGameOver: false,
+isDraggingMinimap: false,
+isDisasterAnimating: false,
+gameLog: [],
+gameInterval: null,
+};
+let world = [];
+let pollutionGrid = new Uint8Array(config.gridSize * config.gridSize);
+let industrialZones = [];
+function initEmptyWorld() {
+world = Array(config.gridSize * config.gridSize).fill(null).map(() => ({
+base: 'grass',
+building: null,
+hasPowerLine: false,
+onFire: false,
+roadWear: 0,
+crimeLevel: 0,
+hasTraffic: false,
+}));
+pollutionGrid.fill(0);
+industrialZones = [];
+generateLakes();
+}
+function generateLakes() {
+const numLakes = Math.floor(Math.random() * 5) + 3;
+for (let i = 0; i < numLakes; i++) {
+const lakeSize = Math.floor(Math.random() * 100) + 50;
+let x = Math.floor(Math.random() * config.gridSize);
+let y = Math.floor(Math.random() * config.gridSize);
+for (let j = 0; j < lakeSize; j++) {
+const index = y * config.gridSize + x;
+if (index >= 0 && index < world.length && world[index]) {
+world[index].base = 'lake';
+}
+x += Math.floor(Math.random() * 3) - 1;
+y += Math.floor(Math.random() * 3) - 1;
+x = Math.max(0, Math.min(x, config.gridSize - 1));
+y = Math.max(0, Math.min(y, config.gridSize - 1));
+}
+}
+}
+function loadWorld() {
+const worldDataJson = localStorage.getItem('cityBuilderSave');
+if (!worldDataJson) {
+initEmptyWorld();
+return null;
+}
+try {
+const data = JSON.parse(worldDataJson);
+if (data.world && data.world.length === (config.gridSize * config.gridSize)) {
+world = data.world;
+industrialZones = [];
+world.forEach((cell, index) => {
+if (cell.building?.type === 'industry') {
+industrialZones.push(index);
+}
+if (cell.hasTraffic === undefined) {
+cell.hasTraffic = false;
+}
+});
+if (data.pollutionGrid && data.pollutionGrid.length === (config.gridSize * config.gridSize)) {
+pollutionGrid = new Uint8Array(data.pollutionGrid);
+} else {
+console.warn("Pollution data mismatch or missing. Resetting pollution.");
+pollutionGrid = new Uint8Array(config.gridSize * config.gridSize);
+pollutionGrid.fill(0);
+}
+return data;
+} else {
+console.warn("Saved map size mismatch. Starting new game.");
+initEmptyWorld();
+return null;
+}
+} catch (e) {
+console.error("Could not load save data", e);
+initEmptyWorld();
+return null;
+}
+}
+function getNeighbors(index, range = 1) {
+const neighbors = [];
+const x = index % config.gridSize;
+const y = Math.floor(index / config.gridSize);
+for (let i = -range; i <= range; i++) {
+for (let j = -range; j <= range; j++) {
+if (i === 0 && j === 0) continue;
+const nx = x + j;
+const ny = y + i;
+if (nx >= 0 && nx < config.gridSize && ny >= 0 && ny < config.gridSize) {
+neighbors.push(ny * config.gridSize + nx);
+}
+}
+}
+return neighbors;
+}
+function check2x2Area(index) {
+const x = index % config.gridSize;
+const y = Math.floor(index / config.gridSize);
+if (x + 1 >= config.gridSize || y + 1 >= config.gridSize) return false;
+const indices = [index, index + 1, index + config.gridSize, index + config.gridSize + 1];
+return indices.every((i) => i >= 0 && i < world.length && world[i] && world[i].base === 'grass' && !world[i].building && !world[i].hasPowerLine);
+}
+function clear2x2Building(originIndex) {
+const indices = [originIndex, originIndex + 1, originIndex + config.gridSize, originIndex + config.gridSize + 1];
+indices.forEach((i) => {
+if (i >= 0 && i < world.length && world[i]?.building) {
+world[i].building = null;
+}
+});
+}
+let gameLayout, mapContainer, gridContainer, canvas, ctx, minimapCanvas, minimapCtx, minimapViewport, cloudLayer, cloudShadowLayer;
+let camera = { x: 0, y: 0 };
+let viewport = { width: 0, height: 0 };
+let emojiFont = `${Math.floor(config.cellSize * 0.75)}px sans-serif`;
+let hasScrolledToCenter = false;
+function initCanvas() {
+gameLayout = document.getElementById('game-layout');
+mapContainer = document.getElementById('map-container');
+gridContainer = document.getElementById('grid-container');
+canvas = document.getElementById('game-canvas');
+ctx = canvas.getContext('2d');
+minimapCanvas = document.getElementById('minimap-canvas');
+minimapCtx = minimapCanvas.getContext('2d');
+minimapViewport = document.getElementById('minimap-viewport');
+cloudLayer = document.getElementById('cloud-layer');
+cloudShadowLayer = document.getElementById('cloud-shadow-layer');
+const totalMapWidth = config.gridSize * config.cellSize;
+const totalMapHeight = config.gridSize * config.cellSize;
+gridContainer.style.width = `${totalMapWidth}px`;
+gridContainer.style.height = `${totalMapHeight}px`;
+document.querySelectorAll('.visual-effect-layer').forEach((layer) => {
+layer.style.width = `${totalMapWidth}px`;
+layer.style.height = `${totalMapHeight}px`;
+});
+minimapCanvas.width = config.gridSize;
+minimapCanvas.height = config.gridSize;
+window.addEventListener('resize', checkCanvasSize);
+checkCanvasSize();
+}
+function checkCanvasSize() {
+const newWidth = mapContainer.clientWidth;
+const newHeight = mapContainer.clientHeight;
+if (newWidth === 0 || newHeight === 0) return false;
+if (viewport.width !== newWidth || viewport.height !== newHeight) {
+viewport.width = newWidth;
+viewport.height = newHeight;
+canvas.width = newWidth;
+canvas.height = newHeight;
+canvas.style.width = `${newWidth}px`;
+canvas.style.height = `${newHeight}px`;
+emojiFont = `${Math.floor(config.cellSize * 0.75)}px sans-serif`;
+updateMinimapViewport();
+return true;
+}
+return false;
+}
+function render() {
+checkCanvasSize();
+if (!hasScrolledToCenter) {
+if (viewport.width > 0 && viewport.height > 0) {
+const totalMapWidth = config.gridSize * config.cellSize;
+const totalMapHeight = config.gridSize * config.cellSize;
+mapContainer.scrollLeft = (totalMapWidth - viewport.width) / 2;
+mapContainer.scrollTop = (totalMapHeight - viewport.height) / 2;
+hasScrolledToCenter = true;
+updateMinimapViewport();
+}
+}
+camera.x = mapContainer.scrollLeft;
+camera.y = mapContainer.scrollTop;
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+ctx.save();
+ctx.translate(Math.floor(-camera.x), Math.floor(-camera.y));
+renderGrid();
+ctx.restore();
+requestAnimationFrame(render);
+}
+function renderGrid() {
+if (viewport.width === 0 || viewport.height === 0) return;
+const startCol = Math.floor(camera.x / config.cellSize);
+const endCol = Math.min(config.gridSize - 1, Math.ceil((camera.x + viewport.width) / config.cellSize));
+const startRow = Math.floor(camera.y / config.cellSize);
+const endRow = Math.min(config.gridSize - 1, Math.ceil((camera.y + viewport.height) / config.cellSize));
+const isNight = gameLayout.classList.contains('night-mode');
+const colors = isNight ? config.nightTerrainColors : config.terrainColors;
+ctx.font = emojiFont;
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+for (let y = startRow; y <= endRow; y++) {
+for (let x = startCol; x <= endCol; x++) {
+const index = y * config.gridSize + x;
+const cell = world[index];
+if (!cell) continue;
+const drawX = x * config.cellSize;
+const drawY = y * config.cellSize;
+ctx.fillStyle = colors[cell.base] || colors.grass;
+ctx.fillRect(drawX, drawY, config.cellSize, config.cellSize);
+const pollution = pollutionGrid[index];
+if (pollution > 20) {
+ctx.fillStyle = `rgba(139, 69, 19, ${pollution / 600})`;
+ctx.fillRect(drawX, drawY, config.cellSize, config.cellSize);
+}
+if (cell.base === 'road' && cell.roadWear > 0) {
+ctx.fillStyle = `rgba(0, 0, 0, ${cell.roadWear * 0.2})`;
+ctx.fillRect(drawX, drawY, config.cellSize, config.cellSize);
+}
+if (cell.hasTraffic) {
+drawTrafficVariableSpeed(x, y, index, drawX, drawY, cell.roadWear);
+}
+if (cell.building) {
+let emoji = config.buildingEmojis[cell.building.type] || '';
+if (cell.building.type === 'park' && cell.building.hasFountain) emoji = '⛲️';
+if (cell.building.type === 'house') {
+if (cell.building.population > 100) emoji = '🏢';
+else if (cell.building.population > 50) emoji = '🏘️';
+}
+if (cell.building.powered) {
+ctx.shadowColor = isNight ? '#ffeb3b' : '#fff';
+ctx.shadowBlur = isNight ? 8 : 4;
+}
+ctx.fillText(emoji, drawX + config.cellSize / 2, drawY + config.cellSize / 2 + 1);
+ctx.shadowBlur = 0;
+}
+if (cell.hasPowerLine) {
+drawPowerLine(x, y, index, drawX, drawY);
+}
+if (cell.onFire) {
+ctx.fillStyle = 'rgba(255, 69, 0, 0.6)';
+ctx.fillRect(drawX, drawY, config.cellSize, config.cellSize);
+ctx.fillText('🔥', drawX + config.cellSize / 2, drawY + config.cellSize / 2 + 1);
+}
+}
+}
+}
+function drawPowerLine(x, y, index, drawX, drawY) {
+ctx.fillStyle = '#000';
+const midX = drawX + config.cellSize / 2;
+const midY = drawY + config.cellSize / 2;
+const lineW = 1;
+const dotR = 2;
+let hasConnection = false;
+if (y > 0 && isPowerConnection(index - config.gridSize)) {
+ctx.fillRect(midX - lineW / 2, drawY, lineW, config.cellSize / 2);
+hasConnection = true;
+}
+if (y < config.gridSize - 1 && isPowerConnection(index + config.gridSize)) {
+ctx.fillRect(midX - lineW / 2, midY, lineW, config.cellSize / 2);
+hasConnection = true;
+}
+if (x > 0 && isPowerConnection(index - 1)) {
+ctx.fillRect(drawX, midY - lineW / 2, config.cellSize / 2, lineW);
+hasConnection = true;
+}
+if (x < config.gridSize - 1 && isPowerConnection(index + 1)) {
+ctx.fillRect(midX, midY - lineW / 2, config.cellSize / 2, lineW);
+hasConnection = true;
+}
+if (hasConnection) {
+ctx.beginPath();
+ctx.arc(midX, midY, dotR, 0, 2 * Math.PI);
+ctx.fill();
+}
+}
+function drawTrafficVariableSpeed(x, y, index, drawX, drawY, roadWear) {
+const north = y > 0 && world[index - config.gridSize].base === 'road';
+const south = y < config.gridSize - 1 && world[index + config.gridSize].base === 'road';
+const east = x < config.gridSize - 1 && world[index + 1].base === 'road';
+const west = x > 0 && world[index - 1].base === 'road';
+const carLength = 10;
+const carBreadth = 6;
+let animSpeed = 6000;
+if (roadWear === 2) animSpeed = 4000;
+else if (roadWear === 3) animSpeed = 2500;
+const animProgress1 = (Date.now() % animSpeed) / animSpeed;
+ctx.fillStyle = '#555';
+const pos1 = config.cellSize * animProgress1;
+const centeredPos1Y = pos1 - (carLength / 2);
+const centeredPos1X = pos1 - (carLength / 2);
+if (north || south) {
+const carXRight = Math.floor(drawX + config.cellSize / 2 + 2);
+const carYRight = Math.floor(drawY + centeredPos1Y);
+ctx.fillRect(carXRight, carYRight, carBreadth, carLength);
+}
+if (east || west) {
+const carXBottom = Math.floor(drawX + centeredPos1X);
+const carYBottom = Math.floor(drawY + config.cellSize / 2 + 2);
+ctx.fillRect(carXBottom, carYBottom, carLength, carBreadth);
+}
+}
+function isPowerConnection(index) {
+if (index < 0 || index >= world.length) return false;
+const neighbor = world[index];
+return neighbor && (neighbor.hasPowerLine || (neighbor.building && neighbor.building.type !== 'park'));
+}
+function updateMinimap() {
+if (!minimapCtx) return;
+minimapCtx.clearRect(0, 0, config.gridSize, config.gridSize);
+for (let i = 0; i < world.length; i++) {
+const cell = world[i];
+if (!cell) continue;
+let color = config.minimapColors[cell.base] || config.minimapColors.grass;
+if (cell.building) {
+if (cell.building.type === 'industry') color = config.minimapColors.industry;
+else color = cell.building.powered ? config.minimapColors.building : '#8d6e63';
+}
+if (cell.onFire) {
+color = config.minimapColors.fire;
+}
+minimapCtx.fillStyle = color;
+minimapCtx.fillRect(i % config.gridSize, Math.floor(i / config.gridSize), 1, 1);
+}
+}
+function updateMinimapViewport() {
+if (!minimapViewport || !minimapCanvas || !gridContainer || viewport.width === 0 || gridContainer.scrollWidth === 0) return;
+const mapWidth = minimapCanvas.offsetWidth;
+const mapHeight = minimapCanvas.offsetHeight;
+if (mapWidth === 0 || mapHeight === 0) return;
+const totalMapWidth = gridContainer.scrollWidth;
+const totalMapHeight = gridContainer.scrollHeight;
+if (totalMapWidth === 0 || totalMapHeight === 0) return;
+const xRatio = viewport.width / totalMapWidth;
+const yRatio = viewport.height / totalMapHeight;
+minimapViewport.style.width = `${Math.max(0, (xRatio * mapWidth) - 2)}px`;
+minimapViewport.style.height = `${Math.max(0, (yRatio * mapHeight) - 2)}px`;
+minimapViewport.style.left = `${(mapContainer.scrollLeft / totalMapWidth) * mapWidth}px`;
+minimapViewport.style.top = `${(mapContainer.scrollTop / totalMapHeight) * mapHeight}px`;
+}
+function createClouds() {
+if (!cloudLayer || !cloudShadowLayer) return;
+cloudLayer.innerHTML = '';
+cloudShadowLayer.innerHTML = '';
+const numClouds = 10 * (config.gridSize / 50);
+const maxTop = config.gridSize * config.cellSize;
+for (let i = 0; i < numClouds; i++) {
+const cloud = document.createElement('div');
+cloud.className = 'cloud';
+const size = 100 + Math.random() * 150;
+cloud.style.width = `${size}px`;
+cloud.style.height = `${size * 0.6}px`;
+cloud.style.top = `${Math.random() * maxTop}px`;
+cloud.style.animationDelay = `${Math.random() * -120}s`;
+cloudLayer.appendChild(cloud);
+const shadow = document.createElement('div');
+shadow.className = 'cloud-shadow';
+shadow.style.width = cloud.style.width;
+shadow.style.height = cloud.style.height;
+shadow.style.top = `${parseFloat(cloud.style.top) + 20}px`;
+shadow.style.left = `-20px`;
+shadow.style.animationDelay = cloud.style.animationDelay;
+cloudShadowLayer.appendChild(shadow);
+}
+}
+let tooltip, eventTicker, populationEl, budgetEl, yearEl, incomeEl, maintenanceEl;
+function initUIElements() {
+tooltip = document.getElementById('tooltip');
+eventTicker = document.getElementById('event-ticker');
+populationEl = document.getElementById('population');
+budgetEl = document.getElementById('budget');
+yearEl = document.getElementById('year');
+incomeEl = document.getElementById('income');
+maintenanceEl = document.getElementById('maintenance');
+}
+function updateStatsPanel(state) {
+if (!budgetEl || !populationEl || !yearEl) return;
+budgetEl.textContent = Math.floor(state.budget).toLocaleString();
+populationEl.textContent = state.population.toLocaleString();
+yearEl.textContent = state.year;
+}
+function updateIncomeExpense(income, maintenance) {
+if (!incomeEl || !maintenanceEl) return;
+incomeEl.textContent = Math.floor(income).toLocaleString();
+maintenanceEl.textContent = Math.floor(maintenance).toLocaleString();
+}
+function showTooltip(index, e) {
+if (isNaN(index) || index < 0 || index >= world.length || !tooltip) return;
+const cellData = world[index];
+if (!cellData) return;
+let text = '';
+if (cellData.building) {
+text = config.buildingDisplayNames[cellData.building.type] || cellData.building.type;
+if (cellData.building.type === 'park' && cellData.building.hasFountain) text = "Fountain Park";
+if (cellData.building.type === 'house') text += `\nPopulation: ${Math.floor(cellData.building.population)}`;
+if (cellData.building.type === 'power-plant') text += `\nLoad: ${cellData.building.powerLoad || 0} / ${cellData.building.isDamaged ? 0 : config.POWER_PLANT_CAPACITY}`;
+text += `\nPowered: ${cellData.building.powered ? "Yes" : "No"}`;
+if (cellData.building.isDamaged) text += `\n(Damaged!)`;
+} else if (cellData.hasPowerLine) {
+text = "Power Line";
+} else if (cellData.base === 'road') {
+text = "Road";
+if (cellData.roadWear > 0) text += `\nWear Level: ${cellData.roadWear}`;
+} else if (cellData.base === 'lake') {
+text = "Lake";
+}
+const pollution = pollutionGrid[index];
+if (pollution > 20) {
+text += `\nPollution: ${Math.round(pollution / 255 * 100)}%`;
+}
+if (cellData.onFire) text = `🔥 ${text} 🔥`;
+if (text) {
+tooltip.innerText = text;
+tooltip.style.display = 'block';
+let newX = e.clientX + 15;
+let newY = e.clientY + 15;
+const tooltipWidth = tooltip.offsetWidth;
+const tooltipHeight = tooltip.offsetHeight;
+if (newX + tooltipWidth > window.innerWidth) newX = e.clientX - tooltipWidth - 15;
+if (newY + tooltipHeight > window.innerHeight) newY = e.clientY - tooltipHeight - 15;
+newX = Math.max(0, newX);
+newY = Math.max(0, newY);
+tooltip.style.left = `${newX}px`;
+tooltip.style.top = `${newY}px`;
+} else {
+hideTooltip();
+}
+}
+function hideTooltip() {
+if (tooltip) tooltip.style.display = 'none';
+}
+let tickerTimeout;
+function showTickerMessage(message) {
+if (!eventTicker) return;
+clearTimeout(tickerTimeout);
+eventTicker.textContent = message;
+eventTicker.style.opacity = 1;
+tickerTimeout = setTimeout(() => {
+eventTicker.style.opacity = 0;
+}, 5000);
+}
+function showLog(log) {
+const modal = document.getElementById('how-to-play-modal');
+if (!modal) return;
+const modalContent = modal.querySelector('.modal-content');
+if (!modalContent) return;
+modalContent.innerHTML = `<span class="modal-close">&times;</span><h2>City Log</h2>`;
+const logList = document.createElement('ul');
+logList.style.cssText = 'list-style-type: none; padding: 0; margin-top: 15px;';
+if (!log || log.length === 0) {
+logList.innerHTML = `<li>No events logged yet.</li>`;
+} else {
+log.forEach((entry) => {
+const li = document.createElement('li');
+li.textContent = entry;
+li.style.cssText = 'border-bottom: 1px solid #444; padding: 8px 0; font-size: 14px;';
+logList.appendChild(li);
+});
+}
+modalContent.appendChild(logList);
+const closeButton = modalContent.querySelector('.modal-close');
+if (closeButton) {
+closeButton.onclick = () => { modal.style.display = 'none'; };
+}
+modal.style.display = 'flex';
+}
+function showHelp() {
+const modal = document.getElementById('how-to-play-modal');
+if (!modal) return;
+const modalContent = modal.querySelector('.modal-content');
+if (!modalContent) return;
+modalContent.innerHTML = `<span class="modal-close">&times;</span>
+<h2>How to Play City Builder</h2>
+<p>Welcome, Mayor! Your main goal is to build a thriving metropolis and reach a population of <strong>${config.WIN_CONDITION_POPULATION.toLocaleString()}</strong> residents. But be careful – if your city's budget drops below zero, you'll go bankrupt and the game is over!</p>
+<h4>The Basics 💵</h4>
+<ul>
+<li><strong>Income:</strong> Your main income comes from <strong>House Taxes</strong>, <strong>Store Sales</strong>, and <strong>Industrial Profits</strong>.</li>
+<li><strong>Economic Strategy:</strong> You must balance your strategy. <strong>Industry (🏭)</strong> offers high, stable income but creates pollution. <strong>Stores (🏬)</strong> provide clean income that grows with your nearby population.</li>
+<li><strong>Tax Level:</strong> Control your tax level! <strong>Low</strong> boosts growth, <strong>High</strong> earns more money but slows growth.</li>
+<li><strong>Expenses:</strong> All buildings and roads have an annual maintenance cost.</li>
+</ul>
+<h4>City Services & Strategy 🏘️</h4>
+<ul>
+<li><strong>Houses (🏠):</strong> Where citizens live. They grow over time (🏘️ -> 🏢) if conditions are good (power, services, low pollution).</li>
+<li><strong>Pollution (🟫):</strong> Spreads from industry and will slow residential growth. <strong>Strategy:</strong> Build <strong>Parks (🌳)</strong> nearby! Parks now <strong class="text-green">actively clean the air</strong>, allowing you to create buffer zones and build smarter.</li>
+<li><strong>Services (🚓🚒🏫):</strong> <strong>Police</strong>, <strong>Fire</strong>, and <strong>Schools</strong> are key investments. They provide safety and also give a <strong class="text-green">direct happiness bonus</strong>, boosting the growth of all nearby homes.</li>
+<li><strong>Parks & Lakes (🌳💧):</strong> Provide a significant happiness and growth bonus to nearby homes.</li>
+<li><strong>Major Venues (🏟️✈️):</strong> Expensive 2x2 buildings that provide massive city-wide benefits.</li>
+</ul>
+<h4>Infrastructure ⚡️</h4>
+<ul>
+<li><strong>Power Plants (⚡️):</strong> Each supports ${config.POWER_PLANT_CAPACITY} connections. Power is distributed along power lines and buildings.</li>
+<li><strong>Roads (➖):</strong> Roads wear down from heavy traffic, increasing their maintenance cost. <strong>Strategy:</strong> If you manage your traffic well (e.g., by building alternate routes), lightly-used roads will <strong class="text-green">repair themselves</strong> over time, saving you money!</li>
+</ul>
+<h4>Disasters & Challenges 🔥</h4>
+<p>Keep an eye on the event ticker! Disasters like <strong>Fires (🔥)</strong>, <strong>Recessions (📉)</strong>, and even <strong>King Kong (🦍)</strong> can strike your city.</p>
+<p style="text-align: center; margin-top: 20px;"><strong>Good luck, Mayor!</strong></p>`;
+const closeButton = modalContent.querySelector('.modal-close');
+if (closeButton) {
+closeButton.onclick = () => { modal.style.display = 'none'; };
+}
+modal.style.display = 'flex';
+}
+function showEconomyWindow() {
+const modal = document.getElementById('economy-modal');
+if (!modal) return;
+const economyDetails = document.getElementById('economy-details');
+if (!economyDetails) return;
+const { incomeSources, expenseSources } = getEconomyData(false);
+let incomeHtml = `<hr><h4>Income Distribution</h4><ul>`;
+Object.keys(incomeSources).forEach((key) => {
+if (key !== 'total' && incomeSources[key].count > 0) {
+const name = key.charAt(0).toUpperCase() + key.slice(1);
+const translatedName = {
+Houses: "House Taxes",
+Stores: "Store Sales",
+Airport: "Airport Revenue",
+Industry: "Industrial Profit"
+};
+incomeHtml += `<li>${translatedName[name] || name} (${incomeSources[key].count}): <strong>$${Math.floor(incomeSources[key].totalIncome).toLocaleString()}</strong></li>`;
+}
+});
+incomeHtml += `</ul><p class="text-green"><strong>Total Income: $${Math.floor(incomeSources.total).toLocaleString()}</strong></p><hr>`;
+let expenseHtml = `<h4>Expense Distribution</h4><ul>`;
+Object.keys(expenseSources).forEach((key) => {
+if (key !== 'total' && expenseSources[key].count > 0) {
+const name = (key === 'road') ? 'Road Maintenance' : (config.buildingDisplayNames[key] || key);
+expenseHtml += `<li>${name} (${expenseSources[key].count}): <strong>$${Math.floor(expenseSources[key].totalMaintenance).toLocaleString()}</strong></li>`;
+}
+});
+expenseHtml += `</ul><p class="text-red"><strong>Total Expenses: $${Math.floor(expenseSources.total).toLocaleString()}</strong></p><hr>`;
+const netProfit = incomeSources.total - expenseSources.total;
+const netHtml = `<h3>Annual Net Result: <strong class="${netProfit >= 0 ? 'text-green' : 'text-red'}">$${Math.floor(netProfit).toLocaleString()}</strong></h3>`;
+economyDetails.innerHTML = netHtml + incomeHtml + expenseHtml;
+modal.style.display = 'flex';
+}
+function simulatePollution() {
+for (let i = 0; i < pollutionGrid.length; i++) {
+if (pollutionGrid[i] > 0) {
+pollutionGrid[i] = Math.max(0, pollutionGrid[i] - 1);
+}
+}
+for (const index of industrialZones) {
+const cell = world[index];
+if (cell && cell.building?.powered) {
+pollutionGrid[index] = Math.min(255, pollutionGrid[index] + 40);
+getNeighbors(index, 6).forEach((nIndex) => {
+if (nIndex >= 0 && nIndex < pollutionGrid.length) {
+pollutionGrid[nIndex] = Math.min(255, pollutionGrid[nIndex] + 5);
+}
+});
+}
+}
+world.forEach((cell, index) => {
+if (cell && cell.building?.type === 'park' && cell.building.powered) {
+const cleanRadius = 3;
+const cleanAmount = 3;
+getNeighbors(index, cleanRadius).forEach((nIndex) => {
+if (nIndex >= 0 && nIndex < pollutionGrid.length) {
+pollutionGrid[nIndex] = Math.max(0, pollutionGrid[nIndex] - cleanAmount);
+}
+});
+}
+});
+}
+function getEconomyData(isRecession = false) {
+const incomeSources = {
+houses: { count: 0, totalIncome: 0 }, stores: { count: 0, totalIncome: 0 },
+industry: { count: 0, totalIncome: 0 }, airport: { count: 0, totalIncome: 0 }, total: 0,
+};
+const expenseSources = {
+house: { count: 0, totalMaintenance: 0 }, store: { count: 0, totalMaintenance: 0 },
+industry: { count: 0, totalMaintenance: 0 }, park: { count: 0, totalMaintenance: 0 },
+'power-plant': { count: 0, totalMaintenance: 0 }, 'police-station': { count: 0, totalMaintenance: 0 },
+'fire-station': { count: 0, totalMaintenance: 0 }, school: { count: 0, totalMaintenance: 0 },
+stadium: { count: 0, totalMaintenance: 0 }, airport: { count: 0, totalMaintenance: 0 },
+road: { count: 0, totalMaintenance: 0 }, total: 0,
+};
+const maintenanceRate = 0.035;
+let currentPopulation = 0;
+world.forEach((cell, index) => {
+if (!cell) return;
+if (cell.building) {
+const type = cell.building.type;
+const cost = config.costs[type] || 0;
+const maintenance = cost * maintenanceRate;
+if (expenseSources[type] !== undefined && !cell.building.isPart) {
+expenseSources[type].count++;
+expenseSources[type].totalMaintenance += maintenance;
+expenseSources.total += maintenance;
+}
+if (cell.building.powered) {
+if (type === 'house') {
+const pop = Math.floor(cell.building.population);
+currentPopulation += pop;
+let tax = pop * (gameState.taxRate || 0.7);
+if (isRecession) tax /= 2;
+incomeSources.houses.count++;
+incomeSources.houses.totalIncome += Math.floor(tax);
+incomeSources.total += Math.floor(tax);
+} else if (type === 'store') {
+let nearbyPopulation = 0;
+getNeighbors(index, config.CUSTOMER_RADIUS).forEach((nIndex) => {
+const neighborCell = world[nIndex];
+if (neighborCell?.building?.type === 'house' && neighborCell.building.powered) {
+nearbyPopulation += neighborCell.building.population;
+}
+});
+const storeIncome = Math.floor(nearbyPopulation * config.INCOME_PER_PERSON);
+incomeSources.stores.count++;
+incomeSources.stores.totalIncome += storeIncome;
+incomeSources.total += storeIncome;
+} else if (type === 'industry') {
+incomeSources.industry.count++;
+incomeSources.industry.totalIncome += config.INDUSTRY_INCOME;
+incomeSources.total += config.INDUSTRY_INCOME;
+} else if (type === 'airport' && !cell.building.isPart) {
+incomeSources.airport.count++;
+}
+}
+}
+if (cell.base === 'road' && cell.roadWear > 0) {
+const roadMaint = cell.roadWear * config.ROAD_MAINTENANCE_PER_WEAR;
+if (expenseSources.road !== undefined) {
+expenseSources.road.count++;
+expenseSources.road.totalMaintenance += roadMaint;
+expenseSources.total += roadMaint;
+}
+}
+});
+if (incomeSources.airport.count > 0) {
+const airportRevenue = Math.floor(currentPopulation * config.AIRPORT_INCOME_PER_CITIZEN) * incomeSources.airport.count;
+incomeSources.airport.totalIncome = airportRevenue;
+incomeSources.total += airportRevenue;
+}
+return { incomeSources, expenseSources, currentPopulation };
+}
+function simulateYear(state, logFn) {
+let { budget, population, year, taxRate } = state;
+let isRecessionYear = false;
+updateCrimeLevels(logFn, year);
+handleRepairs(logFn);
+isRecessionYear = handleDisasters(logFn, population, year);
+distributePower();
+updateRoadWear();
+simulatePollution();
+world.forEach((cell, index) => {
+if (!cell) return;
+if (cell.building?.type === 'house') {
+if (cell.building.powered && !cell.onFire) {
+const pollution = pollutionGrid[index];
+const pollutionPenalty = -Math.floor(pollution / 10);
+const hasRoad = getNeighbors(index, 1).some((n) => world[n]?.base === 'road');
+const hasPark = getNeighbors(index, 5).some((n) => world[n]?.building?.type === 'park' && world[n].building.powered);
+const hasLake = getNeighbors(index, 1).some((n) => world[n]?.base === 'lake');
+const hasSchool = getNeighbors(index, 15).some((n) => world[n]?.building?.type === 'school' && world[n].building.powered);
+const hasStadium = getNeighbors(index, 20).some((n) => world[n]?.building?.type === 'stadium' && world[n].building.powered);
+const hasPolice = getNeighbors(index, 10).some((n) => world[n]?.building?.type === 'police-station' && world[n].building.powered);
+const hasFire = getNeighbors(index, 10).some((n) => world[n]?.building?.type === 'fire-station' && world[n].building.powered);
+const roadBonus = hasRoad ? 1.0 : 0;
+const parkBonus = hasPark ? 1.5 : 0;
+const lakeBonus = hasLake ? 3.5 : 0;
+const schoolBonus = hasSchool ? 4.0 : 0;
+const stadiumBonus = hasStadium ? 12.0 : 0;
+const policeBonus = hasPolice ? 1.5 : 0;
+const fireBonus = hasFire ? 1.5 : 0;
+const crimePenalty = cell.crimeLevel > 0 && cell.building.population >= 30 ? -5 : 0;
+let taxBonus = 0;
+if (taxRate < 0.6) taxBonus = 5;
+if (taxRate > 0.8) taxBonus = -5;
+const randomFactor = 0.5 + (Math.random() * 0.5);
+let growth = randomFactor + roadBonus + parkBonus + lakeBonus + schoolBonus + stadiumBonus + policeBonus + fireBonus + taxBonus + crimePenalty + pollutionPenalty;
+if (pollution > 80) growth = Math.min(growth, -2);
+cell.building.population += growth;
+cell.building.population = Math.max(0, Math.min(cell.building.population, 150));
+} else {
+cell.building.population = Math.max(0, cell.building.population - 25);
+}
+}
+});
+const { incomeSources, expenseSources, currentPopulation } = getEconomyData(isRecessionYear);
+const yearlyIncome = incomeSources.total;
+const maintenanceCosts = expenseSources.total;
+population = currentPopulation;
+budget += yearlyIncome - maintenanceCosts;
+year++;
+updateIncomeExpense(yearlyIncome, maintenanceCosts);
+return { budget, population, year };
+}
+function handleDisasters(logFn, population, year) {
+let isRecession = false;
+const firesToSpread = [];
+world.forEach((cell, index) => {
+if (!cell) return;
+if (cell.onFire) {
+const fireStationNearby = getNeighbors(index, 20).some(
+(n) => world[n]?.building?.type === 'fire-station' && world[n].building.powered
+);
+if (fireStationNearby && Math.random() < 0.8) {
+cell.onFire = false;
+logFn("🚒 The fire department has extinguished a fire!");
+} else if (Math.random() < 0.1) {
+const buildingType = cell.building?.type;
+logFn(`🔥 ${config.buildingDisplayNames[buildingType] || 'A building'} was lost in the blaze!`);
+if (buildingType) {
+const originalCost = config.costs[buildingType] || 0;
+const insurancePayout = Math.floor(originalCost * 0.6);
+gameState.budget += insurancePayout;
+if (insurancePayout > 0) {
+logFn(`💰 Received an insurance payout of $${insurancePayout.toLocaleString()} for the destroyed ${config.buildingDisplayNames[buildingType]}.`);
+}
+if (config.largeBuildings.includes(buildingType)) {
+clear2x2Building(cell.building.originIndex);
+} else {
+if (buildingType === 'industry') {
+industrialZones = industrialZones.filter(i => i !== index);
+}
+cell.building = null;
+}
+}
+cell.onFire = false;
+} else {
+getNeighbors(index, 1).forEach((nIndex) => {
+const neighborCell = world[nIndex];
+if (neighborCell?.building && !neighborCell.onFire && Math.random() < 0.2) {
+firesToSpread.push(nIndex);
+}
+});
+}
+}
+});
+firesToSpread.forEach(index => {
+if (world[index]) world[index].onFire = true;
+});
+const disasterChance = 0.01 + (population / config.WIN_CONDITION_POPULATION) * 0.035;
+if (Math.random() < disasterChance) {
+const possibleDisasters = ['recession'];
+if (world.some((cell) => cell?.building)) possibleDisasters.push('fire', 'kingkong');
+if (world.some((c) => c?.building?.type === 'power-plant' && !c.building.isDamaged)) possibleDisasters.push('thunderstorm');
+if (possibleDisasters.length > 0) {
+const chosenDisaster = possibleDisasters[Math.floor(Math.random() * possibleDisasters.length)];
+if (chosenDisaster === 'fire') {
+const buildings = world.map((c, i) => (c?.building ? i : -1)).filter((i) => i !== -1);
+if (buildings.length > 0) {
+const fireIndex = buildings[Math.floor(Math.random() * buildings.length)];
+if (world[fireIndex]) world[fireIndex].onFire = true;
+logFn("🔥 A fire has broken out!");
+}
+} else if (chosenDisaster === 'recession') {
+isRecession = true;
+logFn("📉 An economic recession has hit the city!");
+} else if (chosenDisaster === 'thunderstorm') {
+const powerPlants = world
+.map((c, i) => (c?.building?.type === 'power-plant' && !c.building.isDamaged ? i : -1))
+.filter((i) => i !== -1);
+if (powerPlants.length > 0) {
+const targetPlantIndex = powerPlants[Math.floor(Math.random() * powerPlants.length)];
+if (world[targetPlantIndex]?.building) world[targetPlantIndex].building.isDamaged = true;
+logFn("⛈️ A thunderstorm has damaged a power plant!");
+}
+} else if (chosenDisaster === 'kingkong') {
+logFn("🦍 King Kong is rampaging through the city!");
+kingKongRampage();
+}
+}
+}
+return isRecession;
+}
+function distributePower() {
+world.forEach((cell) => {
+if (cell?.building) {
+cell.building.powered = false;
+if (cell.building.type === 'power-plant' && !cell.building.isPart) {
+cell.building.powerLoad = 0;
+}
+}
+});
+const alreadyPowered = new Set();
+const powerPlants = world
+.map((c, i) => (c?.building?.type === 'power-plant' && !c.building.isPart && !c.building.isDamaged ? i : -1))
+.filter((i) => i !== -1);
+powerPlants.forEach((plantIndex) => {
+const plant = world[plantIndex]?.building;
+if (!plant) return;
+const q = [plantIndex];
+const poweredByThisPlant = new Set();
+const visitedInThisSearch = new Set([plantIndex]);
+if (!alreadyPowered.has(plantIndex)) {
+poweredByThisPlant.add(plantIndex);
+alreadyPowered.add(plantIndex);
+}
+let head = 0;
+while (head < q.length && poweredByThisPlant.size < config.POWER_PLANT_CAPACITY) {
+const currentIndex = q[head++];
+getNeighbors(currentIndex).forEach((neighborIndex) => {
+if (!visitedInThisSearch.has(neighborIndex)) {
+visitedInThisSearch.add(neighborIndex);
+const neighborCell = world[neighborIndex];
+if (neighborCell && (neighborCell.building || neighborCell.hasPowerLine)) {
+q.push(neighborIndex);
+if (!alreadyPowered.has(neighborIndex) && poweredByThisPlant.size < config.POWER_PLANT_CAPACITY) {
+poweredByThisPlant.add(neighborIndex);
+alreadyPowered.add(neighborIndex);
+}
+}
+}
+});
+}
+poweredByThisPlant.forEach((index) => {
+if (world[index]?.building) {
+world[index].building.powered = true;
+}
+});
+plant.powerLoad = poweredByThisPlant.size;
+});
+}
+function updateRoadWear() {
+world.forEach((cell, i) => {
+if (!cell) return;
+if (cell.base === 'road') {
+let nearbyPop = 0;
+getNeighbors(i, 2).forEach((nIndex) => {
+const nCell = world[nIndex];
+if (nCell?.building?.type === 'house' && nCell.building.population) {
+nearbyPop += nCell.building.population;
+}
+});
+cell.hasTraffic = nearbyPop > 50;
+if (nearbyPop > 800) cell.roadWear = 3;
+else if (nearbyPop > 300) cell.roadWear = 2;
+else if (nearbyPop > 100) cell.roadWear = 1;
+else {
+cell.roadWear = Math.max(0, cell.roadWear - 1);
+}
+} else {
+cell.hasTraffic = false;
+}
+});
+}
+function handleRepairs(logFn) {
+world.forEach((cell) => {
+if (cell?.building?.type === 'power-plant' && cell.building.isDamaged && Math.random() < 0.75) {
+cell.building.isDamaged = false;
+logFn("🛠️ A damaged power plant is now fully repaired!");
+}
+});
+}
+function updateCrimeLevels(logFn, year) {
+if (gameState.population < 5000) {
+world.forEach((cell) => { if (cell) cell.crimeLevel = 0; });
+return;
+}
+const quadrantCrime = { nw: 0, ne: 0, sw: 0, se: 0 };
+const mid = config.gridSize / 2;
+world.forEach((cell, index) => {
+if (!cell) return;
+cell.crimeLevel = 0;
+if (cell.building?.type === 'house' && cell.building.population >= 30) {
+const policeNearby = getNeighbors(index, 30).some((n) => world[n]?.building?.type === 'police-station' && world[n].building.powered);
+if (!policeNearby) {
+cell.crimeLevel = 1;
+const x = index % config.gridSize;
+const y = Math.floor(index / config.gridSize);
+if (y < mid && x < mid) quadrantCrime.nw++;
+else if (y < mid && x >= mid) quadrantCrime.ne++;
+else if (y >= mid && x < mid) quadrantCrime.sw++;
+else quadrantCrime.se++;
+}
+}
+});
+let maxCrimeCount = 0;
+let maxCrimeQuadrantKey = '';
+for (const key in quadrantCrime) {
+if (quadrantCrime[key] > maxCrimeCount) {
+maxCrimeCount = quadrantCrime[key];
+maxCrimeQuadrantKey = key;
+}
+}
+if (maxCrimeCount > 4) {
+const quadrantNames = { nw: "northwestern", ne: "northeastern", sw: "southwestern", se: "southeastern" };
+logFn(`🚨 Citizens are complaining about crime in the ${quadrantNames[maxCrimeQuadrantKey] || maxCrimeQuadrantKey} part of town!`);
+}
+}
+function kingKongRampage() {
+if (gameState.isDisasterAnimating) return;
+gameState.isDisasterAnimating = true;
+let x = Math.floor(Math.random() * config.gridSize);
+let y = Math.floor(Math.random() * config.gridSize);
+const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+const [dx, dy] = directions[Math.floor(Math.random() * directions.length)];
+const steps = 15;
+let completedSteps = 0;
+function doStep(stepNum) {
+const currentX = x + dx * stepNum;
+const currentY = y + dy * stepNum;
+if (currentX >= 0 && currentX < config.gridSize && currentY >= 0 && currentY < config.gridSize) {
+const index = currentY * config.gridSize + currentX;
+const cell = world[index];
+if (cell) {
+if (cell.building) {
+if (config.largeBuildings.includes(cell.building.type)) {
+if (cell.building.originIndex !== undefined) {
+clear2x2Building(cell.building.originIndex);
+} else {
+cell.building = null;
+}
+} else {
+if (cell.building.type === 'industry') {
+industrialZones = industrialZones.filter(i => i !== index);
+}
+cell.building = null;
+}
+}
+world[index] = {
+base: 'grass',
+building: null,
+hasPowerLine: false,
+onFire: false,
+roadWear: 0,
+crimeLevel: 0,
+hasTraffic: false
+};
+}
+}
+completedSteps++;
+if (completedSteps >= steps) {
+setTimeout(() => {
+gameState.isDisasterAnimating = false;
+distributePower();
+updateMinimap();
+}, 100);
+}
+}
+for (let i = 0; i < steps; i++) {
+setTimeout(() => doStep(i), i * 250);
+}
+}
+function getCellIndexFromEvent(e) {
+if (!canvas || !mapContainer) return -1;
+const rect = canvas.getBoundingClientRect();
+const canvasX = e.clientX - rect.left;
+const canvasY = e.clientY - rect.top;
+const worldX = canvasX + mapContainer.scrollLeft;
+const worldY = canvasY + mapContainer.scrollTop;
+const gridX = Math.floor(worldX / config.cellSize);
+const gridY = Math.floor(worldY / config.cellSize);
+if (gridX < 0 || gridX >= config.gridSize || gridY < 0 || gridY >= config.gridSize) {
+return -1;
+}
+const index = gridY * config.gridSize + gridX;
+return (index >= 0 && index < world.length) ? index : -1;
+}
+function handleCellClick(index) {
+if (index === -1 || !world[index]) return;
+const { currentTool, isDisasterAnimating, isGameOver, budget } = gameState;
+if (isDisasterAnimating || !currentTool || isGameOver || budget < 0) return;
+const cost = config.costs[currentTool] || 0;
+if (budget < cost) {
+alert("Not enough money!");
+return;
+}
+let cell = world[index];
+if (cell.base === 'lake' && !['power-line', 'bulldoze'].includes(currentTool)) return;
+let actionTaken = false;
+if (config.largeBuildings.includes(currentTool)) {
+if (check2x2Area(index)) {
+gameState.budget -= cost;
+place2x2Building(index, currentTool);
+actionTaken = true;
+} else {
+alert("Not enough space for this 2x2 building!");
+}
+} else if (currentTool === 'road') {
+if (cell.base === 'grass' && !cell.building) {
+gameState.budget -= cost;
+cell.base = 'road';
+cell.roadWear = 0;
+cell.hasTraffic = false;
+actionTaken = true;
+}
+} else if (currentTool === 'power-line') {
+if (!cell.hasPowerLine && !cell.building && (cell.base === 'grass' || cell.base === 'road')) {
+gameState.budget -= cost;
+cell.hasPowerLine = true;
+actionTaken = true;
+}
+} else if (currentTool === 'bulldoze') {
+if (cell.building || cell.hasPowerLine || cell.base === 'road') {
+gameState.budget -= cost;
+if (cell.building) {
+const buildingType = cell.building.type;
+if (config.largeBuildings.includes(buildingType)) {
+if (cell.building.originIndex !== undefined) {
+clear2x2Building(cell.building.originIndex);
+} else {
+cell.building = null;
+}
+} else {
+if (buildingType === 'industry') {
+industrialZones = industrialZones.filter(i => i !== index);
+}
+cell.building = null;
+}
+if (cell.onFire) cell.onFire = false;
+} else if (cell.hasPowerLine) {
+cell.hasPowerLine = false;
+} else if (cell.base === 'road') {
+cell.base = 'grass';
+cell.roadWear = 0;
+cell.hasTraffic = false;
+}
+actionTaken = true;
+}
+} else {
+if (!cell.building && cell.base === 'grass' && !cell.hasPowerLine) {
+gameState.budget -= cost;
+let buildingData = {
+type: currentTool,
+population: 0,
+powered: false
+};
+if (currentTool === 'park') buildingData.hasFountain = Math.random() < 0.1;
+if (currentTool === 'power-plant') {
+buildingData.powerLoad = 0;
+buildingData.isDamaged = false;
+}
+cell.building = buildingData;
+actionTaken = true;
+if (currentTool === 'industry') {
+industrialZones.push(index);
+}
+showTickerMessage(`Built ${config.buildingDisplayNames[currentTool]}.`);
+}
+}
+if (actionTaken) {
+distributePower();
+updateStatsPanel(gameState);
+updateMinimap();
+}
+}
+function place2x2Building(index, type) {
+const indices = [index, index + 1, index + config.gridSize, index + config.gridSize + 1];
+if (indices.every(i => i >= 0 && i < world.length)) {
+const buildingData = {
+type: type,
+powered: false,
+originIndex: index
+};
+if (type === 'power-plant') {
+buildingData.powerLoad = 0;
+buildingData.isDamaged = false;
+}
+indices.forEach((i, part) => {
+if (world[i]) {
+world[i].building = { ...buildingData, isPart: part > 0 };
+world[i].base = 'grass';
+world[i].hasPowerLine = false;
+}
+});
+showTickerMessage(`Built ${config.buildingDisplayNames[type]}.`);
+} else {
+console.error("Attempted to place 2x2 building out of bounds", index);
+}
+}
+let saveBtn, newGameBtn;
+function initGameManagerElements() {
+saveBtn = document.getElementById('save-btn');
+newGameBtn = document.getElementById('new-game-btn');
+}
+function init() {
+initCanvas();
+initUIElements();
+initGameManagerElements();
+const savedData = loadWorld();
+if (savedData) {
+gameState.budget = savedData.budget ?? 100000;
+gameState.population = savedData.population ?? 0;
+gameState.year = savedData.year ?? 2025;
+gameState.isGameOver = savedData.isGameOver ?? false;
+gameState.gameLog = savedData.gameLog ?? [];
+gameState.taxRate = savedData.taxRate ?? 0.7;
+document.querySelectorAll('.tax-btn').forEach((btn) => {
+btn.classList.remove('active');
+if (parseFloat(btn.dataset.rate) === gameState.taxRate) {
+btn.classList.add('active');
+}
+});
+} else {
+gameState.budget = 100000;
+gameState.population = 0;
+gameState.year = 2025;
+gameState.isGameOver = false;
+gameState.gameLog = [];
+gameState.taxRate = 0.7;
+document.querySelectorAll('.tax-btn').forEach(btn => btn.classList.remove('active'));
+const defaultTaxBtn = document.querySelector('.tax-btn[data-rate="0.7"]');
+if (defaultTaxBtn) defaultTaxBtn.classList.add('active');
+showHelp();
+}
+setupEventListeners();
+createClouds();
+distributePower();
+updateStatsPanel(gameState);
+updateMinimap();
+render();
+if (gameState.gameInterval) clearInterval(gameState.gameInterval);
+if (!gameState.isGameOver) {
+gameState.gameInterval = setInterval(gameTick, 10000);
+} else {
+handleGameOver(`Loaded game was already over in year ${gameState.year}.`);
+}
+}
+function gameTick() {
+if (gameState.isGameOver) {
+clearInterval(gameState.gameInterval);
+return;
+}
+const newStateChanges = simulateYear(gameState, logEvent);
+Object.assign(gameState, newStateChanges);
+updateStatsPanel(gameState);
+updateMinimap();
+if (gameState.population >= config.WIN_CONDITION_POPULATION && !gameState.isGameOver) {
+winGame();
+}
+if (gameState.budget < 0 && !gameState.isGameOver) {
+loseGame();
+}
+}
+function logEvent(message) {
+const entry = `Year ${gameState.year}: ${message}`;
+gameState.gameLog.unshift(entry);
+if (gameState.gameLog.length > config.MAX_LOG_ENTRIES) {
+gameState.gameLog.pop();
+}
+showTickerMessage(message);
+}
+function saveGame() {
+if (gameState.isGameOver) {
+showTickerMessage("Cannot save a completed game.");
+return;
+}
+try {
+const pollutionData = Array.from(pollutionGrid);
+const dataToSave = {
+world: world,
+pollutionGrid: pollutionData,
+budget: gameState.budget,
+population: gameState.population,
+year: gameState.year,
+isGameOver: gameState.isGameOver,
+gameLog: gameState.gameLog,
+taxRate: gameState.taxRate,
+};
+localStorage.setItem('cityBuilderSave', JSON.stringify(dataToSave));
+showTickerMessage("💾 Game saved!");
+} catch (e) {
+console.error('Error saving game:', e);
+if (e.name === 'QuotaExceededError') {
+alert('Could not save game: Storage quota exceeded. Try clearing some browser data.');
+} else {
+alert('Could not save the game. Your browser might be out of storage space or in private mode.');
+}
+}
+}
+function newGame(e) {
+if (e) e.preventDefault();
+if (confirm("Are you sure? This will delete your current city and start a new game.")) {
+localStorage.removeItem('cityBuilderSave');
+gameState.budget = 100000;
+gameState.population = 0;
+gameState.year = 2025;
+gameState.isGameOver = false;
+gameState.gameLog = [];
+gameState.isDisasterAnimating = false;
+gameState.taxRate = 0.7;
+gameState.currentTool = '';
+document.querySelectorAll('.tax-btn').forEach((b) => b.classList.remove('active'));
+const defaultTaxBtn = document.querySelector('.tax-btn[data-rate="0.7"]');
+if (defaultTaxBtn) defaultTaxBtn.classList.add('active');
+if (saveBtn) saveBtn.disabled = false;
+if (newGameBtn) {
+newGameBtn.textContent = "✨ New Game";
+newGameBtn.style.backgroundColor = '';
+}
+document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+if (canvas) canvas.className = '';
+initEmptyWorld();
+distributePower();
+updateStatsPanel(gameState);
+updateMinimap();
+updateIncomeExpense(0, 0);
+if (gameState.gameInterval) clearInterval(gameState.gameInterval);
+gameState.gameInterval = setInterval(gameTick, 10000);
+showTickerMessage("A new city has been founded!");
+hasScrolledToCenter = false;
+if (viewport.width > 0 && viewport.height > 0) {
+const totalMapWidth = config.gridSize * config.cellSize;
+const totalMapHeight = config.gridSize * config.cellSize;
+if (mapContainer) {
+mapContainer.scrollLeft = (totalMapWidth - viewport.width) / 2;
+mapContainer.scrollTop = (totalMapHeight - viewport.height) / 2;
+hasScrolledToCenter = true;
+updateMinimapViewport();
+}
+}
+}
+}
+function winGame() {
+if (gameState.isGameOver) return;
+gameState.isGameOver = true;
+logEvent(`🏆 Congratulations! You reached ${config.WIN_CONDITION_POPULATION.toLocaleString()} residents in year ${gameState.year}!`);
+clearInterval(gameState.gameInterval);
+const fireworks = document.getElementById('fireworks-container');
+if (fireworks) {
+fireworks.classList.add('active');
+fireworks.addEventListener('click', () => {
+fireworks.classList.remove('active');
+setTimeout(() => {
+handleGameOver("You won the game! Thanks for playing. Remember to save a screenshot before starting a new city!");
+}, 100);
+}, { once: true });
+} else {
+handleGameOver("You won the game! Thanks for playing. Remember to save a screenshot before starting a new city!");
+}
+}
+function loseGame() {
+if (gameState.isGameOver) return;
+gameState.isGameOver = true;
+logEvent(`BANKRUPTCY: The city went bankrupt in year ${gameState.year}.`);
+clearInterval(gameState.gameInterval);
+handleGameOver(`GAME OVER\n\nYour city went bankrupt in year ${gameState.year}!`);
+}
+function handleGameOver(message) {
+if (gameState.gameInterval) clearInterval(gameState.gameInterval);
+setTimeout(() => {
+alert(message);
+if (saveBtn) saveBtn.disabled = true;
+if (newGameBtn) {
+newGameBtn.textContent = "✨ Restart";
+newGameBtn.style.backgroundColor = '#4CAF50';
+}
+}, 100);
+}
+function onCanvasClick(e) {
+const index = getCellIndexFromEvent(e);
+if (index === -1) return;
+handleCellClick(index);
+}
+function onCanvasMouseOver(e) {
+const index = getCellIndexFromEvent(e);
+if (index === -1) {
+hideTooltip();
+return;
+}
+showTooltip(index, e);
+}
+function onCanvasMouseOut() {
+hideTooltip();
+}
+function handleMinimapNavigation(e) {
+const minimapCanvasEl = document.getElementById('minimap-canvas');
+if (!minimapCanvasEl || !gridContainer || !mapContainer) return;
+const rect = minimapCanvasEl.getBoundingClientRect();
+const clickX = e.clientX - rect.left;
+const clickY = e.clientY - rect.top;
+if (clickX < 0 || clickX > rect.width || clickY < 0 || clickY > rect.height) {
+return;
+}
+const xPercent = clickX / rect.width;
+const yPercent = clickY / rect.height;
+const totalMapWidth = gridContainer.scrollWidth;
+const totalMapHeight = gridContainer.scrollHeight;
+if (totalMapWidth === 0 || totalMapHeight === 0 || mapContainer.clientWidth === 0 || mapContainer.clientHeight === 0) return;
+const targetScrollLeft = (xPercent * totalMapWidth) - (mapContainer.clientWidth / 2);
+const targetScrollTop = (yPercent * totalMapHeight) - (mapContainer.clientHeight / 2);
+mapContainer.scrollLeft = targetScrollLeft;
+mapContainer.scrollTop = targetScrollTop;
+updateMinimapViewport();
+}
+function setupEventListeners() {
+if (canvas) {
+canvas.addEventListener('click', onCanvasClick);
+canvas.addEventListener('mousemove', onCanvasMouseOver);
+canvas.addEventListener('mouseout', onCanvasMouseOut);
+}
+if (mapContainer) {
+mapContainer.addEventListener('scroll', updateMinimapViewport);
+}
+const minimapWrapperEl = document.getElementById('minimap-wrapper');
+const nightModeBtn = document.getElementById('night-mode-btn');
+const cityLogBtn = document.getElementById('city-log-btn');
+const howToPlayBtn = document.getElementById('how-to-play-btn');
+const economyBtn = document.getElementById('economy-btn');
+const economyModalCloseBtn = document.getElementById('economy-modal-close');
+if (minimapWrapperEl) {
+minimapWrapperEl.addEventListener('mousedown', (e) => {
+gameState.isDraggingMinimap = true;
+handleMinimapNavigation(e);
+e.preventDefault();
+});
+}
+document.addEventListener('mousemove', (e) => {
+if (gameState.isDraggingMinimap) {
+handleMinimapNavigation(e);
+}
+});
+document.addEventListener('mouseup', () => {
+if (gameState.isDraggingMinimap) {
+gameState.isDraggingMinimap = false;
+}
+});
+document.querySelectorAll('.tool-btn').forEach((btn) => {
+btn.addEventListener('click', (e) => {
+document.querySelectorAll('.tool-btn').forEach((b) => b.classList.remove('active'));
+e.currentTarget.classList.add('active');
+gameState.currentTool = btn.dataset.tool;
+if (canvas) {
+canvas.className = btn.dataset.tool === 'bulldoze' ? 'bulldoze-cursor' : 'build-cursor';
+}
+});
+});
+document.querySelectorAll('.tax-btn').forEach((btn) => {
+btn.addEventListener('click', (e) => {
+gameState.taxRate = parseFloat(e.currentTarget.dataset.rate);
+document.querySelectorAll('.tax-btn').forEach((b) => b.classList.remove('active'));
+e.currentTarget.classList.add('active');
+showTickerMessage(`Taxes set to ${e.currentTarget.textContent.trim()}.`);
+});
+});
+if (nightModeBtn) {
+nightModeBtn.addEventListener('click', () => {
+if (gameLayout) gameLayout.classList.toggle('night-mode');
+});
+}
+if (saveBtn) saveBtn.addEventListener('click', saveGame);
+if (newGameBtn) newGameBtn.addEventListener('click', newGame);
+if (cityLogBtn) cityLogBtn.addEventListener('click', () => showLog(gameState.gameLog));
+if (howToPlayBtn) howToPlayBtn.addEventListener('click', showHelp);
+if (economyBtn) economyBtn.addEventListener('click', showEconomyWindow);
+if (economyModalCloseBtn) {
+economyModalCloseBtn.addEventListener('click', () => {
+const modal = document.getElementById('economy-modal');
+if (modal) modal.style.display = 'none';
+});
+}
+document.querySelectorAll('.modal').forEach(modal => {
+const closeBtn = modal.querySelector('.modal-close');
+if (closeBtn && !closeBtn.onclick) {
+closeBtn.onclick = () => { modal.style.display = 'none'; };
+}
+modal.addEventListener('click', (e) => {
+if (e.target === modal) {
+modal.style.display = 'none';
+}
+});
+});
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Golf</title>
+<meta name="description" content="This is a 10-hole mini-golf game where you compete against an AI opponent.">
+<meta name="robots" content="index, follow">
+<style>
+html,
+body {
+width: 100%;
+height: 100%;
+margin: 0;
+padding: 0;
+overflow: hidden;
+}
+body {
+background-color: #021a02;
+color: #0f0;
+font-family: 'Courier New', Courier, monospace;
+display: flex;
+box-sizing: border-box;
+}
+#game-container {
+flex-grow: 1;
+display: flex;
+justify-content: center;
+align-items: center;
+box-sizing: border-box;
+height: 100%;
+}
+canvas {
+background-color: #052005;
+border: 1px solid #0f0;
+box-shadow: 0 0 25px #0f0, inset 0 0 10px #0a4d0a;
+cursor: crosshair;
+max-width: 100%;
+max-height: 100%;
+object-fit: contain;
+display: block;
+}
+.score-display {
+color: #a7ff9d;
+font-size: 1em;
+height: auto;
+margin-bottom: 15px;
+text-align: center;
+}
+h1 {
+font-size: 2.0rem;
+color: #39ff14;
+text-shadow: 0 0 10px #39ff14;
+letter-spacing: 2px;
+margin: 0 0 10px 0;
+}
+.info-panel {
+width: 280px;
+flex-shrink: 0;
+padding: 15px;
+border-left: 1px solid #0f0;
+box-shadow: -5px 0 15px #0f0;
+background-color: #051505;
+text-align: center;
+overflow-y: auto;
+height: 100%;
+box-sizing: border-box;
+}
+.info-panel p,
+.info-panel li {
+color: #a7ff9d;
+font-size: 0.9em;
+line-height: 1.5;
+text-align: left;
+}
+.info-panel ul {
+padding-left: 20px;
+}
+.hidden {
+display: none;
+}
+.game-button {
+padding: 15px 30px;
+font-family: 'Courier New', Courier, monospace;
+font-size: 1.5em;
+color: #39ff14;
+background-color: #051505;
+border: 1px solid #0f0;
+box-shadow: 0 0 15px #0f0;
+cursor: pointer;
+text-shadow: 0 0 10px #39ff14;
+margin-top: 20px;
+}
+.game-button:hover {
+background-color: #0a2a0a;
+}
+#play-again-btn {
+display: none;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+right: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="game-container">
+<canvas id="gameCanvas"></canvas>
+</div>
+<div class="info-panel">
+<h1>MINI GOLF</h1>
+<p id="turn-indicator" class="score-display hidden">Your turn. Aim and shoot!</p>
+<p id="score-1" class="score-display hidden">
+Hole: <span id="hole-number">1</span>/<span id="total-holes">10</span> |
+You: <span id="player-strokes">0</span> |
+AI: <span id="ai-strokes">0</span>
+</p>
+<p id="score-2" class="score-display hidden">
+Total You: <span id="player-total">0</span> |
+Total AI: <span id="ai-total">0</span>
+</p>
+<p>The goal is to complete 10 holes with the fewest strokes.</p>
+<ul>
+<li>Click and drag from your ball (cyan) to aim. Release to shoot.</li>
+<li>Watch out for the wandering turtle! If you hit it, you forfeit the hole.</li>
+<li>The player with the fewest strokes after 10 holes wins.</li>
+</ul>
+<button id="start-game-btn" class="game-button">Start Game</button>
+<button id="play-again-btn" class="game-button">Play Again</button>
+</div>
+<script>
+'use strict';
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const CONSTANTS = {
+LOGICAL_WIDTH: 800,
+LOGICAL_HEIGHT: 600,
+TOTAL_HOLES: 10,
+BALL_RADIUS: 10,
+FRICTION: 0.98,
+PLAYER_MAX_POWER: 18,
+HOLE_RADIUS: 20,
+HOLE_GRAVITY: 0.2,
+MAX_SPEED_TO_SINK: 16.0,
+RESTITUTION: 0.9,
+STOP_THRESHOLD: 0.01,
+TURTLE_RADIUS: 15,
+TURTLE_SPEED: 40,
+TURTLE_PENALTY_STROKES: 10,
+AI_THINK_TIME_MS: 1000,
+AI_PUTT_DISTANCE: 150,
+AI_MAX_POWER: 18,
+PLAYER_BALL_COLOR: '#00ffff',
+AI_BALL_COLOR: '#ffff00',
+OBSTACLE_COLOR: '#ff1493',
+TURTLE_COLOR: '#228B22',
+HOLE_STROKE_COLOR: '#39ff14',
+};
+const ui = {
+turn: document.getElementById('turn-indicator'),
+hole: document.getElementById('hole-number'),
+totalHoles: document.getElementById('total-holes'),
+playerStrokes: document.getElementById('player-strokes'),
+aiStrokes: document.getElementById('ai-strokes'),
+playerTotal: document.getElementById('player-total'),
+aiTotal: document.getElementById('ai-total'),
+playAgainBtn: document.getElementById('play-again-btn'),
+startGameBtn: document.getElementById('start-game-btn'),
+score1: document.getElementById('score-1'),
+score2: document.getElementById('score-2'),
+};
+let gameState = 'PRE_GAME';
+let currentHole = 1;
+let scores = {
+player: { current: 0, total: 0 },
+ai: { current: 0, total: 0 },
+};
+const startPos = { x: 70, y: 300 };
+let playerBall = { x: startPos.x, y: startPos.y, dx: 0, dy: 0, radius: CONSTANTS.BALL_RADIUS, inHole: false };
+let aiBall = { x: startPos.x, y: startPos.y, dx: 0, dy: 0, radius: CONSTANTS.BALL_RADIUS, inHole: false };
+let hole = { x: 750, y: 300, radius: CONSTANTS.HOLE_RADIUS };
+let obstacles = [];
+let turtle = { x: 400, y: 100, dx: 0.8, dy: 1, radius: CONSTANTS.TURTLE_RADIUS };
+let particles = [];
+let shooting = { active: false, x: 0, y: 0 };
+let transitionMessage = '';
+let finalMessage = '';
+let lastTime = 0;
+function startGame() {
+ui.startGameBtn.style.display = 'none';
+ui.turn.classList.remove('hidden');
+ui.score1.classList.remove('hidden');
+ui.score2.classList.remove('hidden');
+lastTime = performance.now();
+resetGame();
+}
+function resetGame() {
+currentHole = 1;
+scores = { player: { current: 0, total: 0 }, ai: { current: 0, total: 0 } };
+finalMessage = '';
+transitionMessage = '';
+ui.playAgainBtn.style.display = 'none';
+generateCourse();
+updateUI();
+gameState = 'PLAYER_TURN';
+ui.turn.innerText = 'Your turn. Aim and shoot!';
+}
+function switchTurn() {
+const lastState = gameState;
+if (lastState !== 'PLAYER_SHOOTING' && lastState !== 'AI_SHOOTING') return;
+if (lastState === 'PLAYER_SHOOTING') {
+gameState = aiBall.inHole ? 'PLAYER_TURN' : 'AI_TURN';
+} else if (lastState === 'AI_SHOOTING') {
+gameState = playerBall.inHole ? 'AI_TURN' : 'PLAYER_TURN';
+}
+if (gameState === 'AI_TURN') {
+ui.turn.innerText = 'AI is thinking...';
+setTimeout(aiShoot, CONSTANTS.AI_THINK_TIME_MS);
+} else if (gameState === 'PLAYER_TURN') {
+ui.turn.innerText = 'Your turn. Aim and shoot!';
+}
+}
+function checkRoundEnd() {
+if (playerBall.inHole && aiBall.inHole) {
+startTransition();
+return true;
+}
+return false;
+}
+function endRoundWithPenalty() {
+gameState = 'TRANSITION';
+transitionMessage = 'You hit the turtle!';
+scores.player.current = CONSTANTS.TURTLE_PENALTY_STROKES;
+scores.ai.current = Math.max(1, scores.ai.current);
+playerBall.inHole = true;
+aiBall.inHole = true;
+updateUI();
+setTimeout(startTransition, 2000);
+}
+function startTransition() {
+gameState = 'TRANSITION';
+if (!transitionMessage) {
+transitionMessage = `Hole ${currentHole} Complete!`;
+}
+scores.player.total += scores.player.current;
+scores.ai.total += scores.ai.current;
+updateUI();
+if (currentHole >= CONSTANTS.TOTAL_HOLES) {
+finalMessage = `You: ${scores.player.total} | AI: ${scores.ai.total}. `;
+if (scores.player.total < scores.ai.total) {
+finalMessage += 'You win!';
+} else if (scores.ai.total < scores.player.total) {
+finalMessage += 'AI wins!';
+} else {
+finalMessage += "It's a tie!";
+}
+ui.playAgainBtn.style.display = 'block';
+} else {
+setTimeout(startNextHole, 2500);
+}
+}
+function startNextHole() {
+currentHole++;
+scores.player.current = 0;
+scores.ai.current = 0;
+transitionMessage = '';
+finalMessage = '';
+updateUI();
+generateCourse();
+gameState = 'PLAYER_TURN';
+ui.turn.innerText = 'Your turn. Aim and shoot!';
+}
+function generateCourse() {
+obstacles = [];
+playerBall = { ...playerBall, x: startPos.x, y: startPos.y, dx: 0, dy: 0, inHole: false };
+aiBall = { ...aiBall, x: startPos.x, y: startPos.y, dx: 0, dy: 0, inHole: false };
+spawnTurtle();
+const reservedAreas = [{ x: startPos.x, y: startPos.y, radius: 40 }, turtle];
+let holeCircle;
+do {
+hole.x = Math.random() * (canvas.width / 2 - 100) + canvas.width / 2;
+hole.y = Math.random() * (canvas.height - 100) + 50;
+holeCircle = { x: hole.x, y: hole.y, radius: hole.radius + 10 };
+} while (checkCircleOverlap(holeCircle, reservedAreas[0]));
+reservedAreas.push(holeCircle);
+const blockCount = Math.floor(Math.random() * 2) + 1;
+for (let i = 0; i < blockCount; i++) {
+const pointOnPath = {
+x: startPos.x + (hole.x - startPos.x) * (Math.random() * 0.4 + 0.3),
+y: startPos.y + (hole.y - startPos.y) * (Math.random() * 0.4 + 0.3),
+};
+const blockingObstacle = {
+x: pointOnPath.x + (Math.random() - 0.5) * 150,
+y: pointOnPath.y + (Math.random() - 0.5) * 150,
+radius: Math.random() * 25 + 15,
+};
+if (!checkCircleOverlap(blockingObstacle, reservedAreas[0]) && !checkCircleOverlap(blockingObstacle, holeCircle)) {
+obstacles.push(blockingObstacle);
+reservedAreas.push(blockingObstacle);
+}
+}
+const randomObstacleCount = Math.floor(Math.random() * 4) + 3;
+for (let i = 0; i < randomObstacleCount; i++) {
+let newObstacle, overlap, tries = 0;
+do {
+tries++;
+if (tries > 50) break;
+overlap = false;
+newObstacle = {
+x: Math.random() * (canvas.width - 200) + 100,
+y: Math.random() * (canvas.height - 100) + 50,
+radius: Math.random() * 20 + 10,
+};
+for (const area of [...reservedAreas, ...obstacles]) {
+if (checkCircleOverlap(newObstacle, area)) {
+overlap = true;
+break;
+}
+}
+} while (overlap);
+if (!overlap) obstacles.push(newObstacle);
+}
+}
+function spawnTurtle() {
+turtle.x = canvas.width / 2;
+turtle.y = 50;
+const angle = Math.random() * Math.PI * 2;
+turtle.dx = Math.cos(angle);
+turtle.dy = Math.sin(angle);
+}
+function aiShoot() {
+if (aiBall.inHole) return;
+scores.ai.current++;
+updateUI();
+ui.turn.innerText = "AI's turn";
+gameState = 'AI_SHOOTING';
+let target;
+let shotType = 'fallback';
+if (isPathClear(aiBall, hole)) {
+target = { ...hole };
+shotType = 'direct';
+} else {
+const bankShots = findAllBankShots();
+if (bankShots.length > 0) {
+let bestBankShot = bankShots[0];
+let minPower = Infinity;
+for (const shot of bankShots) {
+const dist = Math.sqrt((shot.target.x - aiBall.x) ** 2 + (shot.target.y - aiBall.y) ** 2);
+const power = dist / 23 + 1.5;
+if (power < minPower) {
+minPower = power;
+bestBankShot = shot;
+}
+}
+target = bestBankShot.target;
+shotType = 'bank';
+} else {
+target = findAlternateTarget(aiBall, hole);
+shotType = 'escape';
+}
+}
+const distToTarget = Math.sqrt((target.x - aiBall.x) ** 2 + (target.y - aiBall.y) ** 2);
+let power;
+if (shotType === 'direct' && distToTarget < CONSTANTS.AI_PUTT_DISTANCE) {
+power = distToTarget / 50;
+} else if (shotType === 'direct') {
+power = distToTarget / 35;
+} else {
+power = Math.min(distToTarget / 25 + 1, CONSTANTS.AI_MAX_POWER);
+}
+const angle = Math.atan2(target.y - aiBall.y, target.x - aiBall.x);
+aiBall.dx = power * Math.cos(angle);
+aiBall.dy = power * Math.sin(angle);
+}
+function findAlternateTarget(start, end) {
+if (obstacles.length === 0) return end;
+let bestTarget = null;
+let minDistance = Infinity;
+for (const ob of obstacles) {
+const angleToObstacle = Math.atan2(ob.y - start.y, ob.x - start.x);
+for (let side = -1; side <= 1; side += 2) {
+const targetPoint = {
+x: ob.x + Math.cos(angleToObstacle + (Math.PI / 2) * side) * (ob.radius + 15),
+y: ob.y + Math.sin(angleToObstacle + (Math.PI / 2) * side) * (ob.radius + 15)
+};
+if (isPathClear(start, targetPoint)) {
+const distToEnd = Math.sqrt((targetPoint.x - end.x) ** 2 + (targetPoint.y - end.y) ** 2);
+if (distToEnd < minDistance) {
+minDistance = distToEnd;
+bestTarget = targetPoint;
+}
+}
+}
+}
+return bestTarget || end;
+}
+function findAllBankShots() {
+let validShots = [];
+const surfaces = [
+{ p1: { x: 0, y: 0 }, p2: { x: 0, y: canvas.height } },
+{ p1: { x: canvas.width, y: 0 }, p2: { x: canvas.width, y: canvas.height } },
+{ p1: { x: 0, y: 0 }, p2: { x: canvas.width, y: 0 } },
+{ p1: { x: 0, y: canvas.height }, p2: { x: canvas.width, y: canvas.height } },
+];
+for (const surface of surfaces) {
+let reflectedHole;
+if (surface.p1.x === surface.p2.x) {
+reflectedHole = { x: 2 * surface.p1.x - hole.x, y: hole.y };
+} else {
+reflectedHole = { x: hole.x, y: 2 * surface.p1.y - hole.y };
+}
+if (isPathClear(aiBall, reflectedHole)) {
+const intersectPoint = lineIntersect(aiBall, reflectedHole, surface.p1, surface.p2);
+if (intersectPoint && isPathClear(intersectPoint, hole)) {
+validShots.push({ target: reflectedHole });
+}
+}
+}
+return validShots;
+}
+function moveBall(ball, deltaTime) {
+if (ball.inHole) return;
+const frictionMultiplier = Math.pow(CONSTANTS.FRICTION, deltaTime * 60);
+ball.dx *= frictionMultiplier;
+ball.dy *= frictionMultiplier;
+handleHoleInteraction(ball, deltaTime);
+ball.x += ball.dx * 60 * deltaTime;
+ball.y += ball.dy * 60 * deltaTime;
+checkCollisions(ball);
+}
+function moveTurtle(deltaTime) {
+turtle.x += turtle.dx * CONSTANTS.TURTLE_SPEED * deltaTime;
+turtle.y += turtle.dy * CONSTANTS.TURTLE_SPEED * deltaTime;
+if (turtle.x + turtle.radius > canvas.width || turtle.x - turtle.radius < 0) turtle.dx *= -1;
+if (turtle.y + turtle.radius > canvas.height || turtle.y - turtle.radius < 0) turtle.dy *= -1;
+}
+function handleHoleInteraction(ball, deltaTime) {
+const dist = Math.sqrt((ball.x - hole.x) ** 2 + (ball.y - hole.y) ** 2);
+if (dist < hole.radius) {
+const gravity = CONSTANTS.HOLE_GRAVITY * 60 * deltaTime;
+ball.dx -= (ball.x - hole.x) * gravity;
+ball.dy -= (ball.y - hole.y) * gravity;
+const speed = Math.sqrt(ball.dx ** 2 + ball.dy ** 2);
+if (dist < 5 && speed < CONSTANTS.MAX_SPEED_TO_SINK) {
+ball.inHole = true;
+ball.dx = 0;
+ball.dy = 0;
+ball.x = hole.x;
+ball.y = hole.y;
+}
+}
+}
+function checkCollisions(ball) {
+const restitution = CONSTANTS.RESTITUTION;
+if (ball.x + ball.radius > canvas.width) {
+ball.x = canvas.width - ball.radius;
+ball.dx *= -restitution;
+} else if (ball.x - ball.radius < 0) {
+ball.x = ball.radius;
+ball.dx *= -restitution;
+}
+if (ball.y + ball.radius > canvas.height) {
+ball.y = canvas.height - ball.radius;
+ball.dy *= -restitution;
+} else if (ball.y - ball.radius < 0) {
+ball.y = ball.radius;
+ball.dy *= -restitution;
+}
+obstacles.forEach((ob) => {
+const dist = Math.sqrt((ball.x - ob.x) ** 2 + (ball.y - ob.y) ** 2);
+if (dist < ball.radius + ob.radius) {
+const overlap = ball.radius + ob.radius - dist;
+const nx = (ball.x - ob.x) / dist;
+const ny = (ball.y - ob.y) / dist;
+ball.x += overlap * nx;
+ball.y += overlap * ny;
+const dot = ball.dx * nx + ball.dy * ny;
+ball.dx -= 2 * dot * nx * restitution;
+ball.dy -= 2 * dot * ny * restitution;
+}
+});
+}
+function isBallStopped(ball) {
+if (ball.inHole) return true;
+if (Math.abs(ball.dx) < CONSTANTS.STOP_THRESHOLD && Math.abs(ball.dy) < CONSTANTS.STOP_THRESHOLD) {
+ball.dx = 0;
+ball.dy = 0;
+return true;
+}
+return false;
+}
+function checkCircleOverlap(c1, c2) {
+const dist = Math.sqrt((c1.x - c2.x) ** 2 + (c1.y - c2.y) ** 2);
+return dist < c1.radius + c2.radius;
+}
+function isPathClear(start, end) {
+if (lineCircleIntersect(start, end, turtle, CONSTANTS.TURTLE_RADIUS + CONSTANTS.BALL_RADIUS)) return false;
+for (const ob of obstacles) {
+if (lineCircleIntersect(start, end, ob, ob.radius + CONSTANTS.BALL_RADIUS)) return false;
+}
+return true;
+}
+function lineCircleIntersect(p1, p2, circle, radius) {
+const dx = p2.x - p1.x;
+const dy = p2.y - p1.y;
+const a = dx * dx + dy * dy;
+const b = 2 * (dx * (p1.x - circle.x) + dy * (p1.y - circle.y));
+const c = (p1.x - circle.x) ** 2 + (p1.y - circle.y) ** 2 - radius ** 2;
+if (a === 0) return false;
+const delta = b * b - 4 * a * c;
+if (delta < 0) return false;
+const t1 = (-b - Math.sqrt(delta)) / (2 * a);
+const t2 = (-b + Math.sqrt(delta)) / (2 * a);
+return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+}
+function lineIntersect(p1, p2, p3, p4) {
+const den = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
+if (den === 0) return null;
+const t = ((p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x)) / den;
+const u = -((p1.x - p2.x) * (p1.y - p3.y) - (p1.y - p2.y) * (p1.x - p3.x)) / den;
+if (t > 0 && t < 1 && u >= 0 && u <= 1) {
+return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
+}
+return null;
+}
+function createExplosion(x, y) {
+for (let i = 0; i < 30; i++) {
+particles.push({
+x: x, y: y,
+dx: (Math.random() - 0.5) * 3,
+dy: (Math.random() - 0.5) * 3,
+life: 50,
+color: `hsl(${Math.random() * 60 + 30}, 100%, 50%)`,
+});
+}
+}
+function updateParticles(deltaTime) {
+for (let i = particles.length - 1; i >= 0; i--) {
+const p = particles[i];
+p.x += p.dx * 60 * deltaTime;
+p.y += p.dy * 60 * deltaTime;
+p.dy += 0.1 * 60 * deltaTime;
+p.life -= 2 * 60 * deltaTime;
+if (p.life <= 0) particles.splice(i, 1);
+}
+}
+function update(deltaTime) {
+if (gameState === 'PRE_GAME' || gameState === 'TRANSITION') return;
+if (deltaTime > 0.1) deltaTime = 0.1;
+moveTurtle(deltaTime);
+updateParticles(deltaTime);
+const distToTurtle = Math.sqrt((playerBall.x - turtle.x) ** 2 + (playerBall.y - turtle.y) ** 2);
+if (!playerBall.inHole && gameState === 'PLAYER_SHOOTING' && distToTurtle < playerBall.radius + turtle.radius) {
+createExplosion(playerBall.x, playerBall.y);
+endRoundWithPenalty();
+return;
+}
+if (gameState === 'PLAYER_SHOOTING') {
+moveBall(playerBall, deltaTime);
+if (isBallStopped(playerBall) || playerBall.inHole) {
+checkRoundEnd() || switchTurn();
+}
+} else if (gameState === 'AI_SHOOTING') {
+moveBall(aiBall, deltaTime);
+if (isBallStopped(aiBall) || aiBall.inHole) {
+checkRoundEnd() || switchTurn();
+}
+}
+}
+function draw() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+if (gameState === 'PRE_GAME') return;
+ctx.beginPath();
+ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
+ctx.fillStyle = '#000';
+ctx.strokeStyle = CONSTANTS.HOLE_STROKE_COLOR;
+ctx.lineWidth = 2;
+ctx.fill();
+ctx.stroke();
+ctx.fillStyle = CONSTANTS.OBSTACLE_COLOR;
+ctx.shadowColor = CONSTANTS.OBSTACLE_COLOR;
+ctx.shadowBlur = 10;
+obstacles.forEach((ob) => {
+ctx.beginPath();
+ctx.arc(ob.x, ob.y, ob.radius, 0, Math.PI * 2);
+ctx.fill();
+});
+ctx.shadowBlur = 0;
+drawTurtle();
+if (!aiBall.inHole) drawBall(aiBall, 'AI', CONSTANTS.AI_BALL_COLOR);
+if (!playerBall.inHole) drawBall(playerBall, 'You', CONSTANTS.PLAYER_BALL_COLOR);
+drawParticles();
+if (shooting.active && (shooting.x !== playerBall.x || shooting.y !== playerBall.y)) {
+ctx.beginPath();
+ctx.moveTo(playerBall.x, playerBall.y);
+ctx.lineTo(shooting.x, shooting.y);
+ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+ctx.lineWidth = 2;
+ctx.stroke();
+}
+if (gameState === 'TRANSITION') {
+ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+ctx.fillStyle = '#39ff14';
+ctx.textAlign = 'center';
+ctx.font = '40px "Courier New"';
+ctx.fillText(transitionMessage, canvas.width / 2, canvas.height / 2);
+if (finalMessage) {
+ctx.font = '24px "Courier New"';
+ctx.fillText(finalMessage, canvas.width / 2, canvas.height / 2 + 50);
+}
+}
+}
+function drawBall(ball, text, color) {
+ctx.fillStyle = color;
+ctx.shadowColor = color;
+ctx.shadowBlur = 15;
+ctx.beginPath();
+ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+ctx.fill();
+ctx.shadowBlur = 0;
+ctx.fillStyle = '#000';
+ctx.font = '12px "Courier New"';
+ctx.textAlign = 'center';
+ctx.fillText(text, ball.x, ball.y + 4);
+}
+function drawTurtle() {
+ctx.fillStyle = CONSTANTS.TURTLE_COLOR;
+ctx.strokeStyle = '#90EE90';
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.arc(turtle.x, turtle.y, turtle.radius, 0, Math.PI * 2);
+ctx.fill();
+ctx.stroke();
+ctx.beginPath();
+ctx.moveTo(turtle.x, turtle.y - turtle.radius);
+ctx.lineTo(turtle.x, turtle.y + turtle.radius);
+ctx.moveTo(turtle.x - turtle.radius, turtle.y);
+ctx.lineTo(turtle.x + turtle.radius, turtle.y);
+ctx.stroke();
+}
+function drawParticles() {
+particles.forEach((p) => {
+ctx.fillStyle = p.color;
+ctx.globalAlpha = Math.max(0, p.life / 50);
+ctx.beginPath();
+ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+ctx.fill();
+});
+ctx.globalAlpha = 1.0;
+}
+function gameLoop(currentTime) {
+const deltaTime = (currentTime - lastTime) / 1000;
+lastTime = currentTime;
+update(deltaTime || 0);
+draw();
+requestAnimationFrame(gameLoop);
+}
+function updateUI() {
+ui.hole.innerText = currentHole;
+ui.totalHoles.innerText = CONSTANTS.TOTAL_HOLES;
+ui.playerStrokes.innerText = scores.player.current;
+ui.aiStrokes.innerText = scores.ai.current;
+ui.playerTotal.innerText = scores.player.total;
+ui.aiTotal.innerText = scores.ai.total;
+}
+function getMousePos(e) {
+const rect = canvas.getBoundingClientRect();
+const scaleX = canvas.width / rect.width;
+const scaleY = canvas.height / rect.height;
+return {
+x: (e.clientX - rect.left) * scaleX,
+y: (e.clientY - rect.top) * scaleY,
+};
+}
+function resizeCanvas() {
+const container = document.getElementById('game-container');
+const aspectRatio = canvas.width / canvas.height;
+let newWidth = container.clientWidth;
+let newHeight = container.clientHeight;
+const containerAspectRatio = newWidth / newHeight;
+if (containerAspectRatio > aspectRatio) {
+newWidth = newHeight * aspectRatio;
+} else {
+newHeight = newWidth / aspectRatio;
+}
+canvas.style.width = `${newWidth}px`;
+canvas.style.height = `${newHeight}px`;
+}
+ui.startGameBtn.addEventListener('click', startGame);
+ui.playAgainBtn.addEventListener('click', resetGame);
+canvas.addEventListener('mousedown', (e) => {
+if (gameState === 'PLAYER_TURN') {
+shooting.active = true;
+shooting.x = playerBall.x;
+shooting.y = playerBall.y;
+}
+});
+canvas.addEventListener('mouseup', (e) => {
+if (!shooting.active) return;
+shooting.active = false;
+const mousePos = getMousePos(e);
+gameState = 'PLAYER_SHOOTING';
+scores.player.current++;
+updateUI();
+ui.turn.innerText = 'Shooting...';
+const dx = mousePos.x - playerBall.x;
+const dy = mousePos.y - playerBall.y;
+const dist = Math.sqrt(dx * dx + dy * dy);
+if (dist > 0) {
+const power = Math.min(dist / 10, CONSTANTS.PLAYER_MAX_POWER);
+playerBall.dx = (dx / dist) * power;
+playerBall.dy = (dy / dist) * power;
+}
+});
+canvas.addEventListener('mousemove', (e) => {
+if (shooting.active) {
+const mousePos = getMousePos(e);
+shooting.x = mousePos.x;
+shooting.y = mousePos.y;
+}
+});
+window.addEventListener('resize', resizeCanvas);
+canvas.width = CONSTANTS.LOGICAL_WIDTH;
+canvas.height = CONSTANTS.LOGICAL_HEIGHT;
+resizeCanvas();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

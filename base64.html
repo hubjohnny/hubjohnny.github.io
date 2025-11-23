@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base64 Generator</title>
+<meta name="description" content="Base64 Generator that works for both images and audio files, organized into two separate tabs.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--bg-color: #1a1a1a;
+--toolbar-color: #2c2c2c;
+--text-color: #e0e0e0;
+--accent-color: #00aaff;
+--glow-color: #00aaff;
+--button-bg-color: #444;
+--info-color: #aaa;
+}
+html,
+body {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100vh;
+background-color: var(--bg-color);
+color: var(--text-color);
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+overflow: hidden;
+}
+#main-container {
+display: flex;
+width: 100%;
+height: 100%;
+}
+#toolbar {
+width: 280px;
+flex-shrink: 0;
+background-color: var(--toolbar-color);
+display: flex;
+flex-direction: column;
+padding: 15px 12px;
+gap: 20px;
+box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+overflow-y: auto;
+z-index: 10;
+}
+.toolbar-group {
+border-bottom: 1px solid #444;
+padding-bottom: 20px;
+}
+.toolbar-group:last-child {
+border-bottom: none;
+}
+.tab-container {
+display: flex;
+width: 100%;
+}
+.tab-button {
+flex: 1;
+padding: 10px;
+background-color: var(--button-bg-color);
+color: var(--text-color);
+border: none;
+cursor: pointer;
+font-size: 1rem;
+transition: background-color 0.2s, color 0.2s;
+border-bottom: 3px solid transparent;
+}
+.tab-button:first-child {
+border-radius: 4px 0 0 4px;
+}
+.tab-button:last-child {
+border-radius: 0 4px 4px 0;
+}
+.tab-button.active {
+background-color: #111;
+color: var(--accent-color);
+border-bottom: 3px solid var(--accent-color);
+font-weight: 600;
+}
+.tab-panel {
+display: none;
+}
+.tab-panel.active {
+display: flex;
+flex-direction: column;
+gap: 20px;
+}
+.slider-container {
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+.slider-label-container {
+display: flex;
+justify-content: space-between;
+align-items: center;
+}
+.info-display {
+font-size: 0.8rem;
+color: var(--info-color);
+text-align: right;
+}
+input[type="range"] {
+-webkit-appearance: none;
+appearance: none;
+width: 100%;
+height: 5px;
+background: #4f4f4f;
+border-radius: 5px;
+outline: none;
+transition: opacity 0.2s;
+}
+input[type="range"]:disabled {
+opacity: 0.5;
+}
+input[type="range"]::-webkit-slider-thumb {
+-webkit-appearance: none;
+appearance: none;
+width: 15px;
+height: 15px;
+background: var(--accent-color);
+cursor: pointer;
+border-radius: 50%;
+}
+input[type="range"]::-moz-range-thumb {
+width: 15px;
+height: 15px;
+background: var(--accent-color);
+cursor: pointer;
+border-radius: 50%;
+border: none;
+}
+.emoji-button {
+font-size: 1.5rem;
+cursor: pointer;
+background: none;
+border: none;
+color: var(--text-color);
+transition: transform 0.2s, text-shadow 0.2s, opacity 0.2s;
+padding: 0;
+}
+.emoji-button:hover:not(:disabled) {
+transform: scale(1.1);
+}
+.emoji-button:disabled,
+.emoji-button.disabled-visual {
+cursor: not-allowed;
+opacity: 0.5;
+}
+.text-button {
+background-color: var(--button-bg-color);
+padding: 8px 12px;
+border-radius: 4px;
+text-decoration: none;
+color: var(--text-color);
+font-size: 0.9rem;
+font-weight: 500;
+transition: background-color 0.2s, transform 0.2s, opacity 0.2s;
+border: none;
+cursor: pointer;
+text-align: center;
+display: block;
+}
+.text-button:hover:not([disabled]):not(.disabled-visual) {
+background-color: var(--accent-color);
+color: #fff;
+transform: scale(1.02);
+}
+.text-button[disabled],
+.text-button.disabled-visual {
+opacity: 0.5;
+cursor: not-allowed;
+}
+.disabled-link {
+pointer-events: none;
+}
+#download-button.glow {
+box-shadow: 0 0 8px var(--glow-color), 0 0 10px var(--glow-color);
+}
+#char-count,
+#file-size,
+#image-dimensions {
+font-family: 'Courier New', Courier, monospace;
+background-color: #111;
+padding: 5px 8px;
+border-radius: 4px;
+font-size: 0.9rem;
+white-space: nowrap;
+text-align: center;
+}
+#preview-container {
+flex-grow: 1;
+display: flex;
+justify-content: center;
+align-items: center;
+padding: 10px;
+box-sizing: border-box;
+position: relative;
+overflow: hidden;
+transition: background-color 0.3s;
+}
+#preview-container.dragover {
+background-color: rgba(0, 170, 255, 0.2);
+}
+#preview-image {
+max-width: 100%;
+max-height: 100%;
+object-fit: contain;
+display: none;
+}
+#placeholder-text {
+font-size: 1.2rem;
+color: #555;
+text-align: center;
+}
+#crop-actions {
+display: none;
+margin-top: 10px;
+gap: 10px;
+flex-direction: row;
+}
+#crop-actions .text-button {
+flex: 1;
+}
+#preview-container.cropping {
+cursor: crosshair;
+}
+#crop-box {
+position: absolute;
+border: 1px dashed #fff;
+box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+z-index: 20;
+cursor: move;
+display: none;
+}
+.resize-handle {
+position: absolute;
+width: 10px;
+height: 10px;
+background-color: var(--accent-color);
+border: 1px solid #fff;
+border-radius: 2px;
+z-index: 21;
+}
+#handle-nw {
+top: -6px;
+left: -6px;
+cursor: nwse-resize;
+}
+#handle-ne {
+top: -6px;
+right: -6px;
+cursor: nesw-resize;
+}
+#handle-sw {
+bottom: -6px;
+left: -6px;
+cursor: nesw-resize;
+}
+#handle-se {
+bottom: -6px;
+right: -6px;
+cursor: nwse-resize;
+}
+#handle-n {
+top: -6px;
+left: 50%;
+transform: translateX(-50%);
+cursor: ns-resize;
+}
+#handle-s {
+bottom: -6px;
+left: 50%;
+transform: translateX(-50%);
+cursor: ns-resize;
+}
+#handle-w {
+left: -6px;
+top: 50%;
+transform: translateY(-50%);
+cursor: ew-resize;
+}
+#handle-e {
+right: -6px;
+top: 50%;
+transform: translateY(-50%);
+cursor: ew-resize;
+}
+#crop-info {
+position: absolute;
+background-color: rgba(0, 0, 0, 0.8);
+color: #fff;
+padding: 4px 8px;
+border-radius: 3px;
+font-family: 'Courier New', Courier, monospace;
+font-size: 0.9rem;
+z-index: 22;
+pointer-events: none;
+display: none;
+}
+#audio-base64-output {
+width: 100%;
+height: 250px;
+background-color: #111;
+color: var(--text-color);
+border: 1px solid #444;
+border-radius: 4px;
+padding: 8px;
+font-family: 'Courier New', Courier, monospace;
+resize: vertical;
+box-sizing: border-box;
+}
+#copy-feedback {
+margin-top: 5px;
+color: #28a745;
+font-weight: bold;
+visibility: hidden;
+text-align: center;
+}
+.button-row {
+display: flex;
+gap: 10px;
+}
+.button-row .text-button {
+flex-grow: 1;
+}
+#play-audio-button {
+flex-grow: 0;
+flex-basis: 50px;
+font-size: 1.2rem;
+padding: 6px;
+}
+#image-upload-input,
+#audio-upload-input {
+display: none;
+}
+h1,
+p {
+text-align: center;
+margin: 0;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="main-container">
+<div id="preview-container">
+<p id="placeholder-text"></p>
+<img id="preview-image" alt="Image preview">
+<div id="crop-box">
+<div id="crop-info"></div>
+<div class="resize-handle" id="handle-nw"></div>
+<div class="resize-handle" id="handle-ne"></div>
+<div class="resize-handle" id="handle-sw"></div>
+<div class="resize-handle" id="handle-se"></div>
+<div class="resize-handle" id="handle-n"></div>
+<div class="resize-handle" id="handle-s"></div>
+<div class="resize-handle" id="handle-w"></div>
+<div class="resize-handle" id="handle-e"></div>
+</div>
+</div>
+<div id="toolbar">
+<div class="tab-container">
+<button id="image-tab-button" class="tab-button active"></button>
+<button id="audio-tab-button" class="tab-button"></button>
+</div>
+<div id="image-panel" class="tab-panel active">
+<div class="toolbar-group">
+<label for="image-upload-input" class="text-button" id="upload-image-label"></label>
+<input type="file" id="image-upload-input" accept="image/*">
+</div>
+<div class="toolbar-group">
+<button id="crop-mode-button" class="text-button" disabled></button>
+<div id="crop-actions">
+<button id="apply-crop-button" class="text-button"></button>
+<button id="cancel-crop-button" class="text-button"></button>
+</div>
+</div>
+<div class="toolbar-group">
+<div class="slider-container">
+<div class="slider-label-container">
+<label for="resize-slider" id="size-label" title="Adjust image size in percent"></label>
+<span id="resize-slider-info" class="info-display">100%</span>
+</div>
+<input type="range" id="resize-slider" min="10" max="100" value="100" step="1" disabled>
+</div>
+</div>
+<div class="toolbar-group">
+<div class="slider-container">
+<div class="slider-label-container">
+<label for="quality-slider" id="quality-label" title="Adjust JPEG quality"></label>
+</div>
+<input type="range" id="quality-slider" min="10" max="100" value="92" step="1" disabled>
+</div>
+<div class="slider-container" style="margin-top: 20px;">
+<div class="slider-label-container">
+<label for="color-slider" id="colors-label" title="Reduce the number of colors"></label>
+<span id="color-slider-info" class="info-display">- / -</span>
+</div>
+<input type="range" id="color-slider" min="0" max="10000" value="10000" step="1" disabled>
+</div>
+</div>
+<div class="toolbar-group">
+<button id="magic-button" class="emoji-button" title="Apply optimal adjustments" disabled
+style="width: 100%; font-size: 1.2rem;"></button>
+</div>
+<div class="toolbar-group" style="display: flex; flex-direction: column; gap: 10px;">
+<span id="image-dimensions" title="Image resolution">0x0 px</span>
+<span id="file-size" title="Estimated file size">0.0 KB</span>
+<a id="jpeg-download-button" class="text-button" href="#" download="image.jpeg"></a>
+</div>
+<div class="toolbar-group" style="display: flex; flex-direction: column; gap: 10px;">
+<span id="char-count" title="Number of characters in the Base64 code">0 chars</span>
+<a id="download-button" class="text-button" href="#" download="base64-code.txt"
+title="Download Base64 code"></a>
+</div>
+</div>
+<div id="audio-panel" class="tab-panel">
+<div class="toolbar-group">
+<label for="audio-upload-input" id="upload-audio-label" class="text-button"></label>
+<input type="file" id="audio-upload-input" accept="audio/*">
+</div>
+<div class="toolbar-group">
+<div class="button-row">
+<button id="compress-audio-button" class="text-button" disabled></button>
+<button id="play-audio-button" class="text-button" title="Play audio" disabled>🎧</button>
+</div>
+</div>
+<div class="toolbar-group">
+<textarea id="audio-base64-output" readonly></textarea>
+<button id="copy-audio-button" class="text-button" style="margin-top: 10px;"></button>
+<div id="copy-feedback"></div>
+</div>
+</div>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+const lang = {
+title: "Base64 Generator for Images & Audio",
+imageTool: "Image 🖼️",
+audioTool: "Audio 🎵",
+uploadImage: "🔼 Upload New Image",
+uploadAudio: "🔼 Upload Audio File",
+crop: "Crop",
+apply: "✅ Apply",
+cancel: "❌ Cancel",
+size: "Size",
+quality: "Quality",
+colors: "Colors",
+useMagic: "✨ Use Magic ✨",
+downloadJPEG: "Download JPEG",
+downloadBase64: "🔽 Download Base64",
+compress: "✨ Compress",
+compressAudioTitle: "Reduces file size by lowering the sample rate.",
+playAudio: "Play Audio",
+copyCode: "Copy Code",
+copied: "Copied!",
+placeholderImage: "Click 🔼 or drag and drop an image here",
+placeholderAudio: "Click 🔼 or drag and drop an audio file here",
+noFileSelected: "No file selected.",
+unsupportedFileType: "Unsupported file type. Please select an",
+imageFile: "image file",
+audioFile: "audio file",
+audioContextError: "Audio context not available.",
+webAudioAPINotSupported: "Web Audio API is not supported in this browser.",
+audioUploaded: "✅ Audio file uploaded. Ready for compression!",
+audioDecodeError: "Error: Could not decode audio file.",
+compressing: "Compressing...",
+compressionError: "Error during compression.",
+compressedSuccess: "Compressed! Size reduced by approx.",
+noAudioLoaded: "No audio loaded.",
+playbackError: "Playback error.",
+copyError: "Could not copy to clipboard.",
+analyzing: "Analyzing...",
+imageRes: "Image Resolution",
+fileSize: "Estimated File Size",
+charCount: "Characters in Base64",
+audioBase64Placeholder: "Your Base64 code will appear here..."
+};
+const MIN_COLORS = 2;
+const DEBOUNCE_DELAY = 150;
+const TARGET_SAMPLE_RATE = 11025;
+const placeholderText = document.getElementById('placeholder-text');
+const imageTabButton = document.getElementById('image-tab-button');
+const audioTabButton = document.getElementById('audio-tab-button');
+const imagePanel = document.getElementById('image-panel');
+const audioPanel = document.getElementById('audio-panel');
+const previewContainer = document.getElementById('preview-container');
+const imageUploadInput = document.getElementById('image-upload-input');
+const qualitySlider = document.getElementById('quality-slider');
+const colorSlider = document.getElementById('color-slider');
+const resizeSlider = document.getElementById('resize-slider');
+const magicButton = document.getElementById('magic-button');
+const previewImage = document.getElementById('preview-image');
+const colorSliderInfo = document.getElementById('color-slider-info');
+const resizeSliderInfo = document.getElementById('resize-slider-info');
+const imageDimensionsDisplay = document.getElementById('image-dimensions');
+const charCount = document.getElementById('char-count');
+const fileSizeDisplay = document.getElementById('file-size');
+const downloadButton = document.getElementById('download-button');
+const jpegDownloadButton = document.getElementById('jpeg-download-button');
+const cropModeButton = document.getElementById('crop-mode-button');
+const cropActions = document.getElementById('crop-actions');
+const applyCropButton = document.getElementById('apply-crop-button');
+const cancelCropButton = document.getElementById('cancel-crop-button');
+const cropBox = document.getElementById('crop-box');
+const cropInfo = document.getElementById('crop-info');
+const audioUploadInput = document.getElementById('audio-upload-input');
+const audioBase64Output = document.getElementById('audio-base64-output');
+const copyAudioButton = document.getElementById('copy-audio-button');
+const compressAudioButton = document.getElementById('compress-audio-button');
+const copyFeedback = document.getElementById('copy-feedback');
+const playAudioButton = document.getElementById('play-audio-button');
+const allImageControls = [qualitySlider, colorSlider, resizeSlider, magicButton, downloadButton, jpegDownloadButton, cropModeButton];
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d', {
+willReadFrequently: true
+});
+let originalImage = null,
+originalDimensions = { w: 0, h: 0 },
+currentBase64 = '',
+isAnalyzing = false,
+maxOriginalColors = 256;
+let isCropping = false,
+isDrawing = false,
+isDragging = false,
+isResizing = false;
+let cropRect = { x: 0, y: 0, w: 0, h: 0 },
+startCoords = { x: 0, y: 0 },
+lastMousePos = { x: 0, y: 0 };
+let resizeHandle = null,
+imgBounds = null,
+updateScheduled = false;
+let originalAudioBuffer = null,
+audioContext = null,
+currentAudioPlayer = null;
+function updateStaticUIText() {
+document.title = lang.title;
+imageTabButton.textContent = lang.imageTool;
+audioTabButton.textContent = lang.audioTool;
+document.getElementById('upload-image-label').textContent = lang.uploadImage;
+document.getElementById('upload-audio-label').textContent = lang.uploadAudio;
+cropModeButton.textContent = lang.crop;
+applyCropButton.textContent = lang.apply;
+cancelCropButton.textContent = lang.cancel;
+document.getElementById('size-label').textContent = lang.size;
+document.getElementById('quality-label').textContent = lang.quality;
+document.getElementById('colors-label').textContent = lang.colors;
+magicButton.innerHTML = lang.useMagic;
+jpegDownloadButton.textContent = lang.downloadJPEG;
+downloadButton.textContent = lang.downloadBase64;
+compressAudioButton.textContent = lang.compress;
+compressAudioButton.title = lang.compressAudioTitle;
+playAudioButton.title = lang.playAudio;
+audioBase64Output.placeholder = lang.audioBase64Placeholder;
+copyAudioButton.textContent = lang.copyCode;
+copyFeedback.textContent = lang.copied;
+imageDimensionsDisplay.title = lang.imageRes;
+fileSizeDisplay.title = lang.fileSize;
+charCount.title = lang.charCount;
+updatePlaceholderText();
+}
+function updatePlaceholderText() {
+const activeTab = imageTabButton.classList.contains('active') ? 'image' : 'audio';
+if (activeTab === 'image') {
+placeholderText.textContent = lang.placeholderImage;
+} else {
+placeholderText.textContent = originalAudioBuffer ? lang.audioUploaded : lang.placeholderAudio;
+}
+}
+function switchTab(tab) {
+if (tab === 'image') {
+imageTabButton.classList.add('active');
+audioTabButton.classList.remove('active');
+imagePanel.classList.add('active');
+audioPanel.classList.remove('active');
+previewImage.style.display = originalImage ? 'block' : 'none';
+placeholderText.style.display = originalImage ? 'none' : 'block';
+if (currentAudioPlayer) stopAudio();
+} else {
+audioTabButton.classList.add('active');
+imageTabButton.classList.remove('active');
+audioPanel.classList.add('active');
+imagePanel.classList.remove('active');
+previewImage.style.display = 'none';
+placeholderText.style.display = 'block';
+if (!audioContext) {
+try {
+audioContext = new (window.AudioContext || window.webkitAudioContext)();
+} catch (e) {
+alert(lang.webAudioAPINotSupported);
+}
+}
+}
+updatePlaceholderText();
+}
+function stopAudio() {
+if (currentAudioPlayer) {
+currentAudioPlayer.pause();
+currentAudioPlayer.src = '';
+currentAudioPlayer = null;
+}
+playAudioButton.innerHTML = '🎧';
+}
+function handleAudioUpload(file) {
+if (!file) {
+placeholderText.textContent = lang.noFileSelected;
+return;
+}
+if (!audioContext) {
+placeholderText.textContent = lang.audioContextError;
+return;
+}
+if (!file.type.startsWith('audio/')) {
+placeholderText.textContent = `${lang.unsupportedFileType} ${lang.audioFile}.`;
+return;
+}
+stopAudio();
+const originalReader = new FileReader();
+const arrayBufferReader = new FileReader();
+originalReader.onload = (e) => {
+audioBase64Output.value = e.target.result;
+playAudioButton.disabled = false;
+playAudioButton.innerHTML = '🎧';
+};
+originalReader.readAsDataURL(file);
+arrayBufferReader.onload = (e) => {
+audioContext.decodeAudioData(e.target.result)
+.then(buffer => {
+originalAudioBuffer = buffer;
+compressAudioButton.disabled = false;
+placeholderText.textContent = `✅ ${file.name} ${lang.audioUploaded.split(' ').slice(1).join(' ')}`;
+})
+.catch(err => {
+placeholderText.textContent = lang.audioDecodeError;
+console.error("Audio decode error:", err);
+});
+};
+arrayBufferReader.readAsArrayBuffer(file);
+}
+async function compressAudio() {
+if (!originalAudioBuffer || !audioContext) return;
+stopAudio();
+placeholderText.textContent = lang.compressing;
+compressAudioButton.disabled = true;
+playAudioButton.disabled = true;
+try {
+const offlineCtx = new OfflineAudioContext(1, originalAudioBuffer.duration * TARGET_SAMPLE_RATE, TARGET_SAMPLE_RATE);
+const source = offlineCtx.createBufferSource();
+source.buffer = originalAudioBuffer;
+source.connect(offlineCtx.destination);
+source.start();
+const compressedBuffer = await offlineCtx.startRendering();
+const wavBlob = bufferToWave(compressedBuffer);
+const reader = new FileReader();
+reader.onloadend = () => {
+const originalLength = audioBase64Output.value.length;
+const newLength = reader.result.length;
+const reduction = Math.round(((originalLength - newLength) / originalLength) * 100);
+audioBase64Output.value = reader.result;
+placeholderText.textContent = `${lang.compressedSuccess} ${reduction}%.`;
+compressAudioButton.disabled = false;
+playAudioButton.disabled = false;
+};
+reader.readAsDataURL(wavBlob);
+} catch (e) {
+placeholderText.textContent = lang.compressionError;
+console.error("Compression error:", e);
+compressAudioButton.disabled = false;
+playAudioButton.disabled = false;
+}
+}
+function playOrPauseAudio() {
+if (!audioBase64Output.value) {
+placeholderText.textContent = lang.noAudioLoaded;
+return;
+}
+if (currentAudioPlayer && !currentAudioPlayer.paused) {
+stopAudio();
+return;
+}
+currentAudioPlayer = new Audio(audioBase64Output.value);
+playAudioButton.innerHTML = '⏹️';
+currentAudioPlayer.addEventListener('ended', stopAudio);
+currentAudioPlayer.play().catch(e => {
+console.error("Playback error:", e);
+placeholderText.textContent = lang.playbackError;
+stopAudio();
+});
+}
+function copyAudioCode() {
+if (audioBase64Output.value) {
+navigator.clipboard.writeText(audioBase64Output.value).then(() => {
+copyFeedback.style.visibility = 'visible';
+setTimeout(() => {
+copyFeedback.style.visibility = 'hidden';
+}, 2000);
+}).catch(() => {
+placeholderText.textContent = lang.copyError;
+});
+}
+}
+function bufferToWave(abuffer) {
+let numOfChan = abuffer.numberOfChannels,
+length = abuffer.length * numOfChan * 2 + 44,
+buffer = new ArrayBuffer(length),
+view = new DataView(buffer),
+channels = [],
+i, sample,
+offset = 0,
+pos = 0;
+function setUint16(data) {
+view.setUint16(pos, data, true);
+pos += 2;
+}
+function setUint32(data) {
+view.setUint32(pos, data, true);
+pos += 4;
+}
+setUint32(0x46464952);
+setUint32(length - 8);
+setUint32(0x45564157);
+setUint32(0x20746d66);
+setUint32(16);
+setUint16(1);
+setUint16(numOfChan);
+setUint32(abuffer.sampleRate);
+setUint32(abuffer.sampleRate * 2 * numOfChan);
+setUint16(numOfChan * 2);
+setUint16(16);
+setUint32(0x61746164);
+setUint32(length - pos - 4);
+for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+while (pos < length) {
+for (i = 0; i < numOfChan; i++) {
+sample = Math.max(-1, Math.min(1, channels[i][offset]));
+sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+view.setInt16(pos, sample, true);
+pos += 2;
+}
+offset++;
+}
+return new Blob([view], {
+type: 'audio/wav'
+});
+}
+function debounce(func, delay) {
+let timeout;
+return function (...args) {
+clearTimeout(timeout);
+timeout = setTimeout(() => func.apply(this, args), delay);
+};
+}
+const debouncedProcessImage = debounce(processImage, DEBOUNCE_DELAY);
+function getLogColor(p) {
+const M = parseInt(colorSlider.max);
+if (p >= M) return maxOriginalColors;
+if (p <= 0) return MIN_COLORS;
+const m = Math.log(MIN_COLORS),
+x = Math.log(maxOriginalColors);
+return Math.round(Math.exp(m + (x - m) / M * p));
+}
+function getLinearPosition(c) {
+if (c >= maxOriginalColors) return parseInt(colorSlider.max);
+if (c <= MIN_COLORS) return 0;
+const m = Math.log(MIN_COLORS),
+x = Math.log(maxOriginalColors);
+if (m === x) return parseInt(colorSlider.max) / 2;
+return Math.round((Math.log(c) - m) / ((x - m) / parseInt(colorSlider.max)));
+}
+function setImageControlsEnabled(isEnabled) {
+allImageControls.forEach(control => {
+if (control.tagName === 'A') {
+control.setAttribute('aria-disabled', String(!isEnabled));
+if (!isEnabled) {
+control.classList.add('disabled-link', 'disabled-visual');
+control.removeAttribute('href');
+} else {
+control.classList.remove('disabled-link', 'disabled-visual');
+if (control === downloadButton && currentBase64) {
+control.href = `data:text/plain;charset=utf-8,${encodeURIComponent(currentBase64)}`;
+}
+if (control === jpegDownloadButton && currentBase64) {
+control.href = currentBase64;
+}
+}
+} else {
+control.disabled = !isEnabled;
+}
+});
+}
+function updateSliderInfo() {
+const n = getLogColor(parseInt(colorSlider.value));
+const locale = 'en-US';
+colorSliderInfo.textContent = `${n.toLocaleString(locale)} / ${maxOriginalColors.toLocaleString(locale)}`;
+resizeSliderInfo.textContent = `${resizeSlider.value}%`;
+}
+function updateOutputUI(dataUrl, width, height) {
+currentBase64 = dataUrl;
+previewImage.src = dataUrl;
+downloadButton.href = `data:text/plain;charset=utf-8,${encodeURIComponent(dataUrl)}`;
+jpegDownloadButton.href = dataUrl;
+downloadButton.classList.add('glow');
+setTimeout(() => {
+downloadButton.classList.remove('glow');
+}, 1500);
+const locale = 'en-US';
+charCount.textContent = `${dataUrl.length.toLocaleString(locale)} chars`;
+imageDimensionsDisplay.textContent = `${width}x${height} px`;
+const base64Data = dataUrl.substring(dataUrl.indexOf(',') + 1);
+const fileSizeKB = Math.round(base64Data.length * 0.75) / 1024;
+fileSizeDisplay.textContent = `${fileSizeKB.toFixed(1)} KB`;
+}
+function resetToDefaults() {
+qualitySlider.value = 92;
+resizeSlider.value = 100;
+colorSlider.value = colorSlider.max;
+updateSliderInfo();
+}
+function handleImageUpload(file) {
+if (!file) {
+placeholderText.textContent = lang.noFileSelected;
+return;
+}
+if (!file.type.startsWith('image/')) {
+placeholderText.textContent = `${lang.unsupportedFileType} ${lang.imageFile}.`;
+return;
+}
+const reader = new FileReader();
+reader.onload = (e) => {
+originalImage = new Image();
+originalImage.onload = () => {
+placeholderText.style.display = 'none';
+previewImage.style.display = 'block';
+previewImage.src = e.target.result;
+originalDimensions = {
+w: originalImage.naturalWidth,
+h: originalImage.naturalHeight
+};
+resetToDefaults();
+isCropping = false;
+cropActions.style.display = 'none';
+cropBox.style.display = 'none';
+previewContainer.classList.remove('cropping');
+analyzeAndInitialize();
+};
+originalImage.src = e.target.result;
+};
+reader.readAsDataURL(file);
+}
+function analyzeAndInitialize() {
+if (!originalImage || isAnalyzing) return;
+isAnalyzing = true;
+setImageControlsEnabled(false);
+colorSliderInfo.textContent = lang.analyzing;
+setTimeout(() => {
+const MAX_ANALYZE_PIXELS = 100000;
+const currentPixels = originalDimensions.w * originalDimensions.h;
+let scale = 1.0;
+if (currentPixels > MAX_ANALYZE_PIXELS) {
+scale = Math.sqrt(MAX_ANALYZE_PIXELS / currentPixels);
+}
+const analyzeWidth = Math.round(originalDimensions.w * scale);
+const analyzeHeight = Math.round(originalDimensions.h * scale);
+canvas.width = analyzeWidth;
+canvas.height = analyzeHeight;
+ctx.drawImage(originalImage, 0, 0, analyzeWidth, analyzeHeight);
+const imageData = ctx.getImageData(0, 0, analyzeWidth, analyzeHeight).data;
+const colors = new Set();
+for (let i = 0; i < imageData.length; i += 4) {
+colors.add(`${imageData[i]},${imageData[i + 1]},${imageData[i + 2]}`);
+}
+maxOriginalColors = colors.size > 1 ? colors.size : MIN_COLORS;
+colorSlider.value = colorSlider.max;
+isAnalyzing = false;
+processImage();
+setImageControlsEnabled(true);
+}, 50);
+}
+function processImage() {
+if (!originalImage || isAnalyzing) return;
+updateSliderInfo();
+const quality = qualitySlider.value / 100;
+const numColorLevels = getLogColor(parseInt(colorSlider.value));
+const resizePercent = resizeSlider.value / 100;
+const targetWidth = Math.round(originalDimensions.w * resizePercent);
+const targetHeight = Math.round(originalDimensions.h * resizePercent);
+canvas.width = targetWidth;
+canvas.height = targetHeight;
+ctx.drawImage(originalImage, 0, 0, targetWidth, targetHeight);
+if (numColorLevels < maxOriginalColors && numColorLevels < 512) {
+const factor = 255 / (numColorLevels > 1 ? numColorLevels - 1 : 1);
+const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+const data = imageData.data;
+for (let i = 0; i < data.length; i += 4) {
+data[i] = Math.round(data[i] / factor) * factor;
+data[i + 1] = Math.round(data[i + 1] / factor) * factor;
+data[i + 2] = Math.round(data[i + 2] / factor) * factor;
+}
+ctx.putImageData(imageData, 0, 0);
+}
+const dataUrl = canvas.toDataURL('image/jpeg', quality);
+updateOutputUI(dataUrl, targetWidth, targetHeight);
+}
+function startCropMode() {
+if (isCropping || !originalImage) return;
+isCropping = true;
+[qualitySlider, colorSlider, resizeSlider, magicButton].forEach(c => c.disabled = true);
+cropModeButton.disabled = true;
+cropActions.style.display = 'flex';
+previewContainer.classList.add('cropping');
+previewContainer.addEventListener('mousedown', onCropMouseDown);
+}
+function endCropMode(runProcess = true) {
+isCropping = false;
+cropBox.style.display = 'none';
+cropInfo.style.display = 'none';
+cropActions.style.display = 'none';
+previewContainer.classList.remove('cropping');
+previewContainer.removeEventListener('mousedown', onCropMouseDown);
+window.removeEventListener('mousemove', onCropMouseMove);
+window.removeEventListener('mouseup', onCropMouseUp);
+if (originalImage) {
+setImageControlsEnabled(true);
+if (runProcess) processImage();
+}
+}
+function onCropMouseDown(e) {
+e.preventDefault();
+imgBounds = previewImage.getBoundingClientRect();
+startCoords = { x: e.clientX, y: e.clientY };
+lastMousePos = { x: e.clientX, y: e.clientY };
+if (e.target.classList.contains('resize-handle')) {
+isResizing = true;
+resizeHandle = e.target.id;
+} else if (e.target === cropBox) {
+isDragging = true;
+} else {
+isDrawing = true;
+cropRect.x = startCoords.x - imgBounds.left;
+cropRect.y = startCoords.y - imgBounds.top;
+cropRect.w = 0;
+cropRect.h = 0;
+cropBox.style.display = 'block';
+updateCropBox();
+}
+window.addEventListener('mousemove', onCropMouseMove);
+window.addEventListener('mouseup', onCropMouseUp);
+}
+function onCropMouseMove(e) {
+e.preventDefault();
+lastMousePos = { x: e.clientX, y: e.clientY };
+if (!updateScheduled) {
+requestAnimationFrame(animationFrameUpdate);
+updateScheduled = true;
+}
+}
+function animationFrameUpdate() {
+const dx = lastMousePos.x - startCoords.x;
+const dy = lastMousePos.y - startCoords.y;
+if (isDrawing) {
+const currentX = lastMousePos.x - imgBounds.left;
+const currentY = lastMousePos.y - imgBounds.top;
+cropRect.w = currentX - cropRect.x;
+cropRect.h = currentY - cropRect.y;
+} else if (isResizing) {
+switch (resizeHandle) {
+case 'handle-n': cropRect.h -= dy; cropRect.y += dy; break;
+case 'handle-s': cropRect.h += dy; break;
+case 'handle-w': cropRect.w -= dx; cropRect.x += dx; break;
+case 'handle-e': cropRect.w += dx; break;
+case 'handle-nw': cropRect.h -= dy; cropRect.y += dy; cropRect.w -= dx; cropRect.x += dx; break;
+case 'handle-ne': cropRect.h -= dy; cropRect.y += dy; cropRect.w += dx; break;
+case 'handle-sw': cropRect.h += dy; cropRect.w -= dx; cropRect.x += dx; break;
+case 'handle-se': cropRect.h += dy; cropRect.w += dx; break;
+}
+startCoords = { x: lastMousePos.x, y: lastMousePos.y };
+} else if (isDragging) {
+cropRect.x += dx;
+cropRect.y += dy;
+startCoords = { x: lastMousePos.x, y: lastMousePos.y };
+}
+updateCropBox();
+updateScheduled = false;
+}
+function onCropMouseUp() {
+if (cropRect.w < 0) {
+cropRect.x += cropRect.w;
+cropRect.w = Math.abs(cropRect.w);
+}
+if (cropRect.h < 0) {
+cropRect.y += cropRect.h;
+cropRect.h = Math.abs(cropRect.h);
+}
+isDrawing = false;
+isDragging = false;
+isResizing = false;
+resizeHandle = null;
+imgBounds = null;
+window.removeEventListener('mousemove', onCropMouseMove);
+window.removeEventListener('mouseup', onCropMouseUp);
+}
+function updateCropBox() {
+let tempRect = { ...cropRect };
+if (tempRect.w < 0) { tempRect.x += tempRect.w; tempRect.w = Math.abs(tempRect.w); }
+if (tempRect.h < 0) { tempRect.y += tempRect.h; tempRect.h = Math.abs(tempRect.h); }
+cropBox.style.left = `${previewImage.offsetLeft + tempRect.x}px`;
+cropBox.style.top = `${previewImage.offsetTop + tempRect.y}px`;
+cropBox.style.width = `${tempRect.w}px`;
+cropBox.style.height = `${tempRect.h}px`;
+const scale = originalImage.naturalWidth / previewImage.width;
+const realWidth = Math.round(tempRect.w * scale);
+const realHeight = Math.round(tempRect.h * scale);
+cropInfo.style.display = 'block';
+cropInfo.textContent = `${realWidth} x ${realHeight} px`;
+}
+function applyCrop() {
+const scale = originalImage.naturalWidth / previewImage.width;
+let x = Math.max(0, Math.min(cropRect.x, previewImage.width - 1));
+let y = Math.max(0, Math.min(cropRect.y, previewImage.height - 1));
+let w = Math.max(1, Math.min(cropRect.w, previewImage.width - x));
+let h = Math.max(1, Math.min(cropRect.h, previewImage.height - y));
+if (w <= 0 || h <= 0) { endCropMode(); return; }
+const sourceX = x * scale;
+const sourceY = y * scale;
+const sourceWidth = w * scale;
+const sourceHeight = h * scale;
+canvas.width = sourceWidth;
+canvas.height = sourceHeight;
+ctx.drawImage(originalImage, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
+const croppedImage = new Image();
+croppedImage.onload = () => {
+originalImage = croppedImage;
+originalDimensions = { w: originalImage.width, h: originalImage.height };
+endCropMode(false);
+resetToDefaults();
+analyzeAndInitialize();
+};
+croppedImage.src = canvas.toDataURL();
+}
+previewContainer.addEventListener('dragover', (e) => {
+e.preventDefault();
+previewContainer.classList.add('dragover');
+});
+previewContainer.addEventListener('dragleave', () => {
+previewContainer.classList.remove('dragover');
+});
+previewContainer.addEventListener('drop', (e) => {
+e.preventDefault();
+previewContainer.classList.remove('dragover');
+const file = e.dataTransfer.files[0];
+if (file) {
+if (file.type.startsWith('image/')) {
+if (!imageTabButton.classList.contains('active')) switchTab('image');
+handleImageUpload(file);
+} else if (file.type.startsWith('audio/')) {
+if (!audioTabButton.classList.contains('active')) switchTab('audio');
+handleAudioUpload(file);
+}
+}
+});
+imageUploadInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0]));
+qualitySlider.addEventListener('input', debouncedProcessImage);
+colorSlider.addEventListener('input', debouncedProcessImage);
+resizeSlider.addEventListener('input', debouncedProcessImage);
+magicButton.addEventListener('click', () => {
+if (!originalImage) return;
+resizeSlider.value = Math.min(100, Math.round(1280 / originalDimensions.w * 100));
+qualitySlider.value = 82;
+colorSlider.value = getLinearPosition(128);
+processImage();
+});
+cropModeButton.addEventListener('click', startCropMode);
+applyCropButton.addEventListener('click', applyCrop);
+cancelCropButton.addEventListener('click', () => endCropMode(true));
+audioUploadInput.addEventListener('change', (e) => handleAudioUpload(e.target.files[0]));
+compressAudioButton.addEventListener('click', compressAudio);
+playAudioButton.addEventListener('click', playOrPauseAudio);
+copyAudioButton.addEventListener('click', copyAudioCode);
+imageTabButton.addEventListener('click', () => switchTab('image'));
+audioTabButton.addEventListener('click', () => switchTab('audio'));
+setImageControlsEnabled(false);
+updateStaticUIText();
+switchTab('image');
+});
+</script>
+</body>
+</html>

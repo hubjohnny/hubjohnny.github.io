@@ -1,0 +1,3565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adventure RPG</title>
+<meta name="description" content="This is a 2D survival adventure RPG where the ultimate goal is to fight your way through 20 levels.">
+<meta name="robots" content="index, follow">
+<style>
+body,
+html {
+margin: 0;
+padding: 0;
+overflow: hidden;
+font-family: sans-serif;
+background-color: #1a1a1a;
+display: flex;
+flex-direction: column;
+height: 100vh;
+}
+#game-container {
+flex-grow: 1;
+display: flex;
+justify-content: center;
+align-items: center;
+width: 100%;
+height: auto;
+background-color: #245E28;
+position: relative;
+overflow: hidden;
+transition: background-color 2s ease-in-out;
+}
+#game-world {
+position: absolute;
+width: 100%;
+height: 100%;
+}
+#night-overlay {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: #000033;
+opacity: 0;
+z-index: 2;
+pointer-events: none;
+transition: opacity 5s ease-in-out;
+mask-image: radial-gradient(circle 12vmin at center, transparent 0%, black 100%);
+-webkit-mask-image: radial-gradient(circle 12vmin at center, transparent 0%, black 100%);
+}
+#night-overlay.is-night {
+opacity: 0.85;
+}
+#rain-container {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+z-index: 3;
+pointer-events: none;
+overflow: hidden;
+}
+.raindrop {
+position: absolute;
+width: 2px;
+height: 12px;
+background-color: rgba(173, 216, 230, 0.6);
+border-radius: 1px;
+animation: fall linear infinite;
+transform-origin: bottom;
+}
+@keyframes fall {
+from {
+transform: translateY(-20vh) translateX(-5vw) rotate(20deg);
+}
+to {
+transform: translateY(120vh) translateX(-15vw) rotate(20deg);
+}
+}
+#lightning-flash {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: #ffffff;
+opacity: 0;
+z-index: 4;
+pointer-events: none;
+transition: opacity 0.5s ease-out;
+}
+#map-grid {
+position: absolute;
+transform-origin: top left;
+}
+.cell {
+position: absolute;
+width: 8vmin;
+height: 8vmin;
+font-size: 6.5vmin;
+display: flex;
+justify-content: center;
+align-items: center;
+user-select: none;
+line-height: 1;
+}
+@keyframes shake {
+0%,
+100% {
+transform: translate(0, 0) rotate(0);
+}
+25% {
+transform: translate(-3px, 0) rotate(-1deg);
+}
+50% {
+transform: translate(3px, 0) rotate(1deg);
+}
+75% {
+transform: translate(-3px, 0) rotate(-1deg);
+}
+}
+.shaking {
+animation: shake 0.15s linear;
+}
+@keyframes pulse {
+0%,
+100% {
+transform: scale(1);
+}
+50% {
+transform: scale(1.1);
+}
+}
+@keyframes pulse-red {
+0%,
+100% {
+transform: scale(1);
+color: #ffcdd2;
+background-color: rgba(239, 83, 80, 0.7);
+}
+50% {
+transform: scale(1.05);
+color: #ffffff;
+background-color: rgba(244, 67, 54, 0.9);
+}
+}
+.hud-item.low-health-warning {
+animation: pulse-red 1s infinite ease-in-out;
+border-radius: 8px;
+box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+}
+.cell.path {
+background-color: rgba(224, 224, 224, 0.3);
+}
+.cell.underworld-path {
+background-color: #4a4a4a;
+}
+.cell.shelter {
+font-size: 7vmin;
+}
+.cell.large {
+font-size: 8vmin;
+}
+.cell.medium {
+font-size: 7vmin;
+}
+.cell.small {
+font-size: 4.5vmin;
+}
+#player,
+.monster-container,
+.npc-container {
+position: absolute;
+width: 8vmin;
+height: 8vmin;
+z-index: 5;
+will-change: transform;
+transform-origin: center center;
+text-shadow: 1px 1px 2px #000;
+}
+.player-sprite,
+.monster-sprite,
+.npc-sprite {
+width: 100%;
+height: 100%;
+font-size: 6.5vmin;
+display: flex;
+justify-content: center;
+align-items: center;
+transform-origin: center center;
+user-select: none;
+-webkit-tap-highlight-color: transparent;
+background-color: transparent;
+}
+.fighting-monster .monster-sprite {
+cursor: crosshair;
+animation: pulse 1s infinite;
+}
+@keyframes walk-bob {
+0%,
+100% {
+transform: translateY(0);
+}
+50% {
+transform: translateY(-8%);
+}
+}
+#player.is-walking .player-sprite {
+animation: walk-bob 0.4s infinite ease-in-out;
+}
+#player-floating-text-container {
+position: absolute;
+top: -85px;
+left: 50%;
+transform: translateX(-50%);
+width: 250px;
+display: flex;
+flex-direction: column-reverse;
+align-items: center;
+z-index: 10;
+pointer-events: none;
+}
+.floating-text {
+background: rgba(26, 26, 26, 0.85);
+color: #f0f0f0;
+padding: 5px 12px;
+border-radius: 12px;
+font-size: 1.8vmin;
+font-weight: bold;
+text-align: center;
+margin-bottom: 5px;
+text-shadow: 1px 1px 2px #000;
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+white-space: nowrap;
+animation: fade-out-up 3s ease-out forwards;
+}
+@keyframes fade-out-up {
+0% {
+opacity: 1;
+transform: translateY(0);
+}
+80% {
+opacity: 1;
+transform: translateY(0);
+}
+100% {
+opacity: 0;
+transform: translateY(-20px);
+}
+}
+.arrow {
+position: absolute;
+font-size: 4vmin;
+z-index: 6;
+pointer-events: none;
+color: #5d4037;
+text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+will-change: transform, left, top;
+}
+#hud {
+position: absolute;
+top: 10px;
+left: 50%;
+transform: translateX(-50%);
+width: auto;
+min-width: 80vw;
+background: #512DA8;
+background-image: linear-gradient(to bottom, #7E57C2, #512DA8);
+border: 4px solid #311B92;
+color: #EDE7F6;
+box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.2);
+text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+display: flex;
+justify-content: flex-start;
+align-items: center;
+padding: 5px;
+font-size: 2.2vmin;
+font-weight: bold;
+z-index: 10;
+border-radius: 12px;
+overflow-x: auto;
+gap: 0.5rem;
+}
+.hud-item {
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0 8px;
+white-space: nowrap;
+}
+.hud-label {
+font-size: 1.8vmin;
+opacity: 0.8;
+}
+.hud-value {
+font-size: 3vmin;
+}
+#key-display,
+#time-display {
+font-size: 3.5vmin;
+}
+#weapon-bar {
+display: flex;
+flex-direction: row;
+align-items: center;
+gap: 5px;
+border: 2px solid #311B92;
+border-radius: 8px;
+padding: 2px 5px;
+background: rgba(0, 0, 0, 0.2);
+}
+.weapon-slot {
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 2px 4px;
+border-radius: 4px;
+transition: background-color 0.2s, transform 0.2s;
+}
+.weapon-slot.active {
+background-color: rgba(255, 255, 255, 0.3);
+transform: scale(1.1);
+}
+.weapon-key {
+font-size: 1.5vmin;
+font-weight: bold;
+color: #fff;
+text-shadow: 1px 1px 1px #000;
+}
+.weapon-emoji {
+font-size: 3.5vmin;
+text-shadow: 0 2px 6px #000, 0 0px 1px #222;
+}
+.game-button {
+position: absolute;
+z-index: 15;
+padding: 10px 15px;
+font-size: 2vmin;
+font-weight: bold;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+border-radius: 8px;
+cursor: pointer;
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+transition: transform 0.1s ease, background-color 0.2s;
+}
+.game-button:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+.game-button.top-left {
+top: 15px;
+left: 15px;
+}
+.game-button.top-right {
+top: 15px;
+right: 15px;
+}
+.health-bar-container {
+position: absolute;
+bottom: -15px;
+left: 5%;
+width: 90%;
+height: 10px;
+background-color: #333;
+border: 1px solid #111;
+border-radius: 5px;
+overflow: hidden;
+z-index: 6;
+}
+#player .health-bar-container {
+top: -50px;
+bottom: auto;
+}
+.health-bar-inner {
+height: 100%;
+width: 100%;
+border-radius: 4px;
+transition: width 0.3s ease-out;
+}
+.health-bar-inner.player {
+background-color: #4caf50;
+}
+.health-bar-inner.monster {
+background-color: #f44336;
+}
+#player .status-bar-container {
+position: absolute;
+top: -50px;
+left: 10%;
+width: 80%;
+height: 8px;
+background-color: rgba(20, 20, 20, 0.7);
+border: 1px solid #111;
+border-radius: 4px;
+z-index: 6;
+opacity: 1;
+transition: opacity 0.5s ease-in-out;
+}
+#player .status-bar-container.fading-out {
+opacity: 0;
+}
+#player .status-bar-inner {
+height: 100%;
+width: 100%;
+background-color: #4caf50;
+transition: width 0.3s ease-out;
+}
+#message-overlay {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.7);
+display: flex;
+justify-content: center;
+align-items: center;
+z-index: 20;
+}
+#message-box {
+background: #2a2135;
+color: #f0f0f0;
+border: 4px solid #311B92;
+box-shadow: inset 0 0 0 2px #1a1a1a, 0 8px 20px rgba(0, 0, 0, 0.6);
+padding: 25px 35px;
+border-radius: 10px;
+width: 80vw;
+max-width: 1200px;
+max-height: 85vh;
+overflow-y: auto;
+display: flex;
+flex-direction: column;
+}
+#message-text {
+font-size: 2.2vmin;
+margin-bottom: 25px;
+text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+text-align: left;
+flex-grow: 1;
+}
+#message-text h2.how-to-play-title,
+#message-text h3 {
+text-align: center;
+color: #7E57C2;
+margin: 0;
+}
+.how-to-play-columns {
+display: flex;
+flex-direction: row;
+flex-wrap: wrap;
+gap: 2.5rem;
+align-items: flex-start;
+width: 100%;
+}
+.how-to-play-column {
+flex: 1;
+min-width: 280px;
+}
+.how-to-play-column h3 {
+margin-top: 0;
+margin-bottom: 10px;
+}
+.how-to-play-column ul {
+padding-left: 20px;
+margin: 0;
+list-style-position: outside;
+}
+.how-to-play-column li {
+margin-bottom: 12px;
+}
+.how-to-play-column li::marker {
+color: #7E57C2;
+}
+.how-to-play-final-message {
+text-align: center;
+margin-top: 25px;
+width: 100%;
+}
+#message-options {
+display: flex;
+justify-content: center;
+gap: 5px;
+margin-top: 0;
+flex-shrink: 0;
+}
+.message-option-button {
+padding: 10px 20px;
+border: 2px solid #311B92;
+background-color: #512DA8;
+color: #EDE7F6;
+font-size: 2vmin;
+font-weight: bold;
+border-radius: 5px;
+cursor: pointer;
+transition: background-color 0.2s;
+}
+.message-option-button:hover {
+background-color: #7E57C2;
+}
+#message-box.has-options #message-button {
+display: none;
+}
+#message-button {
+padding: 12px 24px;
+border: 2px solid #311B92;
+background-color: #512DA8;
+color: #EDE7F6;
+font-size: 2.5vmin;
+font-weight: bold;
+border-radius: 5px;
+cursor: pointer;
+transition: background-color 0.2s;
+margin: 0 auto;
+flex-shrink: 0;
+}
+#message-button:hover {
+background-color: #7E57C2;
+}
+.hidden {
+display: none !important;
+}
+::-webkit-scrollbar {
+width: 8px;
+height: 8px;
+}
+::-webkit-scrollbar-track {
+background: #2a2135;
+}
+::-webkit-scrollbar-thumb {
+background: #512DA8;
+border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+background: #7E57C2;
+}
+* {
+scrollbar-width: thin;
+scrollbar-color: #512DA8 #2a2135;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="game-container">
+<div id="rain-container"></div>
+<div id="lightning-flash"></div>
+<button id="how-to-play-button" class="game-button top-left">❓</button>
+<button id="save-game-button" class="game-button top-right">💾</button>
+<div id="hud">
+<div class="hud-item"> <span class="hud-label">Level</span> <span id="level-display" class="hud-value">1</span>
+</div>
+<div class="hud-item" id="hud-hp"> <span class="hud-label">❤️ Health</span> <span id="hp-display"
+class="hud-value">100/100</span> </div>
+<div class="hud-item" id="hud-strength"> <span class="hud-label">⚔️ Strength</span> <span id="strength-display"
+class="hud-value">5</span> </div>
+<div class="hud-item" id="hud-weapon"> <span class="hud-label">Weapon</span>
+<div id="weapon-bar"></div>
+</div>
+<div class="hud-item" id="hud-xp"> <span class="hud-label">⭐ XP</span> <span id="xp-display"
+class="hud-value">0/20</span> </div>
+<div class="hud-item"> <span class="hud-label">🪵 Wood</span> <span id="wood-display" class="hud-value">0</span>
+</div>
+<div class="hud-item"> <span class="hud-label">🪨 Stone</span> <span id="stone-display" class="hud-value">0</span>
+</div>
+<div class="hud-item"> <span class="hud-label">💎 Gem</span> <span id="gem-display" class="hud-value">0</span>
+</div>
+<div class="hud-item"> <span class="hud-label">🌿 Herb</span> <span id="herb-display" class="hud-value">0</span>
+</div>
+<div class="hud-item"> <span class="hud-label">➡️ Arrows</span> <span id="arrows-display"
+class="hud-value">0</span> </div>
+<div class="hud-item"> <span class="hud-label">🔑 Key</span> <span id="key-display" class="hud-value">❌</span>
+</div>
+<div class="hud-item"> <span id="time-display" class="hud-value">☀️ Day</span> </div>
+</div>
+<div id="game-world" oncontextmenu="return false;">
+<div id="player">
+<div id="player-floating-text-container"></div>
+<div class="player-sprite"></div>
+</div>
+</div>
+<div id="night-overlay"></div>
+</div>
+<div id="message-overlay" class="hidden">
+<div id="message-box">
+<div id="message-text"></div>
+<div id="message-options"></div>
+<button id="message-button">OK</button>
+</div>
+</div>
+<script>
+const audioManager = {
+context: null,
+isInitialized: false,
+mainGain: null,
+activeAmbiance: {},
+birdChirpTimer: null,
+owlHootTimer: null,
+soundCooldowns: {},
+init: function () {
+if (this.isInitialized) return;
+try {
+this.context = new (window.AudioContext || window.webkitAudioContext)();
+this.mainGain = this.context.createGain();
+this.mainGain.connect(this.context.destination);
+this.mainGain.gain.setValueAtTime(1.0, this.context.currentTime);
+this.isInitialized = true;
+console.log("Audio Context er initialisert.");
+} catch (e) {
+console.error("Web Audio API støttes ikke i denne nettleseren.", e);
+}
+},
+sounds: {
+'tree_chop': (ctx, dest) => {
+const bufferSize = ctx.sampleRate * 0.1;
+const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+const data = buffer.getChannelData(0);
+for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+const noise = ctx.createBufferSource();
+noise.buffer = buffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'lowpass';
+filter.frequency.setValueAtTime(1000, ctx.currentTime);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0.3, ctx.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+noise.connect(filter).connect(gain).connect(dest);
+noise.start(ctx.currentTime);
+noise.stop(ctx.currentTime + 0.1);
+},
+'item_pickup': (ctx, dest) => {
+const osc = ctx.createOscillator();
+osc.type = 'sine';
+osc.frequency.setValueAtTime(600, ctx.currentTime);
+osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.1);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0.2, ctx.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+osc.connect(gain).connect(dest);
+osc.start(ctx.currentTime);
+osc.stop(ctx.currentTime + 0.1);
+},
+'wind_ambiance': (ctx, dest) => {
+const t = ctx.currentTime;
+const bufferSize = 5 * ctx.sampleRate;
+const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+const output = buffer.getChannelData(0);
+for (let i = 0; i < bufferSize; i++) {
+output[i] = (Math.random() * 2 - 1) * 0.3;
+}
+const fadeLength = Math.floor(ctx.sampleRate * 0.01);
+for (let i = 0; i < fadeLength; i++) {
+output[i] *= (i / fadeLength);
+output[bufferSize - 1 - i] *= (i / fadeLength);
+}
+const noiseNode = ctx.createBufferSource();
+noiseNode.buffer = buffer;
+noiseNode.loop = true;
+const filter = ctx.createBiquadFilter();
+filter.type = 'lowpass';
+filter.frequency.setValueAtTime(300, t);
+filter.Q.setValueAtTime(1, t);
+const lfoFilterSlow = ctx.createOscillator();
+lfoFilterSlow.type = 'sine';
+lfoFilterSlow.frequency.setValueAtTime(0.08, t);
+const lfoFilterSlowGain = ctx.createGain();
+lfoFilterSlowGain.gain.setValueAtTime(100, t);
+lfoFilterSlow.connect(lfoFilterSlowGain).connect(filter.frequency);
+const lfoFilterFast = ctx.createOscillator();
+lfoFilterFast.type = 'sine';
+lfoFilterFast.frequency.setValueAtTime(0.3, t);
+const lfoFilterFastGain = ctx.createGain();
+lfoFilterFastGain.gain.setValueAtTime(50, t);
+lfoFilterFast.connect(lfoFilterFastGain).connect(filter.frequency);
+const masterGain = ctx.createGain();
+masterGain.gain.setValueAtTime(0.8, t);
+const lfoVolume = ctx.createOscillator();
+lfoVolume.type = 'sine';
+lfoVolume.frequency.setValueAtTime(0.11, t);
+const lfoVolumeGain = ctx.createGain();
+lfoVolumeGain.gain.setValueAtTime(0.2, t);
+lfoVolume.connect(lfoVolumeGain).connect(masterGain.gain);
+noiseNode.connect(filter).connect(masterGain).connect(dest);
+lfoFilterSlow.start(t);
+lfoFilterFast.start(t);
+lfoVolume.start(t);
+noiseNode.start(t);
+return {
+lfo: lfoFilterSlow,
+lfoFilterSlow,
+lfoFilterFast,
+lfoVolume,
+noiseNode
+};
+},
+'bird_chirp_1': (ctx, dest) => {
+const t = ctx.currentTime;
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.08, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+gain.connect(dest);
+const osc1 = ctx.createOscillator();
+osc1.type = 'triangle';
+osc1.frequency.setValueAtTime(3500, t);
+osc1.frequency.linearRampToValueAtTime(2800, t + 0.08);
+const osc2 = ctx.createOscillator();
+osc2.type = 'sine';
+osc2.frequency.setValueAtTime(3520, t);
+osc2.frequency.linearRampToValueAtTime(2820, t + 0.08);
+osc1.connect(gain);
+osc2.connect(gain);
+osc1.start(t);
+osc2.start(t);
+osc1.stop(t + 0.08);
+osc2.stop(t + 0.08);
+},
+'bird_chirp_2': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(3000, t);
+osc.frequency.linearRampToValueAtTime(3800, t + 0.04);
+osc.frequency.linearRampToValueAtTime(3200, t + 0.08);
+osc.frequency.linearRampToValueAtTime(3900, t + 0.12);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.07, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.12);
+},
+'bird_chirp_3': (ctx, dest) => {
+const t = ctx.currentTime;
+const totalDuration = 0.5;
+const osc = ctx.createOscillator();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(4000, t);
+osc.frequency.linearRampToValueAtTime(3500, t + totalDuration);
+const lfo = ctx.createOscillator();
+lfo.type = 'sine';
+lfo.frequency.setValueAtTime(30, t);
+lfo.frequency.linearRampToValueAtTime(20, t + totalDuration);
+const lfoGain = ctx.createGain();
+lfoGain.gain.setValueAtTime(100, t);
+lfo.connect(lfoGain).connect(osc.frequency);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.06, t + 0.02);
+gain.gain.exponentialRampToValueAtTime(0.001, t + totalDuration);
+osc.connect(gain).connect(dest);
+lfo.start(t);
+osc.start(t);
+lfo.stop(t + totalDuration);
+osc.stop(t + totalDuration);
+},
+'player_attack_unarmed': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(180, t);
+osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.4, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.1);
+},
+'player_attack_sword': (ctx, dest) => {
+const t = ctx.currentTime;
+const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+const data = buffer.getChannelData(0);
+for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+const noise = ctx.createBufferSource();
+noise.buffer = buffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'bandpass';
+filter.frequency.setValueAtTime(1500, t);
+filter.Q.setValueAtTime(10, t);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.3, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+noise.connect(filter).connect(gain).connect(dest);
+noise.start(t);
+noise.stop(t + 0.15);
+},
+'player_attack_sledge': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'square';
+osc.frequency.setValueAtTime(120, t);
+osc.frequency.exponentialRampToValueAtTime(80, t + 0.15);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.4, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.15);
+},
+'arrow_shoot_swoosh': (ctx, dest) => {
+const t = ctx.currentTime;
+const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+const data = buffer.getChannelData(0);
+for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+const noise = ctx.createBufferSource();
+noise.buffer = buffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'bandpass';
+filter.frequency.setValueAtTime(3000, t);
+filter.Q.setValueAtTime(5, t);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.3, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+noise.connect(filter).connect(gain).connect(dest);
+noise.start(t);
+noise.stop(t + 0.2);
+},
+'arrow_hit_thud': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(150, t);
+osc.frequency.exponentialRampToValueAtTime(100, t + 0.08);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.5, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.08);
+},
+'monster_die_xp': (ctx, dest) => {
+const t = ctx.currentTime;
+const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+const data = noiseBuffer.getChannelData(0);
+for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+const noise = ctx.createBufferSource();
+noise.buffer = noiseBuffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'lowpass';
+filter.frequency.setValueAtTime(1000, t);
+filter.frequency.exponentialRampToValueAtTime(200, t + 0.2);
+const noiseGain = ctx.createGain();
+noiseGain.gain.setValueAtTime(0.3, t);
+noiseGain.gain.linearRampToValueAtTime(0.001, t + 0.2);
+noise.connect(filter).connect(noiseGain).connect(dest);
+noise.start(t);
+noise.stop(t + 0.2);
+const osc = ctx.createOscillator();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(800, t + 0.1);
+osc.frequency.linearRampToValueAtTime(1500, t + 0.2);
+const xpGain = ctx.createGain();
+xpGain.gain.setValueAtTime(0, t + 0.1);
+xpGain.gain.linearRampToValueAtTime(0.2, t + 0.11);
+xpGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+osc.connect(xpGain).connect(dest);
+osc.start(t + 0.1);
+osc.stop(t + 0.2);
+},
+'player_walk': (ctx, dest) => {
+const t = ctx.currentTime;
+const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+const data = buffer.getChannelData(0);
+for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+const noise = ctx.createBufferSource();
+noise.buffer = buffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'lowpass';
+filter.frequency.setValueAtTime(400, t);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.1, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+noise.connect(filter).connect(gain).connect(dest);
+noise.start(t);
+noise.stop(t + 0.08);
+},
+'gather_stone': (ctx, dest) => {
+const t = ctx.currentTime;
+const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+const data = buffer.getChannelData(0);
+for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+const noise = ctx.createBufferSource();
+noise.buffer = buffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'highpass';
+filter.frequency.setValueAtTime(1500, t);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0.3, t);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+noise.connect(filter).connect(gain).connect(dest);
+noise.start(t);
+noise.stop(t + 0.05);
+},
+'gather_gem': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'sine';
+osc.frequency.setValueAtTime(2000, t);
+osc.frequency.linearRampToValueAtTime(2500, t + 0.1);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0.2, t);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.1);
+},
+'gather_herb': (ctx, dest) => {
+const t = ctx.currentTime;
+const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+const data = buffer.getChannelData(0);
+for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+const noise = ctx.createBufferSource();
+noise.buffer = buffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'bandpass';
+filter.frequency.setValueAtTime(2500, t);
+filter.Q.setValueAtTime(10, t);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0.15, t);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+noise.connect(filter).connect(gain).connect(dest);
+noise.start(t);
+noise.stop(t + 0.1);
+},
+'night_ambiance': (ctx, dest) => {
+const bufferSize = 2 * ctx.sampleRate;
+const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+const output = buffer.getChannelData(0);
+for (let i = 0; i < bufferSize; i++) {
+output[i] = (Math.random() * 2 - 1) * 0.3;
+if (i > 0) output[i] = (output[i - 1] + (0.08 * output[i])) / 1.08;
+}
+const noiseNode = ctx.createBufferSource();
+noiseNode.buffer = buffer;
+noiseNode.loop = true;
+const filter = ctx.createBiquadFilter();
+filter.type = 'lowpass';
+filter.frequency.setValueAtTime(200, ctx.currentTime);
+filter.Q.setValueAtTime(1, ctx.currentTime);
+const lfo = ctx.createOscillator();
+lfo.type = 'sine';
+lfo.frequency.setValueAtTime(0.05, ctx.currentTime);
+const lfoGain = ctx.createGain();
+lfoGain.gain.setValueAtTime(100, ctx.currentTime);
+lfo.connect(lfoGain).connect(filter.frequency);
+noiseNode.connect(filter).connect(dest);
+lfo.start(ctx.currentTime);
+noiseNode.start(ctx.currentTime);
+return { lfo, noiseNode };
+},
+'owl_hoot': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'sine';
+osc.frequency.setValueAtTime(500, t);
+osc.frequency.linearRampToValueAtTime(400, t + 0.2);
+osc.frequency.setValueAtTime(450, t + 0.25);
+osc.frequency.linearRampToValueAtTime(350, t + 0.45);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.2, t + 0.05);
+gain.gain.setValueAtTime(0.2, t + 0.4);
+gain.gain.linearRampToValueAtTime(0, t + 0.45);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.5);
+},
+'ghost_spawn': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'sine';
+osc.frequency.setValueAtTime(150, t);
+osc.frequency.linearRampToValueAtTime(250, t + 1.0);
+const lfo = ctx.createOscillator();
+lfo.type = 'sine';
+lfo.frequency.setValueAtTime(5, t);
+const lfoGain = ctx.createGain();
+lfoGain.gain.setValueAtTime(10, t);
+lfo.connect(lfoGain).connect(osc.frequency);
+const buffer = ctx.createBuffer(1, ctx.sampleRate * 1.0, ctx.sampleRate);
+const data = buffer.getChannelData(0);
+for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+const noise = ctx.createBufferSource();
+noise.buffer = buffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'bandpass';
+filter.frequency.setValueAtTime(800, t);
+filter.Q.setValueAtTime(5, t);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.2, t + 0.3);
+gain.gain.setValueAtTime(0.2, t + 0.7);
+gain.gain.linearRampToValueAtTime(0, t + 1.0);
+osc.connect(gain).connect(dest);
+noise.connect(filter).connect(gain).connect(dest);
+lfo.start(t);
+osc.start(t);
+noise.start(t);
+lfo.stop(t + 1.0);
+osc.stop(t + 1.0);
+noise.stop(t + 1.0);
+},
+'ambiance_rain': (ctx, dest) => {
+const bufferSize = 2 * ctx.sampleRate;
+const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+const output = buffer.getChannelData(0);
+for (let i = 0; i < bufferSize; i++) {
+output[i] = Math.random() * 2 - 1;
+}
+const noiseNode = ctx.createBufferSource();
+noiseNode.buffer = buffer;
+noiseNode.loop = true;
+const filter = ctx.createBiquadFilter();
+filter.type = 'highpass';
+filter.frequency.setValueAtTime(1000, ctx.currentTime);
+noiseNode.connect(filter).connect(dest);
+noiseNode.start(ctx.currentTime);
+return { noiseNode };
+},
+'effect_thunder': (ctx, dest) => {
+const t = ctx.currentTime;
+const duration = 2.5;
+const bufferSize = ctx.sampleRate * duration;
+const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+const output = buffer.getChannelData(0);
+let lastOut = 0;
+for (let i = 0; i < bufferSize; i++) {
+const white = Math.random() * 2 - 1;
+output[i] = (lastOut + (0.02 * white)) / 1.02;
+lastOut = output[i];
+output[i] *= 3.5;
+}
+const noise = ctx.createBufferSource();
+noise.buffer = buffer;
+const filter = ctx.createBiquadFilter();
+filter.type = 'lowpass';
+filter.frequency.setValueAtTime(120, t);
+filter.frequency.linearRampToValueAtTime(40, t + duration);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(1.0, t + 0.05);
+gain.gain.exponentialRampToValueAtTime(0.01, t + duration);
+noise.connect(filter).connect(gain).connect(dest);
+noise.start(t);
+noise.stop(t + duration);
+},
+'player_take_damage': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'sawtooth';
+osc.frequency.setValueAtTime(120, t);
+osc.frequency.exponentialRampToValueAtTime(80, t + 0.15);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.3, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.15);
+},
+'door_open_creak': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'sawtooth';
+osc.frequency.setValueAtTime(120, t);
+osc.frequency.linearRampToValueAtTime(150, t + 0.4);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.2, t + 0.1);
+gain.gain.setValueAtTime(0.2, t + 0.4);
+gain.gain.linearRampToValueAtTime(0, t + 0.5);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.5);
+},
+'key_pickup': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'sine';
+osc.frequency.setValueAtTime(1200, t);
+osc.frequency.linearRampToValueAtTime(1800, t + 0.15);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.3, t + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.15);
+},
+'swan_heal': (ctx, dest) => {
+const t = ctx.currentTime;
+const osc = ctx.createOscillator();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(1500, t);
+osc.frequency.exponentialRampToValueAtTime(3000, t + 0.3);
+const gain = ctx.createGain();
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(0.4, t + 0.05);
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+osc.connect(gain).connect(dest);
+osc.start(t);
+osc.stop(t + 0.3);
+}
+},
+playSound: function (name) {
+if (!this.isInitialized) this.init();
+if (!this.isInitialized || !this.sounds[name]) return;
+this.sounds[name](this.context, this.mainGain);
+},
+playSoundThrottled: function (name, delay) {
+if (!this.isInitialized || this.soundCooldowns[name]) {
+return;
+}
+this.playSound(name);
+this.soundCooldowns[name] = true;
+setTimeout(() => {
+this.soundCooldowns[name] = false;
+}, delay);
+},
+startAmbiance: function (name) {
+if (!this.isInitialized) this.init();
+if (!this.isInitialized || !this.sounds[name] || this.activeAmbiance[name]) return;
+console.log('Starter atmosfære:', name);
+const gain = this.context.createGain();
+gain.connect(this.mainGain);
+gain.gain.setValueAtTime(0, this.context.currentTime);
+let targetVolume = 0.4;
+if (name === 'night_ambiance') targetVolume = 0.3;
+if (name === 'ambiance_rain') targetVolume = 0.008;
+gain.gain.linearRampToValueAtTime(targetVolume, this.context.currentTime + 3);
+const nodes = this.sounds[name](this.context, gain);
+this.activeAmbiance[name] = { ...nodes, gainNode: gain };
+},
+stopAmbiance: function (name) {
+if (!this.isInitialized || !this.activeAmbiance[name]) return;
+console.log('Stopper atmosfære:', name);
+const nodes = this.activeAmbiance[name];
+const fadeTime = this.context.currentTime + 2;
+nodes.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+nodes.gainNode.gain.linearRampToValueAtTime(0.001, fadeTime);
+setTimeout(() => {
+if (nodes.noiseNode) nodes.noiseNode.stop();
+if (nodes.lfo) nodes.lfo.stop();
+nodes.gainNode.disconnect();
+}, 2100);
+delete this.activeAmbiance[name];
+},
+startBirdSounds: function () {
+if (!this.isInitialized || this.birdChirpTimer) return;
+console.log("Starter fuglelyder...");
+const birdSounds = ['bird_chirp_1', 'bird_chirp_2', 'bird_chirp_3'];
+const loop = () => {
+const randomDelay = Math.random() * 10000 + 5000;
+this.birdChirpTimer = setTimeout(() => {
+if (!this.isInitialized) return;
+const soundName = birdSounds[Math.floor(Math.random() * birdSounds.length)];
+this.playSound(soundName);
+loop();
+}, randomDelay);
+};
+loop();
+},
+stopBirdSounds: function () {
+if (this.birdChirpTimer) {
+console.log("Stopper fuglelyder...");
+clearTimeout(this.birdChirpTimer);
+this.birdChirpTimer = null;
+}
+},
+startNightSounds: function () {
+if (!this.isInitialized) return;
+this.startAmbiance('night_ambiance');
+if (this.owlHootTimer) return;
+console.log("Starter uglelyder...");
+const loop = () => {
+const randomDelay = Math.random() * 15000 + 15000;
+this.owlHootTimer = setTimeout(() => {
+if (!this.isInitialized) return;
+this.playSound('owl_hoot');
+loop();
+}, randomDelay);
+};
+loop();
+},
+stopNightSounds: function () {
+this.stopAmbiance('night_ambiance');
+if (this.owlHootTimer) {
+console.log("Stopper uglelyder...");
+clearTimeout(this.owlHootTimer);
+this.owlHootTimer = null;
+}
+}
+};
+document.addEventListener('DOMContentLoaded', () => {
+const WORLD_SIZE = {
+rows: 150,
+cols: 150
+};
+const DAY_DURATION = 300;
+const NIGHT_DURATION = 180;
+const PLAYER_SPEED = 200;
+const MONSTER_ATTACK_SPEED = 1500;
+const NIGHT_STRENGTH_BONUS = 1.75;
+const CROSSBOW_BASE_DAMAGE = 10;
+const CROSSBOW_STRENGTH_DAMAGE_FACTOR = 4;
+const BOSS_AGGRO_RANGE = 3;
+const BOSS_CHASE_RANGE = 8;
+const GATHERING_HITS = 5;
+const GATHER_HP_COST = 10;
+const WOOD_PER_TREE = 3;
+const STONE_PER_ROCK = 2;
+const GEM_PER_ROCK = 1;
+const HERB_PER_PLANT = 1;
+const BASE_SHELTER_WOOD_COST = 15;
+const BASE_SHELTER_HP_COST = 10;
+const SHELTER_COST_WOOD_PER_LEVEL = 5;
+const SHELTER_COST_HP_PER_LEVEL = 5;
+const BASE_CROSSBOW_WOOD_COST = 30;
+const BASE_CROSSBOW_HP_COST = 25;
+const CROSSBOW_COST_WOOD_PER_LEVEL = 10;
+const CROSSBOW_COST_HP_PER_LEVEL = 10;
+const ARROW_CRAFTING_COST = 20;
+const STONE_SWORD_COST = 20;
+const STONE_SLEDGE_COST = 80;
+const MIN_FOOD_COUNT = 25;
+const FOOD_RESPAWN_AMOUNT = 20;
+const TILE = {
+PLAYER: '🧍🏼',
+EMPTY: ' ',
+WALL_1: '🌲',
+WALL_2: '🌳',
+STONE: '🪨',
+DECOR_1: '🪵',
+DECOR_2: '🌻',
+DECOR_3: '🍄',
+DOOR: '🚪',
+KEY: '🔑',
+MONSTER_1: '🐜',
+MONSTER_2: '🦂',
+MONSTER_3: '🦇',
+BOSS: '🧞',
+U_MONSTER_1: '🐊',
+U_MONSTER_2: '🐌',
+U_MONSTER_3: '🐍',
+U_BOSS: '🐉',
+FOOD_1: '🍓',
+FOOD_2: '🍉',
+DEAD: '💀',
+PATH: '⬜',
+UW_PATH: '⬛',
+SHELTER: '🛖',
+CROSSBOW: '🏹',
+ARROW: '➡️',
+GHOST: '👻',
+STONE_SWORD: '🗡️',
+STONE_SLEDGE: '🔨',
+WATER: '🟦',
+SWAN: '🦢',
+TRADER: '🧑‍🌾',
+WISE_OLD_MAN: '🧙',
+GEM: '💎',
+HERB: '🌿',
+UNICORN: '🦄',
+CAGE: '⛓️',
+UNICORN_KEY: '🗝️'
+};
+const WEAPONS = {
+'unarmed': {
+name: 'Unarmed',
+emoji: '👊',
+type: 'melee',
+damageBonus: 1.0
+},
+'crossbow': {
+name: 'Crossbow',
+emoji: TILE.CROSSBOW,
+type: 'ranged'
+},
+'sword': {
+name: 'Stone Sword',
+emoji: TILE.STONE_SWORD,
+type: 'melee',
+damageBonus: 1.2
+},
+'sledge': {
+name: 'Stone Sledgehammer',
+emoji: TILE.STONE_SLEDGE,
+type: 'melee',
+damageBonus: 1.4
+},
+};
+const WEAPON_HOTBAR_ORDER = ['unarmed', 'crossbow', 'sword', 'sledge'];
+const OBJECT_DATA = {
+[TILE.MONSTER_1]: {
+hp: 25,
+strength: 6,
+xpReward: 10,
+type: 'monster',
+speed: 80
+},
+[TILE.MONSTER_2]: {
+hp: 45,
+strength: 10,
+xpReward: 25,
+type: 'monster',
+speed: 100
+},
+[TILE.MONSTER_3]: {
+hp: 70,
+strength: 15,
+xpReward: 40,
+type: 'monster',
+speed: 120
+},
+[TILE.BOSS]: {
+hp: 200,
+strength: 30,
+xpReward: 100,
+type: 'boss',
+speed: 150
+},
+[TILE.U_MONSTER_1]: {
+hp: 50,
+strength: 12,
+xpReward: 20,
+type: 'monster',
+speed: 90
+},
+[TILE.U_MONSTER_2]: {
+hp: 80,
+strength: 8,
+xpReward: 15,
+type: 'monster',
+speed: 60
+},
+[TILE.U_MONSTER_3]: {
+hp: 60,
+strength: 18,
+xpReward: 35,
+type: 'monster',
+speed: 130
+},
+[TILE.U_BOSS]: {
+hp: 400,
+strength: 45,
+xpReward: 250,
+type: 'boss',
+speed: 160
+},
+[TILE.GHOST]: {
+hp: 50,
+strength: 0,
+xpReward: 5,
+type: 'ghost',
+speed: 180
+},
+[TILE.SWAN]: {
+hp: 999,
+strength: 0,
+xpReward: 0,
+type: 'special',
+speed: 70
+},
+[TILE.FOOD_1]: {
+hpGain: 10,
+type: 'food'
+},
+[TILE.FOOD_2]: {
+hpGain: 20,
+type: 'food'
+},
+[TILE.TRADER]: {
+type: 'npc',
+speed: 50
+},
+[TILE.WISE_OLD_MAN]: {
+type: 'npc',
+speed: 30
+},
+[TILE.UNICORN]: {
+type: 'special'
+}
+};
+const NPC_DATA = {
+[TILE.TRADER]: {
+getDialogue: () => "Greetings, traveler! I have rare goods, if you have the resources.",
+options: (npc) => [{
+text: `Trade 50 🪵 for 1 💎`,
+action: () => {
+if (gameState.player.wood >= 50) {
+gameState.player.wood -= 50;
+gameState.player.gems += 1;
+showMessage(`Trade successful! You received 1 ${TILE.GEM}`);
+updateHUD();
+} else {
+showMessage(`You don't have enough ${TILE.WOOD}!`);
+}
+}
+}, {
+text: "Leave",
+action: "close"
+}]
+},
+[TILE.WISE_OLD_MAN]: {
+getDialogue: () => {
+if (!gameState.player.boughtGemUpgrade) {
+return "Ah, a fellow adventurer! Those gems 💎 you carry... they pulse with latent energy. For 10 gems, I can unlock your true potential and permanently increase your strength! ⚔️";
+}
+const dialogues = [
+"The underworld holds treasures beyond imagination, but also deeper dangers.",
+"They say a great beast guards a mythical creature on the 20th floor...",
+"A shelter is the only true safety when the moon is high.",
+"Only a key dropped from the mightiest foe can unlock the ultimate prize."
+];
+return dialogues[Math.floor(Math.random() * dialogues.length)];
+},
+options: (npc) => {
+let opts = [];
+if (!gameState.player.boughtGemUpgrade) {
+opts.push({
+text: "Trade 10 💎 for +2 ⚔️ Strength",
+action: () => {
+if (gameState.player.gems >= 10) {
+gameState.player.gems -= 10;
+gameState.player.strength += 2;
+gameState.player.boughtGemUpgrade = true;
+showMessage(`You feel a surge of power! Strength permanently increased to ${gameState.player.strength}!`);
+updateHUD();
+} else {
+showMessage(`You don't have 10 ${TILE.GEM}! Return when you do.`);
+}
+}
+});
+}
+opts.push({
+text: gameState.player.boughtGemUpgrade ? "Interesting..." : "I'll think about it.",
+action: "close"
+});
+return opts;
+}
+}
+};
+const gameContainer = document.getElementById('game-container');
+const gameWorld = document.getElementById('game-world');
+const nightOverlay = document.getElementById('night-overlay');
+const rainContainer = document.getElementById('rain-container');
+const lightningFlash = document.getElementById('lightning-flash');
+const hpDisplay = document.getElementById('hp-display');
+const strengthDisplay = document.getElementById('strength-display');
+const weaponBar = document.getElementById('weapon-bar');
+const xpDisplay = document.getElementById('xp-display');
+const levelDisplay = document.getElementById('level-display');
+const keyDisplay = document.getElementById('key-display');
+const woodDisplay = document.getElementById('wood-display');
+const stoneDisplay = document.getElementById('stone-display');
+const gemDisplay = document.getElementById('gem-display');
+const herbDisplay = document.getElementById('herb-display');
+const arrowsDisplay = document.getElementById('arrows-display');
+const timeDisplay = document.getElementById('time-display');
+const messageOverlay = document.getElementById('message-overlay');
+const messageBox = document.getElementById('message-box');
+const messageText = document.getElementById('message-text');
+const messageOptions = document.getElementById('message-options');
+const messageButton = document.getElementById('message-button');
+const saveGameButton = document.getElementById('save-game-button');
+const howToPlayButton = document.getElementById('how-to-play-button');
+let gameState = {};
+let mapGrid, playerElement;
+let gameLoopInterval = null;
+let mainGameLoopId = null;
+let playerFloatingTextContainer;
+let cellSize = (8 * Math.min(window.innerWidth, window.innerHeight)) / 100;
+const keysPressed = {};
+let lastFrameTime = 0;
+let visibleCellElements = {};
+let visibleMonsterElements = {};
+let visibleNpcElements = {};
+let messageQueue = [];
+let isDisplayingMessage = false;
+function showFloatingText(htmlContent) {
+if (!playerFloatingTextContainer) return;
+const textElement = document.createElement('div');
+textElement.className = 'floating-text';
+textElement.innerHTML = htmlContent;
+playerFloatingTextContainer.appendChild(textElement);
+setTimeout(() => {
+textElement.remove();
+}, 3000);
+}
+function showMessage(htmlContent, onConfirm, options = []) {
+if (!onConfirm && options.length === 0) {
+showFloatingText(htmlContent);
+} else {
+messageQueue.push({
+htmlContent,
+onConfirm,
+options
+});
+processMessageQueue();
+}
+}
+function processMessageQueue() {
+if (isDisplayingMessage || messageQueue.length === 0) {
+return;
+}
+isDisplayingMessage = true;
+const {
+htmlContent,
+onConfirm,
+options
+} = messageQueue.shift();
+messageText.innerHTML = htmlContent;
+messageOptions.innerHTML = '';
+if (options && options.length > 0) {
+messageBox.classList.add('has-options');
+options.forEach(opt => {
+const btn = document.createElement('button');
+btn.className = 'message-option-button';
+btn.textContent = opt.text;
+btn.onclick = () => {
+if (opt.action && typeof opt.action === 'function') {
+opt.action();
+}
+closeModal();
+};
+messageOptions.appendChild(btn);
+});
+} else {
+messageBox.classList.remove('has-options');
+messageButton.onclick = () => {
+if (onConfirm) onConfirm();
+closeModal();
+};
+}
+messageOverlay.classList.remove('hidden');
+}
+function closeModal() {
+messageOverlay.classList.add('hidden');
+isDisplayingMessage = false;
+messageButton.onclick = null;
+messageOptions.innerHTML = '';
+processMessageQueue();
+}
+function showHowToPlay() {
+const costs = gameState.levelConfig;
+const instructions = `
+<h2 class="how-to-play-title">📜 How to Play (Level ${gameState.level}) 📜</h2>
+<div class="how-to-play-columns">
+<div class="how-to-play-column">
+<h3>Your Goal 🗺️</h3>
+<p>Find the key 🔑, unlock the door 🚪, and advance. Your ultimate quest is to reach <strong>Level 20 and rescue the captive Unicorn 🦄!</strong></p>
+<h3>Your Attributes</h3>
+<ul>
+<li><strong>❤️ Health:</strong> Your life force. Restore it by eating food (🍓, 🍉), touching the magic swan 🦢, or crafting potions (🌿).</li>
+<li><strong>⚔️ Strength:</strong> Your attack power. Increased by gaining XP or trading with the Wise Old Man 🧙.</li>
+<li><strong>⭐ XP:</strong> Earned by defeating monsters.</li>
+<li><strong>🪵 Wood/🪨 Stone/💎 Gems/🌿 Herbs:</strong> Crafting and trading resources. Cost health to gather.</li>
+<li>Every 5th level (5, 10, 15) is a dark underworld where you can find gems 💎 and stone 🪨.</li>
+</ul>
+</div>
+<div class="how-to-play-column">
+<h3>Actions & Controls</h3>
+<p>Remember, crafting and building cost both resources and Health ❤️!</p>
+<ul>
+<li><strong>WASD / Arrow Keys:</strong> Movement.</li>
+<li><strong>'E' Key:</strong> Interact with characters (🧑‍🌾, 🧙) when you are next to them.</li>
+<li><strong>Number Keys (1,2,3...):</strong> Switch active weapon.</li>
+<li><strong>Click on 🌲/🪨/💎/🌿:</strong> Gather resource (costs health).</li>
+<li><strong>'B' Key:</strong> Build shelter (costs ${costs.shelterWoodCost} 🪵, ${costs.shelterHPCost} ❤️).</li>
+<li><strong>'C' Key:</strong> Craft Crossbow (costs ${costs.crossbowWoodCost} 🪵).</li>
+<li><strong>'P' Key:</strong> Craft arrows (costs ${ARROW_CRAFTING_COST} 🪵).</li>
+<li><strong>'V' Key:</strong> Craft Stone Sword (costs ${STONE_SWORD_COST} 🪨).</li>
+<li><strong>'H' Key:</strong> Craft Stone Sledgehammer (costs ${STONE_SLEDGE_COST} 🪨).</li>
+<li><strong>'M' Key:</strong> Craft Health Potion (costs 5 🌿).</li>
+<li><strong>Right-Click:</strong> Shoot (if crossbow is equipped).</li>
+</ul>
+</div>
+</div>
+<h3>Strategic Tips 💡</h3>
+<ul style="text-align: left; list-style-position: inside; padding-left: 0;">
+<li>Fear the night (🌙)! Monsters are stronger. A shelter (🏰) is your best friend.</li>
+<li>Look for friendly faces! Traders 🧑‍🌾 and wise men 🧙 can help you on your quest.</li>
+<li>At night, ghosts 👻 hunt! If they catch you outside, they'll steal your items.</li>
+</ul>`;
+showMessage(instructions, () => { });
+}
+function setupNewGame() {
+if (gameLoopInterval) clearInterval(gameLoopInterval);
+if (mainGameLoopId) cancelAnimationFrame(mainGameLoopId);
+audioManager.stopAmbiance('wind_ambiance');
+audioManager.stopBirdSounds();
+audioManager.stopNightSounds();
+audioManager.stopAmbiance('ambiance_rain');
+const oldPlayer = gameState.player;
+const currentLevel = gameState.level ? gameState.level + 1 : 1;
+const isUnderworld = currentLevel % 5 === 0 && currentLevel < 20;
+gameContainer.style.backgroundColor = isUnderworld ? '#2d2d3a' : '#245E28';
+if (isUnderworld) {
+initRainEffect(100);
+} else {
+stopRainEffect();
+audioManager.startAmbiance('wind_ambiance');
+audioManager.startBirdSounds();
+}
+nightOverlay.classList.remove('is-night');
+gameState = {
+level: currentLevel,
+isUnderworld: isUnderworld,
+player: {
+hp: 100,
+maxHp: 100,
+hasKey: false,
+hasUnicornKey: false,
+wood: 0,
+stone: 0,
+gems: 0,
+herbs: 0,
+arrows: 0,
+inventory: ['unarmed'],
+equippedWeapon: 'unarmed',
+pos: {
+x: Math.floor(WORLD_SIZE.cols / 2),
+y: Math.floor(WORLD_SIZE.rows / 2)
+},
+pixelPos: {
+x: 0,
+y: 0
+},
+},
+world: [],
+monsters: [],
+npcs: [],
+resources: [],
+time: 0,
+timeOfDay: 'day',
+isGameOver: false,
+isFighting: false,
+activeFighter: null,
+monsterAttackInterval: null,
+playerStatusBar: null,
+activeProjectiles: [],
+};
+if (oldPlayer) {
+gameState.player.strength = oldPlayer.strength;
+gameState.player.xp = oldPlayer.xp;
+gameState.player.xpForNextStrength = oldPlayer.xpForNextStrength;
+gameState.player.inventory = oldPlayer.inventory || ['unarmed'];
+gameState.player.equippedWeapon = oldPlayer.equippedWeapon || 'unarmed';
+gameState.player.wood = oldPlayer.wood;
+gameState.player.stone = oldPlayer.stone;
+gameState.player.gems = oldPlayer.gems;
+gameState.player.herbs = oldPlayer.herbs;
+gameState.player.arrows = oldPlayer.arrows;
+} else {
+gameState.player.strength = 5;
+gameState.player.xp = 0;
+gameState.player.xpForNextStrength = 20;
+}
+gameState.levelConfig = {
+shelterWoodCost: BASE_SHELTER_WOOD_COST + SHELTER_COST_WOOD_PER_LEVEL * (gameState.level - 1),
+shelterHPCost: BASE_SHELTER_HP_COST + SHELTER_COST_HP_PER_LEVEL * (gameState.level - 1),
+crossbowWoodCost: BASE_CROSSBOW_WOOD_COST + CROSSBOW_COST_WOOD_PER_LEVEL * (gameState.level - 1),
+crossbowHPCost: BASE_CROSSBOW_HP_COST + CROSSBOW_COST_HP_PER_LEVEL * (gameState.level - 1),
+};
+if (currentLevel === 20) {
+generateUnicornLevel();
+} else if (isUnderworld) {
+generateUnderworld();
+} else {
+generateRealisticWorld();
+}
+const startPos = gameState.player.pos;
+gameState.player.pixelPos = {
+x: startPos.x * cellSize + cellSize / 2,
+y: startPos.y * cellSize + cellSize / 2,
+};
+createWorldElements();
+updateVisibleCells(true);
+render();
+updateHUD();
+gameLoopInterval = setInterval(gameTick, 1000);
+lastFrameTime = performance.now();
+mainGameLoopId = requestAnimationFrame(mainGameLoop);
+}
+function saveGame() {
+if (gameState.isFighting) {
+showMessage("Cannot save during combat!");
+return;
+}
+try {
+const stateToSave = JSON.parse(JSON.stringify(gameState));
+stateToSave.monsters = stateToSave.monsters.filter(m => !m.isDying);
+delete stateToSave.playerStatusBar;
+delete stateToSave.activeProjectiles;
+delete stateToSave.levelConfig;
+delete stateToSave.monsterAttackInterval;
+localStorage.setItem('adventureGameSaveData', JSON.stringify(stateToSave));
+showMessage("Game Saved! ✅");
+} catch (error) {
+console.error('Failed to save game:', error);
+showMessage("Error: Could not save the game.");
+}
+}
+function loadGame() {
+const savedData = localStorage.getItem('adventureGameSaveData');
+if (!savedData) return false;
+if (gameLoopInterval) clearInterval(gameLoopInterval);
+if (mainGameLoopId) cancelAnimationFrame(mainGameLoopId);
+audioManager.stopAmbiance('wind_ambiance');
+audioManager.stopBirdSounds();
+audioManager.stopNightSounds();
+audioManager.stopAmbiance('ambiance_rain');
+try {
+gameState = JSON.parse(savedData);
+gameState.player.inventory = gameState.player.inventory || ['unarmed'];
+gameState.player.equippedWeapon = gameState.player.equippedWeapon || 'unarmed';
+gameState.player.stone = gameState.player.stone || 0;
+gameState.player.gems = gameState.player.gems || 0;
+gameState.player.herbs = gameState.player.herbs || 0;
+gameState.player.arrows = gameState.player.arrows || 0;
+gameState.player.hasUnicornKey = gameState.player.hasUnicornKey || false;
+gameState.npcs = gameState.npcs || [];
+if (gameState.player.xp === undefined) gameState.player.xp = 0;
+if (gameState.player.xpForNextStrength === undefined) {
+let xpNeeded = 20;
+if (gameState.player.strength > 5) {
+for (let i = 5; i < gameState.player.strength; i++) {
+xpNeeded = Math.floor(xpNeeded * 1.5);
+}
+}
+gameState.player.xpForNextStrength = xpNeeded;
+}
+gameState.player.pixelPos = {
+x: gameState.player.pos.x * cellSize + cellSize / 2,
+y: gameState.player.pos.y * cellSize + cellSize / 2
+};
+const entitiesToUpdate = [...(gameState.monsters || []), ...(gameState.npcs || [])];
+entitiesToUpdate.forEach((m) => {
+m.pixelPos = {
+x: m.x * cellSize + cellSize / 2,
+y: m.y * cellSize + cellSize / 2
+};
+m.targetPixelPos = {
+...m.pixelPos
+};
+});
+gameState.isUnderworld = gameState.level % 5 === 0 && gameState.level < 20;
+gameContainer.style.backgroundColor = gameState.level === 20 ? '#1a001a' : (gameState.isUnderworld ? '#2d2d3a' : '#245E28');
+if (gameState.isUnderworld) {
+initRainEffect(100);
+} else {
+stopRainEffect();
+}
+gameState.levelConfig = {
+shelterWoodCost: BASE_SHELTER_WOOD_COST + SHELTER_COST_WOOD_PER_LEVEL * (gameState.level - 1),
+shelterHPCost: BASE_SHELTER_HP_COST + SHELTER_COST_HP_PER_LEVEL * (gameState.level - 1),
+crossbowWoodCost: BASE_CROSSBOW_WOOD_COST + CROSSBOW_COST_WOOD_PER_LEVEL * (gameState.level - 1),
+crossbowHPCost: BASE_CROSSBOW_HP_COST + CROSSBOW_COST_HP_PER_LEVEL * (gameState.level - 1),
+};
+gameState.time = gameState.time || 0;
+gameState.timeOfDay = gameState.timeOfDay || 'day';
+gameState.isFighting = false;
+gameState.activeFighter = null;
+gameState.monsterAttackInterval = null;
+gameState.isGameOver = false;
+gameState.playerStatusBar = null;
+gameState.activeProjectiles = [];
+createWorldElements();
+updateVisibleCells(true);
+render();
+updateHUD();
+if (gameState.timeOfDay === 'night') {
+nightOverlay.classList.add('is-night');
+if (!gameState.isUnderworld && gameState.level !== 20) {
+audioManager.startNightSounds();
+}
+} else {
+nightOverlay.classList.remove('is-night');
+if (!gameState.isUnderworld && gameState.level !== 20) {
+audioManager.startAmbiance('wind_ambiance');
+audioManager.startBirdSounds();
+}
+}
+gameLoopInterval = setInterval(gameTick, 1000);
+lastFrameTime = performance.now();
+mainGameLoopId = requestAnimationFrame(mainGameLoop);
+showMessage("Game Loaded!");
+return true;
+} catch (error) {
+console.error('Failed to load game:', error);
+localStorage.removeItem('adventureGameSaveData');
+return false;
+}
+}
+function levelUp() {
+showMessage(`Congratulations! You reached level ${gameState.level + 1}! The challenges grow tougher...`, setupNewGame);
+}
+function gameOver() {
+gameState.isGameOver = true;
+audioManager.stopAmbiance('wind_ambiance');
+audioManager.stopBirdSounds();
+audioManager.stopNightSounds();
+audioManager.stopAmbiance('ambiance_rain');
+clearInterval(gameLoopInterval);
+cancelAnimationFrame(mainGameLoopId);
+showMessage("GAME OVER 💀<br>Loading last save...", () => {
+if (!loadGame()) {
+window.location.reload();
+}
+});
+}
+function gameWon() {
+gameState.isGameOver = true;
+audioManager.stopAmbiance('wind_ambiance');
+audioManager.stopBirdSounds();
+audioManager.stopNightSounds();
+audioManager.stopAmbiance('ambiance_rain');
+clearInterval(gameLoopInterval);
+cancelAnimationFrame(mainGameLoopId);
+localStorage.removeItem('adventureGameSaveData');
+const winContent = `<h2>🎉 VICTORY! 🎉</h2><p>You have defeated the great dragon and used its key to free the mystical Unicorn!<br><br>The land is safe once more, thanks to your courage. You are a true hero!</p>`;
+showMessage(winContent, null, [{
+text: "Play Again",
+action: () => window.location.reload()
+}]);
+}
+function findValidSpotNear(targetPos, searchRadius = 5) {
+const pathTile = gameState.isUnderworld ? TILE.UW_PATH : TILE.PATH;
+for (let r = 1; r <= searchRadius; r++) {
+for (let i = -r; i <= r; i++) {
+for (let j = -r; j <= r; j++) {
+if (Math.abs(i) !== r && Math.abs(j) !== r) continue;
+const checkX = targetPos.x + i;
+const checkY = targetPos.y + j;
+if (checkX >= 0 && checkX < WORLD_SIZE.cols && checkY >= 0 && checkY < WORLD_SIZE.rows) {
+const tile = gameState.world[checkY][checkX];
+if (tile === TILE.EMPTY || tile === pathTile) {
+return {
+x: checkX,
+y: checkY
+};
+}
+}
+}
+}
+}
+return null;
+}
+function generateLake() {
+const lakeSize = 15 + Math.floor(Math.random() * 10);
+const center = {
+x: Math.floor(WORLD_SIZE.cols * (0.2 + Math.random() * 0.6)),
+y: Math.floor(WORLD_SIZE.rows * (0.2 + Math.random() * 0.6)),
+};
+let lakeTiles = [{
+...center
+}];
+gameState.world[center.y][center.x] = TILE.WATER;
+for (let i = 0; i < lakeSize * lakeSize * 0.8; i++) {
+const randomTile = lakeTiles[Math.floor(Math.random() * lakeTiles.length)];
+const directions = [
+[0, -1],
+[0, 1],
+[-1, 0],
+[1, 0]
+];
+const move = directions[Math.floor(Math.random() * 4)];
+const newTile = {
+x: randomTile.x + move[0],
+y: randomTile.y + move[1]
+};
+if (newTile.x >= 1 && newTile.x < WORLD_SIZE.cols - 1 && newTile.y >= 1 && newTile.y < WORLD_SIZE.rows - 1) {
+if (gameState.world[newTile.y][newTile.x] !== TILE.WATER) {
+gameState.world[newTile.y][newTile.x] = TILE.WATER;
+lakeTiles.push(newTile);
+}
+}
+}
+}
+function generateRealisticWorld() {
+gameState.world = Array.from({
+length: WORLD_SIZE.rows
+}, () => Array(WORLD_SIZE.cols).fill(TILE.EMPTY));
+gameState.resources = [];
+gameState.monsters = [];
+gameState.npcs = [];
+generateLake();
+for (let y = 0; y < WORLD_SIZE.rows; y++) {
+for (let x = 0; x < WORLD_SIZE.cols; x++) {
+if (gameState.world[y][x] === TILE.EMPTY && Math.random() < 0.45) {
+gameState.world[y][x] = TILE.WALL_1;
+}
+}
+}
+for (let i = 0; i < 4; i++) {
+let nextWorld = JSON.parse(JSON.stringify(gameState.world));
+for (let y = 1; y < WORLD_SIZE.rows - 1; y++) {
+for (let x = 1; x < WORLD_SIZE.cols - 1; x++) {
+if (gameState.world[y][x] === TILE.WATER) continue;
+let neighbors = 0;
+for (let dy = -1; dy <= 1; dy++) {
+for (let dx = -1; dx <= 1; dx++) {
+if (dx === 0 && dy === 0) continue;
+if (gameState.world[y + dy][x + dx] === TILE.WALL_1) neighbors++;
+}
+}
+if (neighbors > 4) nextWorld[y][x] = TILE.WALL_1;
+else if (neighbors < 4) nextWorld[y][x] = TILE.EMPTY;
+}
+}
+gameState.world = nextWorld;
+}
+const startPos = getRandomEmptyPosition(TILE.EMPTY, [], 1);
+if (!startPos) {
+showMessage("Could not generate the map...", () => window.location.reload(), []);
+return;
+}
+const doorPos = getRandomEmptyPosition(TILE.EMPTY, [startPos], 50);
+if (!doorPos) {
+showMessage("Could not generate the map...", () => window.location.reload(), []);
+return;
+}
+const keyPos = getRandomEmptyPosition(TILE.EMPTY, [startPos, doorPos], 40);
+if (!keyPos) {
+showMessage("Could not generate the map...", () => window.location.reload(), []);
+return;
+}
+gameState.player.pos = startPos;
+gameState.keyPos = keyPos;
+gameState.doorPos = doorPos;
+carvePath(startPos, keyPos, 2);
+carvePath(startPos, doorPos, 2);
+carvePath(keyPos, doorPos, 1);
+const bossHomePos = findValidSpotNear(doorPos, 8);
+if (bossHomePos) {
+placeMonsters(TILE.BOSS, 1, bossHomePos);
+} else {
+placeMonsters(TILE.BOSS, 1);
+}
+for (let y = 0; y < WORLD_SIZE.rows; y++) {
+for (let x = 0; x < WORLD_SIZE.cols; x++) {
+if ([TILE.WALL_1, TILE.WALL_2].includes(gameState.world[y][x])) {
+gameState.resources.push({
+x,
+y,
+hits: 0,
+type: 'tree'
+});
+}
+}
+}
+placeObjectsInBiome(TILE.WALL_2, 300, TILE.WALL_1);
+placeObjectsInBiome(TILE.FOOD_1, 60, TILE.EMPTY);
+placeObjectsInBiome(TILE.FOOD_2, 40, TILE.EMPTY);
+placeObjectsInBiome(TILE.HERB, 30, TILE.EMPTY);
+placeFlowerBeds(30, 5);
+placeMonsters(TILE.MONSTER_1, 40);
+placeMonsters(TILE.MONSTER_2, 25);
+placeMonsters(TILE.MONSTER_3, 10);
+const swanPos = getRandomEmptyPosition(TILE.WATER, [], 0);
+if (swanPos) {
+placeMonsters(TILE.SWAN, 1, swanPos);
+}
+placeNPCs(TILE.TRADER, 1 + Math.floor(gameState.level / 4));
+placeNPCs(TILE.WISE_OLD_MAN, 1 + Math.floor(gameState.level / 6));
+}
+function generateUnderworld() {
+gameState.world = Array.from({
+length: WORLD_SIZE.rows
+}, () => Array(WORLD_SIZE.cols).fill(TILE.EMPTY));
+gameState.resources = [];
+gameState.monsters = [];
+gameState.npcs = [];
+placeResourceClusters(TILE.STONE, 80, 8);
+placeResourceClusters(TILE.WALL_1, 95, 5);
+placeResourceClusters(TILE.GEM, 40, 4);
+const startPos = getRandomEmptyPosition(TILE.EMPTY, [], 1);
+if (!startPos) {
+showMessage("Could not generate the map...", () => window.location.reload(), []);
+return;
+}
+const doorPos = getRandomEmptyPosition(TILE.EMPTY, [startPos], 50);
+if (!doorPos) {
+showMessage("Could not generate the map...", () => window.location.reload(), []);
+return;
+}
+const keyPos = getRandomEmptyPosition(TILE.EMPTY, [startPos, doorPos], 40);
+if (!keyPos) {
+showMessage("Could not generate the map...", () => window.location.reload(), []);
+return;
+}
+gameState.player.pos = startPos;
+gameState.keyPos = keyPos;
+gameState.doorPos = doorPos;
+carvePath(startPos, keyPos, 2);
+carvePath(startPos, doorPos, 2);
+carvePath(keyPos, doorPos, 1);
+const bossHomePos = findValidSpotNear(doorPos, 8);
+if (bossHomePos) {
+placeMonsters(TILE.U_BOSS, 1, bossHomePos);
+} else {
+placeMonsters(TILE.U_BOSS, 1);
+}
+placeObjectsInBiome(TILE.FOOD_1, 60, TILE.EMPTY);
+placeObjectsInBiome(TILE.FOOD_2, 45, TILE.EMPTY);
+placeMonsters(TILE.U_MONSTER_1, 30);
+placeMonsters(TILE.U_MONSTER_2, 20);
+placeMonsters(TILE.U_MONSTER_3, 15);
+placeNPCs(TILE.TRADER, 1 + Math.floor(gameState.level / 4));
+}
+function generateUnicornLevel() {
+gameState.world = Array.from({
+length: WORLD_SIZE.rows
+}, () => Array(WORLD_SIZE.cols).fill(TILE.EMPTY));
+gameState.resources = [];
+gameState.monsters = [];
+gameState.npcs = [];
+gameContainer.style.backgroundColor = '#1a001a';
+const arena_x = Math.floor(WORLD_SIZE.cols / 2);
+const arena_y = Math.floor(WORLD_SIZE.rows / 2);
+const arena_radius = 25;
+for (let y = 0; y < WORLD_SIZE.rows; y++) {
+for (let x = 0; x < WORLD_SIZE.cols; x++) {
+const dist = Math.hypot(x - arena_x, y - arena_y);
+if (dist > arena_radius) {
+gameState.world[y][x] = TILE.STONE;
+} else if (dist > arena_radius - 2) {
+gameState.world[y][x] = TILE.DECOR_1;
+}
+}
+}
+const startPos = {
+x: arena_x,
+y: arena_y + 20
+};
+gameState.player.pos = startPos;
+const unicornPos = {
+x: arena_x,
+y: arena_y - 20
+};
+gameState.unicornPos = unicornPos;
+for (let i = -1; i <= 1; i++) {
+for (let j = -1; j <= 1; j++) {
+if (i === 0 && j === 0) continue;
+gameState.world[unicornPos.y + j][unicornPos.x + i] = TILE.CAGE;
+}
+}
+placeSpecial(TILE.UNICORN, 1, unicornPos);
+const bossPos = {
+x: arena_x,
+y: arena_y
+};
+placeMonsters(TILE.U_BOSS, 1, bossPos);
+placeMonsters(TILE.U_MONSTER_3, 10);
+placeObjectsInBiome(TILE.FOOD_2, 15, TILE.EMPTY);
+gameState.doorPos = {
+x: -1,
+y: -1
+};
+gameState.keyPos = {
+x: -1,
+y: -1
+};
+}
+function placeResourceClusters(tile, clusterCount, maxClusterSize) {
+for (let i = 0; i < clusterCount; i++) {
+const center = getRandomEmptyPosition(TILE.EMPTY, [gameState.player.pos], 5);
+if (!center) continue;
+const clusterSize = 2 + Math.floor(Math.random() * (maxClusterSize - 1));
+for (let j = 0; j < clusterSize; j++) {
+const angle = Math.random() * 2 * Math.PI;
+const radius = Math.random() * (maxClusterSize / 3);
+const resX = Math.round(center.x + Math.cos(angle) * radius);
+const resY = Math.round(center.y + Math.sin(angle) * radius);
+if (resX >= 0 && resX < WORLD_SIZE.cols && resY >= 0 && resY < WORLD_SIZE.rows) {
+if (gameState.world[resY][resX] === TILE.EMPTY) {
+gameState.world[resY][resX] = tile;
+let resourceType;
+if (tile === TILE.STONE) resourceType = 'stone';
+else if (tile === TILE.GEM) resourceType = 'gem';
+else resourceType = 'tree';
+gameState.resources.push({
+x: resX,
+y: resY,
+hits: 0,
+type: resourceType
+});
+}
+}
+}
+}
+}
+function getRandomEmptyPosition(tileType, pointsToAvoid = [], minDistance = 20) {
+let x, y, tries = 0;
+const maxTries = 10000;
+while (tries < maxTries) {
+x = Math.floor(Math.random() * WORLD_SIZE.cols);
+y = Math.floor(Math.random() * WORLD_SIZE.rows);
+tries++;
+if (x < 0 || x >= WORLD_SIZE.cols || y < 0 || y >= WORLD_SIZE.rows) continue;
+if (gameState.world[y][x] !== tileType) continue;
+let tooClose = false;
+for (const point of pointsToAvoid) {
+if (point && typeof point.x === 'number' && typeof point.y === 'number') {
+if (Math.hypot(x - point.x, y - point.y) < minDistance) {
+tooClose = true;
+break;
+}
+}
+}
+if (tooClose) continue;
+return {
+x,
+y
+};
+}
+console.warn(`Could not find a valid random position for ${tileType} after ${maxTries} tries.`);
+return null;
+}
+function carvePath(start, end, width) {
+let current = {
+...start
+};
+const pathTile = gameState.isUnderworld ? TILE.UW_PATH : TILE.PATH;
+while (Math.abs(current.x - end.x) > width || Math.abs(current.y - end.y) > width) {
+for (let i = -width; i <= width; i++) {
+for (let j = -width; j <= width; j++) {
+if (current.y + i >= 0 && current.y + i < WORLD_SIZE.rows && current.x + j >= 0 && current.x + j < WORLD_SIZE.cols) {
+if (gameState.world[current.y + i][current.x + j] === TILE.EMPTY) {
+gameState.world[current.y + i][current.x + j] = pathTile;
+}
+}
+}
+}
+if (Math.random() > 0.5) {
+current.x += Math.sign(end.x - current.x);
+} else {
+current.y += Math.sign(end.y - current.y);
+}
+}
+}
+function placeFlowerBeds(bedCount, maxClusterSize) {
+for (let i = 0; i < bedCount; i++) {
+const center = getRandomEmptyPosition(TILE.EMPTY, [gameState.player.pos]);
+if (!center) continue;
+const clusterSize = 2 + Math.floor(Math.random() * (maxClusterSize - 1));
+for (let j = 0; j < clusterSize; j++) {
+const offsetX = Math.floor(Math.random() * 3) - 1;
+const offsetY = Math.floor(Math.random() * 3) - 1;
+const flowerX = center.x + offsetX;
+const flowerY = center.y + offsetY;
+if (flowerX >= 0 && flowerX < WORLD_SIZE.cols && flowerY >= 0 && flowerY < WORLD_SIZE.rows) {
+if (gameState.world[flowerY][flowerX] === TILE.EMPTY) {
+const flowerType = Math.random() < 0.5 ? TILE.DECOR_2 : TILE.DECOR_3;
+gameState.world[flowerY][flowerX] = flowerType;
+}
+}
+}
+}
+}
+function placeObjectsInBiome(tile, count, targetBiome, shouldUpdateCells = false) {
+const isResource = [TILE.HERB, TILE.GEM].includes(tile);
+for (let i = 0; i < count; i++) {
+const pos = getRandomEmptyPosition(targetBiome, [gameState.player.pos]);
+if (pos) {
+gameState.world[pos.y][pos.x] = tile;
+if (isResource) {
+gameState.resources.push({
+x: pos.x,
+y: pos.y,
+hits: 0,
+type: tile === TILE.HERB ? 'herb' : 'gem'
+});
+}
+if (shouldUpdateCells) {
+updateCell(pos.x, pos.y, tile);
+}
+}
+}
+}
+function placeMonsters(tile, count, fixedPos = null) {
+for (let i = 0; i < count; i++) {
+let pos = fixedPos;
+if (!pos) {
+const tileType = tile === TILE.SWAN ? TILE.WATER : TILE.EMPTY;
+pos = getRandomEmptyPosition(tileType, [gameState.player.pos], 10);
+}
+if (!pos) continue;
+const baseStats = OBJECT_DATA[tile];
+const isSpecial = [TILE.SWAN, TILE.GHOST].includes(tile);
+const levelMultiplier = isSpecial ? 1 : 1 + 0.35 * (gameState.level - 1);
+const finalHp = Math.floor(baseStats.hp * levelMultiplier);
+const finalStrength = Math.floor(baseStats.strength * levelMultiplier);
+const xPx = pos.x * cellSize + cellSize / 2;
+const yPx = pos.y * cellSize + cellSize / 2;
+const isBoss = OBJECT_DATA[tile].type === 'boss';
+const monsterData = {
+id: `m-${Date.now()}-${Math.random()}`,
+tile: tile,
+x: pos.x,
+y: pos.y,
+baseHp: finalHp,
+currentHp: finalHp,
+baseStrength: finalStrength,
+currentStrength: finalStrength,
+isAggroed: false,
+isDying: false,
+pixelPos: {
+x: xPx,
+y: yPx
+},
+targetPixelPos: {
+x: xPx,
+y: yPx
+},
+speed: OBJECT_DATA[tile].speed,
+isBoss: isBoss,
+isHunting: false,
+};
+if (isBoss) {
+monsterData.homePos = {
+x: pos.x,
+y: pos.y
+};
+}
+gameState.monsters.push(monsterData);
+}
+}
+function placeNPCs(tile, count) {
+for (let i = 0; i < count; i++) {
+const pos = getRandomEmptyPosition(TILE.EMPTY, [gameState.player.pos], 15);
+if (!pos) continue;
+const xPx = pos.x * cellSize + cellSize / 2;
+const yPx = pos.y * cellSize + cellSize / 2;
+const npc = {
+id: `npc-${Date.now()}-${Math.random()}`,
+tile: tile,
+x: pos.x,
+y: pos.y,
+pixelPos: {
+x: xPx,
+y: yPx
+},
+targetPixelPos: {
+x: xPx,
+y: yPx
+},
+speed: OBJECT_DATA[tile].speed,
+};
+gameState.npcs.push(npc);
+}
+}
+function placeSpecial(tile, count, fixedPos = null) {
+for (let i = 0; i < count; i++) {
+let pos = fixedPos || getRandomEmptyPosition(TILE.EMPTY, [gameState.player.pos], 10);
+if (!pos) continue;
+const xPx = pos.x * cellSize + cellSize / 2;
+const yPx = pos.y * cellSize + cellSize / 2;
+const specialObject = {
+id: `s-${Date.now()}-${Math.random()}`,
+tile: tile,
+x: pos.x,
+y: pos.y,
+pixelPos: {
+x: xPx,
+y: yPx
+},
+targetPixelPos: {
+x: xPx,
+y: yPx
+},
+speed: 0,
+};
+gameState.npcs.push(specialObject);
+}
+}
+function createWorldElements() {
+gameWorld.innerHTML = '';
+mapGrid = document.createElement('div');
+mapGrid.id = 'map-grid';
+gameWorld.appendChild(mapGrid);
+playerElement = document.createElement('div');
+playerElement.id = 'player';
+playerFloatingTextContainer = document.createElement('div');
+playerFloatingTextContainer.id = 'player-floating-text-container';
+playerElement.appendChild(playerFloatingTextContainer);
+const playerSprite = document.createElement('div');
+playerSprite.className = 'player-sprite';
+playerSprite.textContent = TILE.PLAYER;
+playerElement.appendChild(playerSprite);
+gameWorld.appendChild(playerElement);
+visibleCellElements = {};
+Object.values(visibleMonsterElements).forEach((el) => el.remove());
+visibleMonsterElements = {};
+Object.values(visibleNpcElements).forEach((el) => el.remove());
+visibleNpcElements = {};
+mapGrid.addEventListener('click', (e) => {
+if (gameState.isGameOver || gameState.isFighting || !e.target.dataset.cellId) return;
+const parts = e.target.dataset.cellId.split('-');
+const x = parseInt(parts[1]);
+const y = parseInt(parts[2]);
+if (gameState.monsters.some((m) => !m.isDying && m.x === x && m.y === y)) return;
+const isAdjacent = Math.abs(x - gameState.player.pos.x) <= 1 && Math.abs(y - gameState.player.pos.y) <= 1;
+if (!isAdjacent) return;
+const resource = gameState.resources.find((r) => r.x === x && r.y === y);
+if (resource) {
+gatherResource(resource, e.target);
+}
+});
+gameWorld.addEventListener('contextmenu', (e) => {
+e.preventDefault();
+const equipped = WEAPONS[gameState.player.equippedWeapon];
+if (equipped && equipped.type === 'ranged' && !gameState.isFighting && !gameState.isGameOver) {
+const worldRect = gameWorld.getBoundingClientRect();
+const mapTransform = new DOMMatrix(getComputedStyle(mapGrid).transform);
+const clickX = e.clientX - worldRect.left - mapTransform.e;
+const clickY = e.clientY - worldRect.top - mapTransform.f;
+shootCrossbow(clickX, clickY);
+}
+});
+}
+function updateVisibleCells(forceRedraw = false) {
+const pPos = gameState.player.pos;
+const renderDistX = Math.ceil(gameContainer.clientWidth / cellSize / 2) + 1;
+const renderDistY = Math.ceil(gameContainer.clientHeight / cellSize / 2) + 1;
+const newVisible = {};
+const pathTile = gameState.isUnderworld ? TILE.UW_PATH : TILE.PATH;
+for (let y = pPos.y - renderDistY; y <= pPos.y + renderDistY; y++) {
+for (let x = pPos.x - renderDistX; x <= pPos.x + renderDistX; x++) {
+const cellId = `cell-${x}-${y}`;
+newVisible[cellId] = true;
+if (!visibleCellElements[cellId] || forceRedraw) {
+if (forceRedraw && visibleCellElements[cellId]) {
+visibleCellElements[cellId].remove();
+}
+const cell = document.createElement('div');
+cell.className = 'cell';
+cell.dataset.cellId = cellId;
+cell.style.left = `${x * cellSize}px`;
+cell.style.top = `${y * cellSize}px`;
+if (x < 0 || x >= WORLD_SIZE.cols || y < 0 || y >= WORLD_SIZE.rows) {
+cell.style.backgroundColor = '#000000';
+cell.textContent = '';
+} else {
+const monsterAtPos = gameState.monsters.find((m) => m.x === x && m.y === y && !m.isDying);
+const npcAtPos = gameState.npcs.find((n) => n.x === x && n.y === y);
+let displayTile = gameState.world[y][x];
+if (gameState.level < 20) {
+if (x === gameState.keyPos.x && y === gameState.keyPos.y && !gameState.player.hasKey) {
+displayTile = TILE.KEY;
+} else if (x === gameState.doorPos.x && y === gameState.doorPos.y) {
+displayTile = TILE.DOOR;
+}
+}
+if (monsterAtPos || npcAtPos) {
+displayTile = (gameState.world[y][x] === pathTile) ? pathTile : TILE.EMPTY;
+}
+if (displayTile === TILE.WATER) {
+displayTile = TILE.EMPTY;
+}
+cell.textContent = displayTile;
+if (gameState.world[y][x] === TILE.WATER) {
+cell.style.backgroundColor = '#42a5f5';
+} else {
+cell.style.backgroundColor = 'transparent';
+}
+updateCellClass(cell, displayTile);
+}
+mapGrid.appendChild(cell);
+visibleCellElements[cellId] = cell;
+}
+}
+}
+for (const cellId in visibleCellElements) {
+if (!newVisible[cellId]) {
+visibleCellElements[cellId].remove();
+delete visibleCellElements[cellId];
+}
+}
+}
+function render() {
+if (!gameState || gameState.isGameOver) {
+if (playerElement) {
+playerElement.querySelector('.player-sprite').textContent = TILE.DEAD;
+playerElement.classList.remove('is-walking');
+}
+return;
+}
+if (!gameState.player || !gameState.player.pixelPos || !mapGrid) {
+return;
+}
+const screenCenterX = gameContainer.clientWidth / 2;
+const screenCenterY = gameContainer.clientHeight / 2;
+const mapX = screenCenterX - gameState.player.pixelPos.x;
+const mapY = screenCenterY - gameState.player.pixelPos.y;
+mapGrid.style.transform = `translate(${mapX}px, ${mapY}px)`;
+playerElement.style.transform = `translate(${screenCenterX - cellSize / 2}px, ${screenCenterY - cellSize / 2}px)`;
+renderVisibleMonsters();
+renderVisibleNPCs();
+}
+function renderVisibleMonsters() {
+if (!gameState.player || !mapGrid) return;
+const pPos = gameState.player.pos;
+const renderDistX = Math.ceil(gameContainer.clientWidth / cellSize / 2) + 4;
+const renderDistY = Math.ceil(gameContainer.clientHeight / cellSize / 2) + 4;
+const newVisibleMonsters = {};
+for (const monster of gameState.monsters) {
+const isVisible = Math.abs(monster.x - pPos.x) < renderDistX && Math.abs(monster.y - pPos.y) < renderDistY;
+if (isVisible) {
+newVisibleMonsters[monster.id] = true;
+let monsterEl = visibleMonsterElements[monster.id];
+if (!monsterEl) {
+monsterEl = document.createElement('div');
+monsterEl.className = 'monster-container';
+const sprite = document.createElement('div');
+sprite.className = 'monster-sprite';
+sprite.textContent = monster.tile;
+if (OBJECT_DATA[monster.tile].type === 'boss') {
+sprite.classList.add('large');
+} else {
+sprite.classList.add('medium');
+}
+monsterEl.appendChild(sprite);
+mapGrid.appendChild(monsterEl);
+visibleMonsterElements[monster.id] = monsterEl;
+monsterEl.addEventListener('click', () => {
+if (gameState.isGameOver || monster.isDying || monster.tile === TILE.GHOST || monster.tile === TILE.SWAN) return;
+if (gameState.isFighting && gameState.activeFighter.id === monster.id) {
+const equippedWeapon = WEAPONS[gameState.player.equippedWeapon];
+let weaponForThisHit = equippedWeapon;
+if (weaponForThisHit.type === 'ranged') {
+weaponForThisHit = WEAPONS['unarmed'];
+}
+if (weaponForThisHit.name === 'Unarmed') {
+audioManager.playSound('player_attack_unarmed');
+} else if (weaponForThisHit.name === 'Stone Sword') {
+audioManager.playSound('player_attack_sword');
+} else if (weaponForThisHit.name === 'Stone Sledgehammer') {
+audioManager.playSound('player_attack_sledge');
+}
+const damageBonus = weaponForThisHit.damageBonus;
+const baseDamage = gameState.player.strength + Math.floor(Math.random() * 3) - 1;
+const playerDamage = Math.floor(baseDamage * damageBonus);
+gameState.activeFighter.currentHp -= playerDamage;
+updateHealthBar(monsterEl, gameState.activeFighter.currentHp, gameState.activeFighter.baseHp);
+if (gameState.activeFighter.currentHp <= 0) {
+endFight('win');
+}
+} else if (!gameState.isFighting) {
+const isAdjacent = Math.abs(monster.x - gameState.player.pos.x) <= 1 && Math.abs(monster.y - gameState.player.pos.y) <= 1;
+if (isAdjacent) {
+startFight(monster);
+const equippedWeapon = WEAPONS[gameState.player.equippedWeapon];
+let weaponForThisHit = equippedWeapon;
+if (weaponForThisHit.type === 'ranged') {
+weaponForThisHit = WEAPONS['unarmed'];
+}
+if (weaponForThisHit.name === 'Unarmed') {
+audioManager.playSound('player_attack_unarmed');
+} else if (weaponForThisHit.name === 'Stone Sword') {
+audioManager.playSound('player_attack_sword');
+} else if (weaponForThisHit.name === 'Stone Sledgehammer') {
+audioManager.playSound('player_attack_sledge');
+}
+const damageBonus = weaponForThisHit.damageBonus;
+const baseDamage = gameState.player.strength + Math.floor(Math.random() * 3) - 1;
+const playerDamage = Math.floor(baseDamage * damageBonus);
+if (gameState.activeFighter) {
+gameState.activeFighter.currentHp -= playerDamage;
+updateHealthBar(monsterEl, gameState.activeFighter.currentHp, gameState.activeFighter.baseHp);
+if (gameState.activeFighter.currentHp <= 0) {
+endFight('win');
+}
+}
+}
+}
+});
+}
+if (monster.pixelPos) {
+const elX = monster.pixelPos.x - cellSize / 2;
+const elY = monster.pixelPos.y - cellSize / 2;
+monsterEl.style.transform = `translate(${elX}px, ${elY}px)`;
+}
+}
+}
+for (const monsterId in visibleMonsterElements) {
+if (!newVisibleMonsters[monsterId]) {
+visibleMonsterElements[monsterId].remove();
+delete visibleMonsterElements[monsterId];
+}
+}
+}
+function renderVisibleNPCs() {
+if (!gameState.player || !mapGrid) return;
+const pPos = gameState.player.pos;
+const renderDistX = Math.ceil(gameContainer.clientWidth / cellSize / 2) + 4;
+const renderDistY = Math.ceil(gameContainer.clientHeight / cellSize / 2) + 4;
+const newVisibleNPCs = {};
+for (const npc of gameState.npcs) {
+const isVisible = Math.abs(npc.x - pPos.x) < renderDistX && Math.abs(npc.y - pPos.y) < renderDistY;
+if (isVisible) {
+newVisibleNPCs[npc.id] = true;
+let npcEl = visibleNpcElements[npc.id];
+if (!npcEl) {
+npcEl = document.createElement('div');
+npcEl.className = 'npc-container';
+const sprite = document.createElement('div');
+sprite.className = 'npc-sprite';
+sprite.textContent = npc.tile;
+npcEl.appendChild(sprite);
+mapGrid.appendChild(npcEl);
+visibleNpcElements[npc.id] = npcEl;
+}
+if (npc.pixelPos) {
+const elX = npc.pixelPos.x - cellSize / 2;
+const elY = npc.pixelPos.y - cellSize / 2;
+npcEl.style.transform = `translate(${elX}px, ${elY}px)`;
+}
+}
+}
+for (const npcId in visibleNpcElements) {
+if (!newVisibleNPCs[npcId]) {
+visibleNpcElements[npcId].remove();
+delete visibleNpcElements[npcId];
+}
+}
+}
+function updateHUD() {
+if (!gameState || !gameState.player) return;
+hpDisplay.textContent = `${gameState.player.hp}/${gameState.player.maxHp}`;
+strengthDisplay.textContent = gameState.player.strength;
+xpDisplay.textContent = `${gameState.player.xp}/${gameState.player.xpForNextStrength}`;
+levelDisplay.textContent = gameState.level;
+keyDisplay.textContent = gameState.player.hasKey ? '✅' : '❌';
+woodDisplay.textContent = gameState.player.wood;
+stoneDisplay.textContent = gameState.player.stone;
+gemDisplay.textContent = gameState.player.gems;
+herbDisplay.textContent = gameState.player.herbs;
+arrowsDisplay.textContent = gameState.player.inventory.includes('crossbow') ? gameState.player.arrows : '—';
+timeDisplay.textContent = gameState.timeOfDay === 'day' ? '☀️ Day' : '🌙 Night';
+const hpElement = document.getElementById('hud-hp');
+if ((gameState.player.hp / gameState.player.maxHp) < 0.25) {
+hpElement.classList.add('low-health-warning');
+} else {
+hpElement.classList.remove('low-health-warning');
+}
+updateWeaponBar();
+}
+function updateWeaponBar() {
+weaponBar.innerHTML = '';
+const availableWeapons = WEAPON_HOTBAR_ORDER.filter(wId => gameState.player.inventory.includes(wId));
+availableWeapons.forEach((weaponId, index) => {
+const weaponData = WEAPONS[weaponId];
+const slot = document.createElement('div');
+slot.className = 'weapon-slot';
+if (weaponId === gameState.player.equippedWeapon) {
+slot.classList.add('active');
+}
+const keyEl = document.createElement('span');
+keyEl.className = 'weapon-key';
+keyEl.textContent = index + 1;
+const emojiEl = document.createElement('span');
+emojiEl.className = 'weapon-emoji';
+emojiEl.textContent = weaponData.emoji;
+slot.appendChild(keyEl);
+slot.appendChild(emojiEl);
+weaponBar.appendChild(slot);
+});
+}
+function updateCell(x, y, newTile) {
+const pathTile = gameState.isUnderworld ? TILE.UW_PATH : TILE.PATH;
+const isEntityTile = OBJECT_DATA[newTile] && ['monster', 'special', 'boss', 'npc'].includes(OBJECT_DATA[newTile].type);
+if (!isEntityTile) {
+gameState.world[y][x] = newTile;
+}
+const cell = visibleCellElements[`cell-${x}-${y}`];
+if (cell) {
+const monsterAtPos = gameState.monsters.find((m) => m.x === x && m.y === y && !m.isDying);
+const npcAtPos = gameState.npcs.find((n) => n.x === x && n.y === y);
+let displayTile = gameState.world[y][x];
+if (gameState.level < 20) {
+if (x === gameState.keyPos.x && y === gameState.keyPos.y && !gameState.player.hasKey) {
+displayTile = TILE.KEY;
+} else if (x === gameState.doorPos.x && y === gameState.doorPos.y) {
+displayTile = TILE.DOOR;
+}
+}
+if (monsterAtPos || npcAtPos) {
+displayTile = gameState.world[y][x] === pathTile ? pathTile : TILE.EMPTY;
+}
+if (gameState.world[y][x] === TILE.WATER) {
+cell.style.backgroundColor = '#42a5f5';
+displayTile = TILE.EMPTY;
+} else {
+cell.style.backgroundColor = 'transparent';
+}
+cell.textContent = displayTile;
+updateCellClass(cell, displayTile);
+}
+}
+function updateCellClass(cell, tile) {
+cell.className = 'cell';
+if (tile === TILE.PATH) cell.classList.add('path');
+else if (tile === TILE.UW_PATH) cell.classList.add('underworld-path');
+else if (tile === TILE.SHELTER) cell.classList.add('shelter');
+else if ([TILE.WALL_1, TILE.WALL_2, TILE.STONE, TILE.GEM].includes(tile)) cell.classList.add('large');
+else if ([TILE.DECOR_1, TILE.DECOR_2, TILE.DECOR_3, TILE.HERB].includes(tile)) cell.classList.add('small');
+}
+function initRainEffect(dropCount) {
+stopRainEffect();
+audioManager.startAmbiance('ambiance_rain');
+for (let i = 0; i < dropCount; i++) {
+const drop = document.createElement('div');
+drop.className = 'raindrop';
+drop.style.left = `${Math.random() * 110}vw`;
+drop.style.animationDuration = `${0.5 + Math.random() * 0.8}s`;
+drop.style.animationDelay = `${Math.random() * 2}s`;
+drop.style.opacity = Math.random() * 0.6 + 0.3;
+drop.style.transform = `scale(${0.5 + Math.random()})`;
+rainContainer.appendChild(drop);
+}
+}
+function stopRainEffect() {
+rainContainer.innerHTML = '';
+}
+function triggerLightning() {
+audioManager.playSound('effect_thunder');
+lightningFlash.style.opacity = '0.7';
+setTimeout(() => {
+lightningFlash.style.opacity = '0';
+}, 150);
+}
+function handleInteraction(x, y, tile) {
+if (gameState.level === 20) {
+if (gameState.world[y][x] === TILE.CAGE) {
+if (gameState.player.hasUnicornKey) {
+gameWon();
+} else {
+showMessage("The cage is magically sealed. You need a special key!");
+}
+}
+return;
+}
+if (x === gameState.doorPos.x && y === gameState.doorPos.y) {
+if (gameState.player.hasKey) {
+audioManager.playSound('door_open_creak');
+levelUp();
+} else {
+showMessage("The door is locked! You need a key 🔑.");
+}
+} else if (x === gameState.keyPos.x && y === gameState.keyPos.y && !gameState.player.hasKey) {
+gameState.player.hasKey = true;
+audioManager.playSound('key_pickup');
+updateCell(x, y, gameState.world[y][x]);
+showMessage("You found the key! 🔑 Now find the door 🚪!");
+updateHUD();
+} else {
+const item = OBJECT_DATA[tile];
+if (item && item.type === 'food') {
+if (gameState.player.hp < gameState.player.maxHp) {
+gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + item.hpGain);
+updateCell(x, y, TILE.EMPTY);
+updateHUD();
+showPlayerStatusBar();
+audioManager.playSound('item_pickup');
+} else {
+showMessage("You are at full health and don't need food right now.");
+}
+}
+}
+}
+function handleNPCInteraction() {
+const p = gameState.player.pos;
+for (const npc of gameState.npcs) {
+if (Math.abs(p.x - npc.x) <= 1 && Math.abs(p.y - npc.y) <= 1) {
+const data = NPC_DATA[npc.tile];
+if (data) {
+const dialogue = data.getDialogue(npc);
+const options = data.options(npc).map(opt => {
+return {
+text: opt.text,
+action: opt.action === 'close' ? null : opt.action
+};
+});
+showMessage(dialogue, null, options);
+return;
+}
+}
+}
+}
+function gatherResource(resource, cellElement) {
+if (gameState.player.hp <= GATHER_HP_COST) {
+showMessage("You are too weak to gather resources!");
+return;
+}
+if (resource.type === 'tree') {
+audioManager.playSound('tree_chop');
+} else if (resource.type === 'stone') {
+audioManager.playSound('gather_stone');
+} else if (resource.type === 'gem') {
+audioManager.playSound('gather_gem');
+} else if (resource.type === 'herb') {
+audioManager.playSound('gather_herb');
+}
+resource.hits++;
+cellElement.classList.add('shaking');
+setTimeout(() => cellElement.classList.remove('shaking'), 150);
+if (resource.hits >= GATHERING_HITS) {
+let replacementTile = TILE.EMPTY;
+if (resource.type === 'tree') {
+gameState.player.wood += WOOD_PER_TREE;
+showMessage(`+${WOOD_PER_TREE} 🪵, -${GATHER_HP_COST} ❤️`);
+replacementTile = TILE.DECOR_1;
+} else if (resource.type === 'stone') {
+gameState.player.stone += STONE_PER_ROCK;
+showMessage(`+${STONE_PER_ROCK} 🪨, -${GATHER_HP_COST} ❤️`);
+} else if (resource.type === 'gem') {
+gameState.player.gems += GEM_PER_ROCK;
+showMessage(`+${GEM_PER_ROCK} 💎, -${GATHER_HP_COST} ❤️`);
+} else if (resource.type === 'herb') {
+gameState.player.herbs += HERB_PER_PLANT;
+showMessage(`+${HERB_PER_PLANT} 🌿, -${GATHER_HP_COST} ❤️`);
+}
+gameState.player.hp -= GATHER_HP_COST;
+updateCell(resource.x, resource.y, replacementTile);
+gameState.resources = gameState.resources.filter((r) => r !== resource);
+updateHUD();
+showPlayerStatusBar();
+}
+}
+function buildShelter() {
+if (gameState.isFighting) return;
+const costs = gameState.levelConfig;
+if (gameState.player.wood < costs.shelterWoodCost) {
+showMessage(`Need ${costs.shelterWoodCost} wood to build a shelter.`);
+return;
+}
+if (gameState.player.hp <= costs.shelterHPCost) {
+showMessage(`Need more than ${costs.shelterHPCost} health to build.`);
+return;
+}
+const p = gameState.player.pos;
+const currentTile = gameState.world[p.y][p.x];
+const pathTile = gameState.isUnderworld ? TILE.UW_PATH : TILE.PATH;
+if (currentTile === TILE.EMPTY || currentTile === pathTile) {
+gameState.player.wood -= costs.shelterWoodCost;
+gameState.player.hp -= costs.shelterHPCost;
+updateCell(p.x, p.y, TILE.SHELTER);
+audioManager.playSound('tree_chop');
+setTimeout(() => audioManager.playSound('tree_chop'), 150);
+setTimeout(() => audioManager.playSound('tree_chop'), 300);
+updateHUD();
+showMessage("You built a shelter! 🏰");
+} else {
+showMessage("You can't build here!");
+}
+}
+function buildStoneWeapon(weaponType) {
+if (gameState.isFighting) return;
+const weaponData = WEAPONS[weaponType];
+if (gameState.player.inventory.includes(weaponType)) {
+showMessage(`You have already crafted a ${weaponData.name}.`);
+return;
+}
+const cost = weaponType === 'sword' ? STONE_SWORD_COST : STONE_SLEDGE_COST;
+if (gameState.player.stone < cost) {
+showMessage(`Need ${cost} stone for the ${weaponData.name}.`);
+return;
+}
+gameState.player.stone -= cost;
+gameState.player.inventory.push(weaponType);
+equipWeapon(weaponType);
+showMessage(`You crafted a ${weaponData.name}! ${weaponData.emoji}`);
+}
+function buildCrossbow() {
+const costs = gameState.levelConfig;
+if (gameState.player.inventory.includes('crossbow')) {
+showMessage(`You have already crafted a Crossbow.`);
+return;
+}
+if (gameState.isFighting) return;
+if (gameState.player.wood < costs.crossbowWoodCost) {
+showMessage(`Need ${costs.crossbowWoodCost} wood to craft a crossbow.`);
+return;
+}
+if (gameState.player.hp <= costs.crossbowHPCost) {
+showMessage(`Need more than ${costs.crossbowHPCost} health to build.`);
+return;
+}
+gameState.player.wood -= costs.crossbowWoodCost;
+gameState.player.hp -= costs.crossbowHPCost;
+gameState.player.inventory.push('crossbow');
+gameState.player.arrows += 50;
+equipWeapon('crossbow');
+showMessage(`You crafted a Crossbow! ${TILE.CROSSBOW} +50 ${TILE.ARROW}`);
+}
+function craftArrows() {
+if (gameState.isFighting) return;
+if (!gameState.player.inventory.includes('crossbow')) {
+showMessage("You need a crossbow to craft arrows.");
+return;
+}
+const cost = ARROW_CRAFTING_COST;
+if (gameState.player.wood < cost) {
+showMessage(`Need ${cost} wood to craft arrows.`);
+return;
+}
+gameState.player.wood -= cost;
+gameState.player.arrows += 50;
+updateHUD();
+showMessage(`You crafted 50 arrows! +50 ${TILE.ARROW}, -${cost} 🪵`);
+}
+function craftHealthPotion() {
+if (gameState.isFighting) {
+showMessage("Cannot craft during combat!");
+return;
+}
+const HERB_COST = 5;
+const HEAL_AMOUNT = 50;
+if (gameState.player.herbs < HERB_COST) {
+showMessage(`Need ${HERB_COST} ${TILE.HERB} to craft a health potion.`);
+return;
+}
+if (gameState.player.hp >= gameState.player.maxHp) {
+showMessage("You are already at full health!");
+return;
+}
+gameState.player.herbs -= HERB_COST;
+gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + HEAL_AMOUNT);
+showMessage(`You crafted a potion! +${HEAL_AMOUNT} ❤️, -${HERB_COST} 🌿`);
+updateHUD();
+showPlayerStatusBar();
+}
+function equipWeapon(weaponId) {
+if (gameState.player.inventory.includes(weaponId)) {
+gameState.player.equippedWeapon = weaponId;
+const weaponData = WEAPONS[weaponId];
+showMessage(`Switched to ${weaponData.name} ${weaponData.emoji}`);
+updateHUD();
+}
+}
+function startFight(monster) {
+if (gameState.isFighting) return;
+gameState.isFighting = true;
+gameState.activeFighter = monster;
+const monsterEl = visibleMonsterElements[monster.id];
+if (monsterEl) {
+createHealthBar(monsterEl, monster.currentHp, monster.baseHp, 'monster');
+monsterEl.classList.add('fighting-monster');
+}
+createHealthBar(playerElement, gameState.player.hp, gameState.player.maxHp, 'player');
+gameState.monsterAttackInterval = setInterval(() => {
+if (!gameState.isFighting || !gameState.activeFighter) return;
+const monsterDamage = gameState.activeFighter.currentStrength + Math.floor(Math.random() * 3) - 1;
+gameState.player.hp -= Math.max(0, monsterDamage);
+if (monsterDamage > 0) {
+audioManager.playSound('player_take_damage');
+}
+updateHUD();
+updateHealthBar(playerElement, gameState.player.hp, gameState.player.maxHp);
+if (gameState.player.hp <= 0) {
+endFight('lose');
+}
+}, MONSTER_ATTACK_SPEED);
+}
+function endFight(outcome) {
+if (!gameState.isFighting) return;
+const monster = gameState.activeFighter;
+if (monster) {
+const monsterEl = visibleMonsterElements[monster.id];
+if (monsterEl) {
+const healthBar = monsterEl.querySelector('.health-bar-container');
+if (healthBar) healthBar.remove();
+monsterEl.classList.remove('fighting-monster');
+}
+}
+const playerHealthBar = playerElement.querySelector('.health-bar-container');
+if (playerHealthBar) playerHealthBar.remove();
+clearInterval(gameState.monsterAttackInterval);
+gameState.monsterAttackInterval = null;
+gameState.isFighting = false;
+gameState.activeFighter = null;
+if (outcome === 'win' && monster) {
+killMonster(monster);
+} else if (outcome === 'lose') {
+gameState.player.hp = 0;
+gameOver();
+}
+updateHUD();
+}
+function killMonster(monster) {
+audioManager.playSound('monster_die_xp');
+monster.isDying = true;
+const reward = OBJECT_DATA[monster.tile].xpReward || 0;
+showMessage(`Defeated ${monster.tile}! +${reward} XP ⭐`);
+if (monster.isBoss) {
+showMessage("The boss dropped some food! 🍉");
+gameState.world[monster.y][monster.x] = TILE.FOOD_2;
+if (gameState.level === 20) {
+gameState.player.hasUnicornKey = true;
+showMessage("The Dragon dropped a strange key! 🗝️ It must be for the Unicorn's cage!");
+}
+}
+gameState.player.xp += reward;
+checkIfStrengthIncreases();
+updateHUD();
+const monsterEl = visibleMonsterElements[monster.id];
+if (monsterEl) {
+const healthBar = monsterEl.querySelector('.health-bar-container');
+if (healthBar) healthBar.remove();
+monsterEl.classList.remove('fighting-monster');
+const sprite = monsterEl.querySelector('.monster-sprite');
+if (sprite) sprite.textContent = TILE.DEAD;
+monsterEl.style.transition = 'opacity 2s ease-out';
+monsterEl.style.opacity = '0';
+setTimeout(() => {
+monsterEl.remove();
+delete visibleMonsterElements[monster.id];
+gameState.monsters = gameState.monsters.filter((m) => m.id !== monster.id);
+}, 2000);
+} else {
+gameState.monsters = gameState.monsters.filter((m) => m.id !== monster.id);
+}
+updateCell(monster.x, monster.y, gameState.world[monster.y][monster.x]);
+}
+function checkIfStrengthIncreases() {
+while (gameState.player.xp >= gameState.player.xpForNextStrength) {
+gameState.player.xp -= gameState.player.xpForNextStrength;
+gameState.player.strength++;
+gameState.player.xpForNextStrength = Math.floor(gameState.player.xpForNextStrength * 1.5);
+showMessage(`✨ Strength increased to ${gameState.player.strength}! ✨`, null);
+updateHUD();
+}
+}
+function shootCrossbow(targetMapX, targetMapY) {
+if (gameState.player.arrows <= 0) {
+showMessage("You're out of arrows!");
+return;
+}
+audioManager.playSound('arrow_shoot_swoosh');
+const pPos = gameState.player.pixelPos;
+const dx = targetMapX - pPos.x;
+const dy = targetMapY - pPos.y;
+if (Math.hypot(dx, dy) < cellSize / 2) return;
+gameState.player.arrows--;
+updateHUD();
+const len = Math.hypot(dx, dy);
+const dirX = dx / len;
+const dirY = dy / len;
+const arrow = document.createElement('div');
+arrow.className = 'arrow';
+arrow.textContent = TILE.ARROW;
+const angle = (Math.atan2(dirY, dirX) * 180) / Math.PI;
+arrow.style.left = `${pPos.x - cellSize / 4}px`;
+arrow.style.top = `${pPos.y - cellSize / 4}px`;
+arrow.style.transform = `rotate(${angle}deg)`;
+mapGrid.appendChild(arrow);
+gameState.activeProjectiles.push({
+el: arrow,
+x: pPos.x,
+y: pPos.y,
+dx: dirX,
+dy: dirY,
+speed: 800,
+distanceTraveled: 0,
+maxDistance: 15 * cellSize,
+});
+}
+function updateProjectiles(deltaTime) {
+for (let i = gameState.activeProjectiles.length - 1; i >= 0; i--) {
+const p = gameState.activeProjectiles[i];
+const moveDist = p.speed * deltaTime;
+p.x += p.dx * moveDist;
+p.y += p.dy * moveDist;
+p.distanceTraveled += moveDist;
+p.el.style.left = `${p.x - cellSize / 4}px`;
+p.el.style.top = `${p.y - cellSize / 4}px`;
+let hit = false;
+const gridX = Math.floor(p.x / cellSize);
+const gridY = Math.floor(p.y / cellSize);
+const monster = gameState.monsters.find((m) => !m.isDying && m.x === gridX && m.y === gridY);
+if (monster && monster.tile !== TILE.SWAN) {
+hit = true;
+audioManager.playSound('arrow_hit_thud');
+let damage = CROSSBOW_BASE_DAMAGE + Math.floor(gameState.player.strength / CROSSBOW_STRENGTH_DAMAGE_FACTOR);
+if (monster.isBoss) {
+damage = Math.max(1, Math.floor(damage / 10));
+}
+monster.currentHp -= damage;
+monster.isAggroed = true;
+const monsterEl = visibleMonsterElements[monster.id];
+if (monsterEl) {
+if (!monsterEl.querySelector('.health-bar-container')) {
+createHealthBar(monsterEl, monster.currentHp, monster.baseHp, 'monster');
+}
+updateHealthBar(monsterEl, monster.currentHp, monster.baseHp);
+}
+if (monster.currentHp <= 0) {
+if (gameState.isFighting && gameState.activeFighter.id === monster.id) {
+endFight('win');
+} else if (!gameState.isFighting) {
+killMonster(monster);
+}
+}
+}
+if (isTileBlocking(gridX, gridY) || p.distanceTraveled >= p.maxDistance) {
+hit = true;
+}
+if (hit) {
+p.el.remove();
+gameState.activeProjectiles.splice(i, 1);
+}
+}
+}
+function createHealthBar(parent, current, max, type) {
+const existingBar = parent.querySelector('.health-bar-container');
+if (existingBar) existingBar.remove();
+const container = document.createElement('div');
+container.className = 'health-bar-container';
+const inner = document.createElement('div');
+inner.className = `health-bar-inner ${type}`;
+inner.style.width = `${Math.max(0, (current / max) * 100)}%`;
+container.appendChild(inner);
+parent.appendChild(container);
+}
+function updateHealthBar(barParent, current, max) {
+if (!barParent) return;
+const innerBar = barParent.querySelector('.health-bar-inner');
+if (innerBar) {
+innerBar.style.width = `${Math.max(0, (current / max) * 100)}%`;
+}
+}
+function showPlayerStatusBar() {
+if (gameState.playerStatusBar) {
+gameState.playerStatusBar.remove();
+}
+const container = document.createElement('div');
+container.className = 'status-bar-container';
+const inner = document.createElement('div');
+inner.className = 'status-bar-inner';
+const hpPercent = (gameState.player.hp / gameState.player.maxHp) * 100;
+inner.style.width = `${Math.max(0, hpPercent)}%`;
+container.appendChild(inner);
+playerElement.appendChild(container);
+gameState.playerStatusBar = container;
+setTimeout(() => {
+if (gameState.playerStatusBar === container) container.classList.add('fading-out');
+}, 2000);
+setTimeout(() => {
+if (gameState.playerStatusBar === container) {
+container.remove();
+gameState.playerStatusBar = null;
+}
+}, 2500);
+}
+function checkAggro() {
+if (gameState.isFighting) return;
+const pPos = gameState.player.pos;
+for (const monster of gameState.monsters) {
+if (monster.isDying || monster.tile === TILE.GHOST || monster.tile === TILE.SWAN) continue;
+const distance = Math.hypot(pPos.x - monster.x, pPos.y - monster.y);
+if (monster.isBoss && distance < BOSS_AGGRO_RANGE) {
+startFight(monster);
+return;
+}
+if (!monster.isBoss && distance < 2) {
+startFight(monster);
+return;
+}
+}
+const swan = gameState.monsters.find(m => m.tile === TILE.SWAN);
+if (swan && gameState.player.hp < gameState.player.maxHp) {
+const distanceToSwan = Math.hypot(pPos.x - swan.x, pPos.y - swan.y);
+if (distanceToSwan < 1.5) {
+gameState.player.hp = gameState.player.maxHp;
+audioManager.playSound('swan_heal');
+showMessage("The magic swan 🦢 heals you! You are at full health ❤️.");
+updateHUD();
+showPlayerStatusBar();
+}
+}
+}
+function updateEntityPixelPositions(deltaTime) {
+const entities = [...gameState.monsters, ...gameState.npcs];
+for (const entity of entities) {
+if (entity.isDying) continue;
+if (entity.tile === TILE.GHOST && entity.isHunting) {
+const playerPixelPos = gameState.player.pixelPos;
+const dx = playerPixelPos.x - entity.pixelPos.x;
+const dy = playerPixelPos.y - entity.pixelPos.y;
+const dist = Math.hypot(dx, dy);
+if (dist > cellSize) {
+const dirX = dx / dist;
+const dirY = dy / dist;
+const moveAmount = entity.speed * deltaTime;
+entity.pixelPos.x += dirX * moveAmount;
+entity.pixelPos.y += dirY * moveAmount;
+entity.x = Math.floor(entity.pixelPos.x / cellSize);
+entity.y = Math.floor(entity.pixelPos.y / cellSize);
+}
+continue;
+}
+const dx = entity.targetPixelPos.x - entity.pixelPos.x;
+const dy = entity.targetPixelPos.y - entity.pixelPos.y;
+const dist = Math.hypot(dx, dy);
+if (dist < 1) continue;
+const moveAmount = entity.speed * deltaTime;
+if (dist < moveAmount) {
+entity.pixelPos.x = entity.targetPixelPos.x;
+entity.pixelPos.y = entity.targetPixelPos.y;
+} else {
+entity.pixelPos.x += (dx / dist) * moveAmount;
+entity.pixelPos.y += (dy / dist) * moveAmount;
+}
+}
+}
+function moveEntities() {
+const playerInShelterAtNight = gameState.timeOfDay === 'night' && gameState.world[gameState.player.pos.y][gameState.player.pos.x] === TILE.SHELTER;
+const ghostsToRemove = [];
+const allEntities = [...gameState.monsters, ...gameState.npcs];
+allEntities.forEach((entity) => {
+if (entity.isDying) return;
+if (entity.tile === TILE.SWAN) {
+if (Math.random() > 0.6) {
+const validMoves = [];
+[
+[0, -1],
+[0, 1],
+[-1, 0],
+[1, 0]
+].forEach(move => {
+const newX = entity.x + move[0];
+const newY = entity.y + move[1];
+if (gameState.world[newY] && gameState.world[newY][newX] === TILE.WATER) {
+validMoves.push(move);
+}
+});
+if (validMoves.length > 0) {
+const chosenMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+entity.x += chosenMove[0];
+entity.y += chosenMove[1];
+entity.targetPixelPos = {
+x: entity.x * cellSize + cellSize / 2,
+y: entity.y * cellSize + cellSize / 2
+};
+}
+}
+return;
+}
+if (entity.tile === TILE.GHOST) {
+entity.isHunting = true;
+const distanceToPlayer = Math.hypot(gameState.player.pos.x - entity.x, gameState.player.pos.y - entity.y);
+if (distanceToPlayer < 1.5 && !playerInShelterAtNight) {
+const damage = 15 + Math.floor(Math.random() * 10);
+let stolenItems = [];
+if (gameState.player.hasKey) {
+gameState.player.hasKey = false;
+stolenItems.push(TILE.KEY);
+}
+if (gameState.player.inventory.includes('crossbow')) {
+gameState.player.inventory = gameState.player.inventory.filter(w => w !== 'crossbow');
+if (gameState.player.arrows > 0) {
+stolenItems.push(`${gameState.player.arrows} ${TILE.ARROW}`);
+gameState.player.arrows = 0;
+}
+stolenItems.push(TILE.CROSSBOW);
+}
+if (gameState.player.wood > 0) {
+stolenItems.push(`${gameState.player.wood} 🪵`);
+gameState.player.wood = 0;
+}
+if (stolenItems.includes(TILE.KEY) && gameState.level < 20) {
+const newKeyPos = getRandomEmptyPosition(TILE.EMPTY, [gameState.player.pos], 10);
+if (newKeyPos) {
+gameState.keyPos = newKeyPos;
+updateCell(newKeyPos.x, newKeyPos.y, TILE.KEY);
+}
+}
+gameState.player.hp = Math.max(0, gameState.player.hp - damage);
+updateHUD();
+let message = `👻 A ghost attacked! You lost ${damage} ❤️.`;
+if (stolenItems.length > 0) {
+message += ` It stole: ${stolenItems.join(', ')}!`;
+}
+showMessage(message);
+ghostsToRemove.push(entity.id);
+const entityEl = visibleMonsterElements[entity.id];
+if (entityEl) entityEl.remove();
+delete visibleMonsterElements[entity.id];
+if (gameState.player.hp <= 0) gameOver();
+return;
+}
+return;
+}
+if (playerInShelterAtNight || OBJECT_DATA[entity.tile].type === 'special') return;
+const atTarget = Math.hypot(entity.pixelPos.x - entity.targetPixelPos.x, entity.pixelPos.y - entity.targetPixelPos.y) < 1;
+if (!atTarget) return;
+let move = [0, 0];
+const pPos = gameState.player.pos;
+let targetPos = null;
+if (entity.isBoss) {
+const distanceToPlayer = Math.hypot(pPos.x - entity.x, pPos.y - entity.y);
+if (distanceToPlayer < BOSS_CHASE_RANGE) {
+targetPos = pPos;
+} else if (entity.x !== entity.homePos.x || entity.y !== entity.homePos.y) {
+targetPos = entity.homePos;
+}
+} else if (entity.isAggroed) {
+targetPos = pPos;
+}
+if (targetPos) {
+const dx = targetPos.x - entity.x;
+const dy = targetPos.y - entity.y;
+if (Math.abs(dx) > Math.abs(dy)) {
+move[0] = Math.sign(dx);
+} else if (dy !== 0) {
+move[1] = Math.sign(dy);
+} else if (dx !== 0) {
+move[0] = Math.sign(dx);
+}
+} else {
+if (Math.random() > 0.4) return;
+const options = [
+[0, -1],
+[0, 1],
+[-1, 0],
+[1, 0]
+];
+move = options[Math.floor(Math.random() * 4)];
+}
+const newX = entity.x + move[0];
+const newY = entity.y + move[1];
+const canMove = !isTileBlocking(newX, newY);
+if ((move[0] !== 0 || move[1] !== 0) && canMove) {
+const oldX = entity.x;
+const oldY = entity.y;
+entity.x = newX;
+entity.y = newY;
+entity.targetPixelPos = {
+x: newX * cellSize + cellSize / 2,
+y: newY * cellSize + cellSize / 2
+};
+updateCell(oldX, oldY, gameState.world[oldY][oldX]);
+updateCell(newX, newY, gameState.world[newY][newX]);
+}
+});
+if (ghostsToRemove.length > 0) {
+gameState.monsters = gameState.monsters.filter((m) => !ghostsToRemove.includes(m.id));
+}
+checkAggro();
+}
+function mainGameLoop(timestamp) {
+if (gameState.isGameOver) {
+cancelAnimationFrame(mainGameLoopId);
+return;
+}
+const deltaTime = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
+lastFrameTime = timestamp;
+processPlayerInputAndMove(deltaTime);
+updateEntityPixelPositions(deltaTime);
+updateProjectiles(deltaTime);
+render();
+mainGameLoopId = requestAnimationFrame(mainGameLoop);
+}
+function gameTick() {
+if (gameState.isGameOver || gameState.isFighting) return;
+updateTime();
+moveEntities();
+if (gameState.time % 10 === 0) {
+respawnFoodIfNeeded();
+}
+if (gameState.isUnderworld && Math.random() < 0.05) {
+triggerLightning();
+}
+}
+function processPlayerInputAndMove(deltaTime) {
+if (gameState.isFighting) {
+playerElement.classList.remove('is-walking');
+return;
+}
+let dx = 0;
+let dy = 0;
+if (keysPressed['w'] || keysPressed['arrowup']) dy = -1;
+if (keysPressed['s'] || keysPressed['arrowdown']) dy = 1;
+if (keysPressed['a'] || keysPressed['arrowleft']) dx = -1;
+if (keysPressed['d'] || keysPressed['arrowright']) dx = 1;
+if (dx === 0 && dy === 0) {
+playerElement.classList.remove('is-walking');
+return;
+}
+playerElement.classList.add('is-walking');
+audioManager.playSoundThrottled('player_walk', 300);
+const length = Math.sqrt(dx * dx + dy * dy);
+if (length > 0) {
+dx /= length;
+dy /= length;
+}
+const moveAmount = PLAYER_SPEED * deltaTime;
+const newPixelX = gameState.player.pixelPos.x + dx * moveAmount;
+const newPixelY = gameState.player.pixelPos.y + dy * moveAmount;
+const playerHalfWidth = cellSize / 4;
+const targetXGrid = Math.floor((newPixelX + Math.sign(dx) * playerHalfWidth) / cellSize);
+const currentYGridForXCheck = Math.floor(gameState.player.pixelPos.y / cellSize);
+if (!isTileBlocking(targetXGrid, currentYGridForXCheck)) {
+gameState.player.pixelPos.x = newPixelX;
+}
+const targetYGrid = Math.floor((newPixelY + Math.sign(dy) * playerHalfWidth) / cellSize);
+const currentXGridForYCheck = Math.floor(gameState.player.pixelPos.x / cellSize);
+if (!isTileBlocking(currentXGridForYCheck, targetYGrid)) {
+gameState.player.pixelPos.y = newPixelY;
+}
+const oldGridX = gameState.player.pos.x;
+const oldGridY = gameState.player.pos.y;
+const newGridX = Math.floor(gameState.player.pixelPos.x / cellSize);
+const newGridY = Math.floor(gameState.player.pixelPos.y / cellSize);
+if (newGridX !== oldGridX || newGridY !== oldGridY) {
+gameState.player.pos.x = newGridX;
+gameState.player.pos.y = newGridY;
+updateVisibleCells();
+const targetTile = gameState.world[newGridY][newGridX];
+handleInteraction(newGridX, newGridY, targetTile);
+checkAggro();
+}
+}
+function isTileBlocking(x, y) {
+if (x < 0 || x >= WORLD_SIZE.cols || y < 0 || y >= WORLD_SIZE.rows) return true;
+const targetTile = gameState.world[y][x];
+const blockingTiles = [TILE.WALL_1, TILE.WALL_2, TILE.STONE, TILE.WATER, TILE.GEM, TILE.CAGE];
+if (blockingTiles.includes(targetTile)) return true;
+if (gameState.monsters.some((m) => !m.isDying && m.tile !== TILE.GHOST && m.tile !== TILE.SWAN && m.x === x && m.y === y)) return true;
+if (gameState.npcs.some((n) => n.x === x && n.y === y)) return true;
+return false;
+}
+function updateTime() {
+if (gameState.level === 20) return;
+gameState.time++;
+const cycleDuration = DAY_DURATION + NIGHT_DURATION;
+const timeInCycle = gameState.time % cycleDuration;
+const wasDay = gameState.timeOfDay === 'day';
+if (wasDay && timeInCycle >= DAY_DURATION) {
+gameState.timeOfDay = 'night';
+nightOverlay.classList.add('is-night');
+audioManager.stopAmbiance('wind_ambiance');
+audioManager.stopBirdSounds();
+if (!gameState.isUnderworld) {
+audioManager.startNightSounds();
+}
+gameState.monsters.forEach((m) => {
+m.currentStrength = Math.floor(m.baseStrength * NIGHT_STRENGTH_BONUS);
+});
+setTimeout(spawnGhosts, 10000);
+} else if (!wasDay && timeInCycle < DAY_DURATION) {
+gameState.timeOfDay = 'day';
+nightOverlay.classList.remove('is-night');
+audioManager.stopNightSounds();
+if (!gameState.isUnderworld) {
+audioManager.startAmbiance('wind_ambiance');
+audioManager.startBirdSounds();
+}
+gameState.monsters.forEach((m) => {
+m.currentStrength = m.baseStrength;
+});
+despawnGhosts();
+}
+updateHUD();
+}
+function spawnGhosts() {
+if (gameState.isFighting) return;
+audioManager.playSound('ghost_spawn');
+const ghostCount = 2 + gameState.level;
+placeMonsters(TILE.GHOST, ghostCount);
+showMessage("A sinister presence is felt... 👻");
+}
+function despawnGhosts() {
+gameState.monsters.forEach((monster) => {
+if (monster.tile === TILE.GHOST) {
+const monsterEl = visibleMonsterElements[monster.id];
+if (monsterEl) {
+monsterEl.remove();
+delete visibleMonsterElements[monster.id];
+}
+}
+});
+gameState.monsters = gameState.monsters.filter((monster) => monster.tile !== TILE.GHOST);
+}
+function respawnFoodIfNeeded() {
+let foodCount = 0;
+const foodTiles = [TILE.FOOD_1, TILE.FOOD_2];
+for (let y = 0; y < WORLD_SIZE.rows; y++) {
+for (let x = 0; x < WORLD_SIZE.cols; x++) {
+if (foodTiles.includes(gameState.world[y][x])) {
+foodCount++;
+}
+}
+}
+if (foodCount < MIN_FOOD_COUNT) {
+placeObjectsInBiome(TILE.FOOD_1, Math.ceil(FOOD_RESPAWN_AMOUNT * 0.7), TILE.EMPTY, true);
+placeObjectsInBiome(TILE.FOOD_2, Math.floor(FOOD_RESPAWN_AMOUNT * 0.3), TILE.EMPTY, true);
+}
+}
+function jumpToLevel(level) {
+closeModal();
+messageQueue = [];
+gameState.level = level - 1;
+setupNewGame();
+}
+window.addEventListener('keydown', (e) => {
+const key = e.key.toLowerCase();
+if (isDisplayingMessage) {
+if (key === 'escape' || key === 'enter') {
+if (!messageBox.classList.contains('has-options') || gameState.isGameOver) {
+(messageButton.onclick || closeModal)();
+}
+}
+if (key === 'q') {
+e.preventDefault();
+const code = prompt('Enter code to switch levels:');
+if (code === '1234') {
+const levelInput = prompt('Which level do you want to jump to?', gameState.level);
+const targetLevel = parseInt(levelInput);
+if (!isNaN(targetLevel) && targetLevel > 0) {
+jumpToLevel(targetLevel);
+} else if (levelInput) {
+alert('Invalid level. Enter a number greater than 0.');
+}
+} else if (code) {
+alert('Incorrect code.');
+}
+}
+} else {
+keysPressed[key] = true;
+if (['1', '2', '3', '4'].includes(key)) {
+e.preventDefault();
+const hotbar = WEAPON_HOTBAR_ORDER.filter(wId => gameState.player.inventory.includes(wId));
+const weaponIndex = parseInt(key) - 1;
+if (hotbar[weaponIndex]) {
+equipWeapon(hotbar[weaponIndex]);
+}
+} else if (key === 'b') {
+e.preventDefault();
+buildShelter();
+} else if (key === 'c') {
+e.preventDefault();
+buildCrossbow();
+} else if (key === 'p') {
+e.preventDefault();
+craftArrows();
+} else if (key === 'v') {
+e.preventDefault();
+buildStoneWeapon('sword');
+} else if (key === 'h') {
+e.preventDefault();
+buildStoneWeapon('sledge');
+} else if (key === 'm') {
+e.preventDefault();
+craftHealthPotion();
+} else if (key === 'e') {
+e.preventDefault();
+handleNPCInteraction();
+}
+}
+});
+window.addEventListener('keyup', (e) => {
+keysPressed[e.key.toLowerCase()] = false;
+});
+window.addEventListener('resize', () => {
+if (!gameState || !mapGrid || !gameState.player || !gameState.player.pixelPos) {
+return;
+}
+cellSize = (8 * Math.min(window.innerWidth, window.innerHeight)) / 100;
+gameState.player.pixelPos = {
+x: gameState.player.pos.x * cellSize + cellSize / 2,
+y: gameState.player.pos.y * cellSize + cellSize / 2
+};
+const allEntities = [...(gameState.monsters || []), ...(gameState.npcs || [])];
+allEntities.forEach(entity => {
+entity.pixelPos = {
+x: entity.x * cellSize + cellSize / 2,
+y: entity.y * cellSize + cellSize / 2
+};
+entity.targetPixelPos = { ...entity.pixelPos };
+});
+if (gameState.activeProjectiles) {
+gameState.activeProjectiles.forEach(p => p.el.remove());
+gameState.activeProjectiles = [];
+}
+mapGrid.innerHTML = '';
+visibleCellElements = {};
+visibleMonsterElements = {};
+visibleNpcElements = {};
+updateVisibleCells(true);
+render();
+});
+saveGameButton.addEventListener('click', saveGame);
+howToPlayButton.addEventListener('click', showHowToPlay);
+if (!loadGame()) {
+setupNewGame();
+}
+showHowToPlay();
+function forceInitialDraw() {
+if (!gameState || !gameState.player || gameState.isGameOver || !mainGameLoopId) {
+setTimeout(forceInitialDraw, 50);
+return;
+}
+const gameWidth = gameContainer.clientWidth;
+if (gameWidth > 0) {
+console.log("Layout ferdig. Simulerer piltrykk for å tegne kartet...");
+cellSize = (8 * Math.min(window.innerWidth, window.innerHeight)) / 100;
+keysPressed['d'] = true;
+setTimeout(() => {
+keysPressed['d'] = false;
+}, 50);
+} else {
+setTimeout(forceInitialDraw, 50);
+}
+}
+document.body.addEventListener('click', () => audioManager.init(), { once: true });
+document.body.addEventListener('keydown', () => audioManager.init(), { once: true });
+forceInitialDraw();
+});
+</script>
+</body>
+</html>

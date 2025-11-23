@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ludo Board Game Online</title>
+<meta name="description" content="Ludo game where you take control of the Green player, while the Blue, Red, and Yellow players are all controlled by AI.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--board-size: 94vmin;
+--green: #009e00;
+--blue: #0072b5;
+--red: #e4001b;
+--yellow: #ffed00;
+--white: #ffffff;
+--dark-bg: #303030;
+--light-text: #f0f0f0;
+--highlight-color: #00ffff;
+}
+body {
+display: flex;
+justify-content: center;
+align-items: center;
+flex-direction: column;
+gap: 20px;
+height: 100vh;
+margin: 0;
+background-color: var(--dark-bg);
+font-family: sans-serif;
+color: var(--light-text);
+padding-top: 6px;
+padding-bottom: 6px;
+box-sizing: border-box;
+}
+#game-container {
+display: flex;
+align-items: center;
+gap: 40px;
+position: relative;
+}
+svg {
+width: var(--board-size);
+height: var(--board-size);
+box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+border-radius: 12px;
+box-shadow: 2px 2px 4px 2px rgba(0, 0, 0, 0.75);
+}
+#controls {
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 15px;
+min-width: 300px;
+background-color: #000000;
+padding: 20px;
+border-radius: 12px;
+}
+#dice {
+width: 80px;
+height: 80px;
+border: 2px solid var(--light-text);
+border-radius: 10px;
+display: flex;
+justify-content: center;
+align-items: center;
+font-size: 48px;
+font-weight: bold;
+transition: border-color 0.3s;
+}
+button {
+width: 180px;
+padding: 12px 24px;
+font-size: 18px;
+cursor: pointer;
+border-radius: 8px;
+border: none;
+background-color: var(--blue);
+color: var(--white);
+transition: background-color 0.3s;
+}
+button:disabled {
+background-color: #555;
+cursor: not-allowed;
+}
+button:not(:disabled):hover {
+background-color: #008fdd;
+}
+#autopilot-button {
+background-color: #5a5a5a;
+width: 180px;
+}
+#autopilot-button.active {
+background-color: var(--green);
+color: var(--white);
+}
+#message-box {
+min-height: 20px;
+text-align: center;
+font-size: 1.1em;
+font-weight: bold;
+}
+.shape {
+stroke: #000000;
+stroke-width: 0.5;
+}
+.pawn {
+stroke: #000000;
+stroke-width: 0.5;
+cursor: pointer;
+transition: transform 0.4s ease-in-out, r 0.2s ease-in-out;
+}
+.pawn.green {
+fill: #009e00;
+}
+.pawn.blue {
+fill: #0072b5;
+}
+.pawn.red {
+fill: #e4001b;
+}
+.pawn.yellow {
+fill: #ffed00;
+}
+@keyframes glow {
+0% {
+stroke: var(--highlight-color);
+stroke-width: 1.5;
+}
+50% {
+stroke: var(--white);
+stroke-width: 2.5;
+}
+100% {
+stroke: var(--highlight-color);
+stroke-width: 1.5;
+}
+}
+.pawn.movable {
+animation: glow 1.2s infinite;
+}
+@keyframes explode {
+0% {
+transform: scale(1);
+opacity: 1;
+}
+100% {
+transform: scale(3.5) rotate(75deg);
+opacity: 0;
+}
+}
+.pawn.finished-animation {
+animation: explode 0.5s ease-out forwards;
+}
+#winner-display {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+display: none;
+justify-content: center;
+align-items: center;
+font-size: 10vmin;
+font-weight: bold;
+color: white;
+text-shadow: 0 0 15px black, 0 0 10px black;
+z-index: 1000;
+pointer-events: none;
+opacity: 0;
+}
+@keyframes fadeInOut {
+0% {
+opacity: 0;
+transform: scale(0.8);
+}
+20% {
+opacity: 1;
+transform: scale(1);
+}
+80% {
+opacity: 1;
+transform: scale(1);
+}
+100% {
+opacity: 0;
+transform: scale(0.8);
+}
+}
+.show-message {
+display: flex !important;
+animation: fadeInOut 2.5s ease-in-out forwards;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="game-container">
+<div id="winner-display"></div>
+<div id="controls">
+<div id="dice">?</div>
+<button id="roll-button">Roll the dice</button>
+<button id="autopilot-button">Autopilot</button>
+<div id="message-box">Welcome! Green player starts.</div>
+</div>
+<svg viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<style>
+.green-bg {
+fill: #009e00;
+}
+.blue-bg {
+fill: #0072b5;
+}
+.red-bg {
+fill: #e4001b;
+}
+.yellow-bg {
+fill: #ffed00;
+}
+.white-bg {
+fill: #ffffff;
+}
+</style>
+</defs>
+<g id="bases">
+<rect class="white-bg shape" x="0" y="0" width="150" height="150" />
+<rect class="green-bg" x="0" y="0" width="60" height="60" />
+<rect class="blue-bg" x="90" y="0" width="60" height="60" />
+<rect class="yellow-bg" x="0" y="90" width="60" height="60" />
+<rect class="red-bg" x="90" y="90" width="60" height="60" />
+</g>
+<g id="yards">
+<rect class="white-bg shape" x="10" y="10" width="40" height="40" />
+<rect class="white-bg shape" x="100" y="10" width="40" height="40" />
+<rect class="white-bg shape" x="10" y="100" width="40" height="40" />
+<rect class="white-bg shape" x="100" y="100" width="40" height="40" />
+</g>
+<g id="game-path">
+<rect class="white-bg shape" x="60" y="0" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="10" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="20" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="30" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="40" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="50" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="0" width="10" height="10" />
+<rect class="blue-bg shape" x="80" y="10" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="20" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="30" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="40" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="50" width="10" height="10" />
+<rect class="white-bg shape" x="90" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="100" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="110" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="120" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="130" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="140" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="90" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="100" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="110" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="120" y="80" width="10" height="10" />
+<rect class="red-bg shape" x="130" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="140" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="90" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="100" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="110" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="120" width="10" height="10" />
+<rect class="yellow-bg shape" x="60" y="130" width="10" height="10" />
+<rect class="white-bg shape" x="60" y="140" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="90" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="100" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="110" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="120" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="130" width="10" height="10" />
+<rect class="white-bg shape" x="80" y="140" width="10" height="10" />
+<rect class="white-bg shape" x="0" y="60" width="10" height="10" />
+<rect class="green-bg shape" x="10" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="20" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="30" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="40" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="50" y="60" width="10" height="10" />
+<rect class="white-bg shape" x="0" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="10" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="20" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="30" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="40" y="80" width="10" height="10" />
+<rect class="white-bg shape" x="50" y="80" width="10" height="10" />
+</g>
+<g id="home-stretch">
+<rect class="blue-bg shape" x="70" y="10" width="10" height="10" />
+<rect class="blue-bg shape" x="70" y="20" width="10" height="10" />
+<rect class="blue-bg shape" x="70" y="30" width="10" height="10" />
+<rect class="blue-bg shape" x="70" y="40" width="10" height="10" />
+<rect class="blue-bg shape" x="70" y="50" width="10" height="10" />
+<rect class="red-bg shape" x="90" y="70" width="10" height="10" />
+<rect class="red-bg shape" x="100" y="70" width="10" height="10" />
+<rect class="red-bg shape" x="110" y="70" width="10" height="10" />
+<rect class="red-bg shape" x="120" y="70" width="10" height="10" />
+<rect class="red-bg shape" x="130" y="70" width="10" height="10" />
+<rect class="yellow-bg shape" x="70" y="90" width="10" height="10" />
+<rect class="yellow-bg shape" x="70" y="100" width="10" height="10" />
+<rect class="yellow-bg shape" x="70" y="110" width="10" height="10" />
+<rect class="yellow-bg shape" x="70" y="120" width="10" height="10" />
+<rect class="yellow-bg shape" x="70" y="130" width="10" height="10" />
+<rect class="green-bg shape" x="10" y="70" width="10" height="10" />
+<rect class="green-bg shape" x="20" y="70" width="10" height="10" />
+<rect class="green-bg shape" x="30" y="70" width="10" height="10" />
+<rect class="green-bg shape" x="40" y="70" width="10" height="10" />
+<rect class="green-bg shape" x="50" y="70" width="10" height="10" />
+</g>
+<g id="finish-area">
+<polygon class="blue-bg shape" points="60,60 90,60 75,75" />
+<polygon class="red-bg shape" points="90,60 90,90 75,75" />
+<polygon class="yellow-bg shape" points="90,90 60,90 75,75" />
+<polygon class="green-bg shape" points="60,90 60,60 75,75" />
+</g>
+<g id="pawns-container">
+<circle id="green-1" class="pawn green" cx="0" cy="0" r="4" />
+<circle id="green-2" class="pawn green" cx="0" cy="0" r="4" />
+<circle id="green-3" class="pawn green" cx="0" cy="0" r="4" />
+<circle id="green-4" class="pawn green" cx="0" cy="0" r="4" />
+<circle id="blue-1" class="pawn blue" cx="0" cy="0" r="4" />
+<circle id="blue-2" class="pawn blue" cx="0" cy="0" r="4" />
+<circle id="blue-3" class="pawn blue" cx="0" cy="0" r="4" />
+<circle id="blue-4" class="pawn blue" cx="0" cy="0" r="4" />
+<circle id="yellow-1" class="pawn yellow" cx="0" cy="0" r="4" />
+<circle id="yellow-2" class="pawn yellow" cx="0" cy="0" r="4" />
+<circle id="yellow-3" class="pawn yellow" cx="0" cy="0" r="4" />
+<circle id="yellow-4" class="pawn yellow" cx="0" cy="0" r="4" />
+<circle id="red-1" class="pawn red" cx="0" cy="0" r="4" />
+<circle id="red-2" class="pawn red" cx="0" cy="0" r="4" />
+<circle id="red-3" class="pawn red" cx="0" cy="0" r="4" />
+<circle id="red-4" class="pawn red" cx="0" cy="0" r="4" />
+</g>
+</svg>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+class LudoGame {
+AI_THINK_TIME = 1500;
+AI_MOVE_DELAY = 1000;
+NO_MOVES_DELAY = 1500;
+NEXT_TURN_DELAY = 500;
+TEMP_MESSAGE_DURATION = 2500;
+COLORS = ['green', 'blue', 'red', 'yellow'];
+START_POSITIONS = { green: 1, blue: 14, red: 27, yellow: 40 };
+HOME_STRETCH_LENGTH = 6;
+MAIN_PATH_LENGTH = 52;
+STEPS_TO_HOME_STRETCH = 51;
+PATH_COORDS = [null, { x: 15, y: 65 }, { x: 25, y: 65 }, { x: 35, y: 65 }, { x: 45, y: 65 }, { x: 55, y: 65 }, { x: 65, y: 55 }, { x: 65, y: 45 }, { x: 65, y: 35 }, { x: 65, y: 25 }, { x: 65, y: 15 }, { x: 65, y: 5 }, { x: 75, y: 5 }, { x: 85, y: 5 }, { x: 85, y: 15 }, { x: 85, y: 25 }, { x: 85, y: 35 }, { x: 85, y: 45 }, { x: 85, y: 55 }, { x: 95, y: 65 }, { x: 105, y: 65 }, { x: 115, y: 65 }, { x: 125, y: 65 }, { x: 135, y: 65 }, { x: 145, y: 65 }, { x: 145, y: 75 }, { x: 145, y: 85 }, { x: 135, y: 85 }, { x: 125, y: 85 }, { x: 115, y: 85 }, { x: 105, y: 85 }, { x: 95, y: 85 }, { x: 85, y: 95 }, { x: 85, y: 105 }, { x: 85, y: 115 }, { x: 85, y: 125 }, { x: 85, y: 135 }, { x: 85, y: 145 }, { x: 75, y: 145 }, { x: 65, y: 145 }, { x: 65, y: 135 }, { x: 65, y: 125 }, { x: 65, y: 115 }, { x: 65, y: 105 }, { x: 65, y: 95 }, { x: 55, y: 85 }, { x: 45, y: 85 }, { x: 35, y: 85 }, { x: 25, y: 85 }, { x: 15, y: 85 }, { x: 5, y: 85 }, { x: 5, y: 75 }, { x: 5, y: 65 }];
+HOME_STRETCH_COORDS = { green: [null, { x: 15, y: 75 }, { x: 25, y: 75 }, { x: 35, y: 75 }, { x: 45, y: 75 }, { x: 55, y: 75 }, { x: 65, y: 75 }], blue: [null, { x: 75, y: 15 }, { x: 75, y: 25 }, { x: 75, y: 35 }, { x: 75, y: 45 }, { x: 75, y: 55 }, { x: 75, y: 65 }], red: [null, { x: 135, y: 75 }, { x: 125, y: 75 }, { x: 115, y: 75 }, { x: 105, y: 75 }, { x: 95, y: 75 }, { x: 85, y: 75 }], yellow: [null, { x: 75, y: 135 }, { x: 75, y: 125 }, { x: 75, y: 115 }, { x: 75, y: 105 }, { x: 75, y: 95 }, { x: 75, y: 85 }] };
+HOME_YARD_COORDS = { green: [{ x: 20, y: 20 }, { x: 40, y: 20 }, { x: 20, y: 40 }, { x: 40, y: 40 }], blue: [{ x: 110, y: 20 }, { x: 130, y: 20 }, { x: 110, y: 40 }, { x: 130, y: 40 }], yellow: [{ x: 20, y: 110 }, { x: 40, y: 110 }, { x: 20, y: 130 }, { x: 40, y: 130 }], red: [{ x: 110, y: 110 }, { x: 130, y: 110 }, { x: 110, y: 130 }, { x: 130, y: 130 }] };
+constructor() {
+this.rollButton = document.getElementById('roll-button');
+this.diceDisplay = document.getElementById('dice');
+this.messageBox = document.getElementById('message-box');
+this.pawnsContainer = document.getElementById('pawns-container');
+this.winnerDisplay = document.getElementById('winner-display');
+this.autopilotButton = document.getElementById('autopilot-button');
+this.state = { currentPlayerIndex: 0, diceValue: 0, pawns: {}, isRolling: false, isAITurn: false, isGameOver: false, isAutopilotOn: false };
+this.init();
+}
+init() {
+this.COLORS.forEach((color) => {
+for (let i = 1; i <= 4; i++) {
+const pawnId = `${color}-${i}`;
+this.state.pawns[pawnId] = { id: pawnId, color: color, position: 'home', pathIndex: 0 };
+}
+});
+this.updateAllPawnPositions();
+this.adjustForStackedPawns();
+this.updateTurnDisplay();
+this.setupEventListeners();
+}
+setupEventListeners() {
+this.rollButton.addEventListener('click', () => this.rollDice());
+this.autopilotButton.addEventListener('click', () => this.toggleAutopilot());
+this.pawnsContainer.addEventListener('click', (e) => {
+if (this.state.isGameOver || this.state.isAITurn) return;
+if (e.target.classList.contains('movable')) {
+this.movePawn(e.target.id);
+}
+});
+}
+toggleAutopilot() {
+this.state.isAutopilotOn = !this.state.isAutopilotOn;
+this.autopilotButton.classList.toggle('active', this.state.isAutopilotOn);
+this.autopilotButton.textContent = this.state.isAutopilotOn ? 'Autopilot ON' : 'Autopilot';
+if (this.state.isAutopilotOn && this.COLORS[this.state.currentPlayerIndex] === 'green' && !this.state.isRolling) {
+this.state.isAITurn = true;
+this.rollButton.disabled = true;
+this.messageBox.textContent = 'Green (AI) is thinking...';
+setTimeout(() => this.playAITurn(), this.AI_THINK_TIME / 2);
+}
+}
+updateAllPawnPositions() {
+for (const pawnId in this.state.pawns) {
+this.updatePawnPosition(pawnId);
+}
+}
+updatePawnPosition(pawnId) {
+const pawn = this.state.pawns[pawnId];
+const el = document.getElementById(pawnId);
+if (!el) return;
+el.style.display = pawn.position === 'finished' ? 'none' : '';
+const coords = this.getPawnCoords(pawn);
+if (coords) {
+el.style.transform = `translate(${coords.x}px, ${coords.y}px)`;
+}
+}
+adjustForStackedPawns() {
+Object.values(this.state.pawns).forEach(pawn => {
+if (pawn.position !== 'finished' && pawn.position !== 'home') {
+const el = document.getElementById(pawn.id);
+if (el) {
+const coords = this.getPawnCoords(pawn);
+el.style.transform = `translate(${coords.x}px, ${coords.y}px)`;
+}
+}
+});
+const locations = new Map();
+Object.values(this.state.pawns).forEach(pawn => {
+if (pawn.position === 'finished' || pawn.position === 'home') return;
+let key = pawn.position === 'in-stretch' ?
+`${pawn.color}-${pawn.position}-${pawn.pathIndex}` :
+`${pawn.position}-${pawn.pathIndex}`;
+if (!locations.has(key)) {
+locations.set(key, []);
+}
+locations.get(key).push(pawn.id);
+});
+for (const pawnIdsOnSquare of locations.values()) {
+if (pawnIdsOnSquare.length > 1) {
+const angleStep = (2 * Math.PI) / pawnIdsOnSquare.length;
+const radius = 2.5;
+pawnIdsOnSquare.forEach((pawnId, index) => {
+const el = document.getElementById(pawnId);
+const pawn = this.state.pawns[pawnId];
+if (el) {
+const baseCoords = this.getPawnCoords(pawn);
+const dx = radius * Math.cos(index * angleStep);
+const dy = radius * Math.sin(index * angleStep);
+el.style.transform = `translate(${baseCoords.x}px, ${baseCoords.y}px) translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`;
+}
+});
+}
+}
+}
+getPawnCoords(pawn) {
+switch (pawn.position) {
+case 'home':
+return this.HOME_YARD_COORDS[pawn.color][parseInt(pawn.id.split('-')[1]) - 1];
+case 'in-play':
+return this.PATH_COORDS[pawn.pathIndex];
+case 'in-stretch':
+return this.HOME_STRETCH_COORDS[pawn.color][pawn.pathIndex];
+default:
+return null;
+}
+}
+updateTurnDisplay() {
+if (this.state.isGameOver) return;
+const color = this.COLORS[this.state.currentPlayerIndex];
+const playerName = color.charAt(0).toUpperCase() + color.slice(1);
+this.messageBox.textContent = `${playerName} is ready.`;
+this.diceDisplay.style.borderColor = `var(--${color})`;
+}
+highlightMovablePawns(pawnIds, shouldHighlight) {
+document.querySelectorAll('.pawn').forEach(p => p.classList.remove('movable'));
+if (shouldHighlight) {
+pawnIds.forEach(id => {
+const el = document.getElementById(id);
+if (el) {
+el.classList.add('movable');
+el.parentElement.appendChild(el);
+}
+});
+}
+}
+showTemporaryMessage(message, color) {
+this.winnerDisplay.textContent = message;
+this.winnerDisplay.style.color = `var(--${color})`;
+this.winnerDisplay.classList.add('show-message');
+setTimeout(() => {
+this.winnerDisplay.classList.remove('show-message');
+}, this.TEMP_MESSAGE_DURATION);
+}
+switchPlayer() {
+if (this.state.isGameOver) return;
+if (this.state.diceValue !== 6) {
+this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.COLORS.length;
+}
+this.updateTurnDisplay();
+const currentPlayerColor = this.COLORS[this.state.currentPlayerIndex];
+this.state.isAITurn = currentPlayerColor !== 'green' || this.state.isAutopilotOn;
+this.rollButton.disabled = this.state.isAITurn || this.state.isRolling;
+if (this.state.isAITurn) {
+const playerName = currentPlayerColor.charAt(0).toUpperCase() + currentPlayerColor.slice(1);
+this.messageBox.textContent = `${playerName} is thinking...`;
+setTimeout(() => this.playAITurn(), this.AI_THINK_TIME);
+}
+}
+rollDice() {
+if (this.state.isRolling || this.state.isGameOver) return;
+this.state.isRolling = true;
+this.rollButton.disabled = true;
+let rollCount = 0;
+const interval = setInterval(() => {
+this.diceDisplay.textContent = Math.floor(Math.random() * 6) + 1;
+if (++rollCount > 10) {
+clearInterval(interval);
+this.state.diceValue = Math.floor(Math.random() * 6) + 1;
+this.diceDisplay.textContent = this.state.diceValue;
+this.state.isRolling = false;
+this.handlePostRoll();
+}
+}, 100);
+}
+handlePostRoll() {
+const color = this.COLORS[this.state.currentPlayerIndex];
+const playerName = color.charAt(0).toUpperCase() + color.slice(1);
+this.messageBox.textContent = `${playerName} rolled ${this.state.diceValue}.`;
+const movablePawns = this.findMovablePawns(color, this.state.diceValue);
+if (movablePawns.length === 0) {
+setTimeout(() => {
+this.messageBox.textContent += ' No moves possible.';
+setTimeout(() => this.switchPlayer(), this.NO_MOVES_DELAY);
+}, 1000);
+} else if (this.state.isAITurn) {
+const chosenPawnId = this.chooseAIPawn(movablePawns, this.state.diceValue, color);
+setTimeout(() => this.movePawn(chosenPawnId), this.AI_MOVE_DELAY);
+} else {
+this.highlightMovablePawns(movablePawns, true);
+}
+}
+calculateNewPosition(pawn, dice) {
+if (pawn.position === 'home') {
+return { position: 'in-play', pathIndex: this.START_POSITIONS[pawn.color] };
+}
+if (pawn.position === 'in-stretch') {
+const newIndex = pawn.pathIndex + dice;
+return { position: newIndex === this.HOME_STRETCH_LENGTH ? 'finished' : 'in-stretch', pathIndex: newIndex };
+}
+if (pawn.position === 'in-play') {
+const currentRelativePos = this.getRelativeBoardPosition(pawn);
+const newRelativePos = currentRelativePos + dice;
+if (newRelativePos >= this.STEPS_TO_HOME_STRETCH) {
+const stretchIndex = newRelativePos - this.STEPS_TO_HOME_STRETCH + 1;
+return { position: stretchIndex === this.HOME_STRETCH_LENGTH ? 'finished' : 'in-stretch', pathIndex: stretchIndex };
+} else {
+let newAbsIndex = (pawn.pathIndex + dice - 1) % this.MAIN_PATH_LENGTH + 1;
+return { position: 'in-play', pathIndex: newAbsIndex };
+}
+}
+return { position: pawn.position, pathIndex: pawn.pathIndex };
+}
+chooseAIPawn(movablePawns, dice, color) {
+if (movablePawns.length === 1) return movablePawns[0];
+const otherPawnsInPlay = Object.values(this.state.pawns).some(p => p.color === color && p.position === 'in-play');
+const scoredMoves = movablePawns.map(pawnId => {
+const pawn = this.state.pawns[pawnId];
+const { position: newPosition, pathIndex: newPathIndex } = this.calculateNewPosition(pawn, dice);
+let score = 0;
+if (newPosition === 'in-play') {
+const pawnsToKnock = this.getPawnsOnSquare(newPathIndex, 'in-play').filter(p => {
+const isPawnSafe = this.START_POSITIONS[p.color] === p.pathIndex;
+return p.color !== pawn.color && !isPawnSafe;
+});
+if (pawnsToKnock.length > 0) {
+score += 750 * pawnsToKnock.length;
+}
+const opponentColors = this.COLORS.filter(c => c !== color);
+const opponentStartPositions = opponentColors.map(c => this.START_POSITIONS[c]);
+if (opponentStartPositions.includes(newPathIndex)) {
+score -= 1000;
+}
+}
+if (newPosition === 'finished') {
+score += 800;
+}
+if (pawn.position === 'home') {
+score += 250;
+}
+if (pawn.position === 'in-play' && newPosition === 'in-stretch') {
+score += 350;
+}
+if (newPosition === 'in-play' && newPathIndex === this.START_POSITIONS[pawn.color]) {
+score += 70;
+}
+if (pawn.position === 'in-stretch' && otherPawnsInPlay) {
+score -= 400;
+}
+if (newPosition === 'in-play') {
+for (let i = 1; i <= 6; i++) {
+const checkIndex = (newPathIndex - i - 1 + this.MAIN_PATH_LENGTH) % this.MAIN_PATH_LENGTH + 1;
+const potentialThreats = this.getPawnsOnSquare(checkIndex, 'in-play').filter(p => p.color !== pawn.color);
+if (potentialThreats.length > 0) {
+const isThreatOnSafeArea = this.START_POSITIONS[potentialThreats[0].color] === potentialThreats[0].pathIndex;
+if (!isThreatOnSafeArea) {
+score -= (150 / i);
+break;
+}
+}
+}
+}
+score += this.getRelativeBoardPosition(pawn) * 1.5;
+return { pawnId, score };
+});
+scoredMoves.sort((a, b) => b.score - a.score);
+return scoredMoves[0].pawnId;
+}
+movePawn(pawnId) {
+this.highlightMovablePawns([], false);
+this.rollButton.disabled = true;
+const pawn = this.state.pawns[pawnId];
+const { position: newPosition, pathIndex: newPathIndex } = this.calculateNewPosition(pawn, this.state.diceValue);
+pawn.position = newPosition;
+pawn.pathIndex = newPathIndex;
+if (pawn.position === 'finished') {
+pawn.pathIndex = 0;
+this.showTemporaryMessage('Finished!', pawn.color);
+const el = document.getElementById(pawnId);
+if (el) {
+const finalStretchCoords = this.HOME_STRETCH_COORDS[pawn.color][this.HOME_STRETCH_LENGTH];
+el.setAttribute('cx', finalStretchCoords.x);
+el.setAttribute('cy', finalStretchCoords.y);
+el.classList.add('finished-animation');
+}
+} else {
+this.updatePawnPosition(pawnId);
+}
+if (pawn.position === 'in-play') {
+this.handleLanding(pawn);
+}
+this.adjustForStackedPawns();
+if (this.checkWinner(pawn.color)) {
+this.state.isGameOver = true;
+this.rollButton.disabled = true;
+this.messageBox.innerHTML = `Game Over! <a href="ludo.html">🔁</a>`;
+const winnerName = pawn.color.charAt(0).toUpperCase() + pawn.color.slice(1);
+this.showTemporaryMessage(`${winnerName} is the winner!`, pawn.color);
+} else {
+setTimeout(() => this.switchPlayer(), this.NEXT_TURN_DELAY);
+}
+}
+findMovablePawns(color, dice) {
+return Object.values(this.state.pawns)
+.filter(p => p.color === color && p.position !== 'finished')
+.filter(pawn => {
+if (pawn.position === 'home') {
+if (dice !== 6) return false;
+const startPos = this.START_POSITIONS[color];
+const pawnsOnStart = this.getPawnsOnSquare(startPos, 'in-play');
+return pawnsOnStart.filter(p => p.color === color).length < 2;
+}
+const { position: newPos, pathIndex: newIndex } = this.calculateNewPosition(pawn, dice);
+if (newPos === 'finished') return true;
+if (pawn.position === 'in-stretch' && newIndex > this.HOME_STRETCH_LENGTH) return false;
+if (newPos === 'in-stretch' && newIndex > this.HOME_STRETCH_LENGTH) return false;
+const occupyingPawns = this.getPawnsOnSquare(newIndex, newPos);
+return occupyingPawns.filter(p => p.color === color).length < 2;
+})
+.map(p => p.id);
+}
+getRelativeBoardPosition(pawn) {
+if (pawn.position !== 'in-play') return -1;
+const startPoint = this.START_POSITIONS[pawn.color];
+return (pawn.pathIndex - startPoint + this.MAIN_PATH_LENGTH) % this.MAIN_PATH_LENGTH;
+}
+getPawnsOnSquare(pathIndex, position) {
+return Object.values(this.state.pawns).filter(p => p.position === position && p.pathIndex === pathIndex);
+}
+handleLanding(movedPawn) {
+const pawnsToKnock = this.getPawnsOnSquare(movedPawn.pathIndex, 'in-play')
+.filter(p => p.id !== movedPawn.id && p.color !== movedPawn.color);
+if (pawnsToKnock.length > 0) {
+let knockedOutMessage = false;
+pawnsToKnock.forEach(pawnToKnock => {
+const isPawnSafe = this.START_POSITIONS[pawnToKnock.color] === pawnToKnock.pathIndex;
+if (!isPawnSafe) {
+pawnToKnock.position = 'home';
+pawnToKnock.pathIndex = 0;
+this.updatePawnPosition(pawnToKnock.id);
+if (!knockedOutMessage) {
+const movedPlayerName = movedPawn.color.charAt(0).toUpperCase() + movedPawn.color.slice(1);
+const knockedPlayerName = pawnToKnock.color.charAt(0).toUpperCase() + pawnToKnock.color.slice(1);
+this.messageBox.textContent = `${movedPlayerName} knocked out ${knockedPlayerName}!`;
+knockedOutMessage = true;
+}
+}
+});
+}
+}
+checkWinner(color) {
+return Object.values(this.state.pawns)
+.filter(p => p.color === color)
+.every(p => p.position === 'finished');
+}
+playAITurn() {
+if (this.state.isGameOver) return;
+this.rollDice();
+}
+}
+new LudoGame();
+});
+</script>
+</body>
+</html>

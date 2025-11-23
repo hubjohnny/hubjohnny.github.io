@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Image to ASCII Converter</title>
+<meta name="description" content="This online tool converts your images into text-based ASCII art.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--bg-color: #1a1a1a;
+--text-color: #00ff00;
+--accent-color: #ff00ff;
+--border-color: #333;
+--button-bg: #4a148c;
+--font: monospace;
+}
+body {
+background-color: var(--bg-color);
+color: var(--text-color);
+font-family: var(--font);
+margin: 0;
+padding: 0.5em;
+min-height: 100vh;
+box-sizing: border-box;
+transition: background-color 0.3s ease;
+display: grid;
+grid-template-columns: 320px 1fr;
+grid-template-rows: auto 1fr;
+gap: 1.5em;
+height: 100vh;
+}
+body.dragover {
+background-color: #2a2a2a;
+}
+#controls {
+grid-column: 1 / 2;
+grid-row: 2 / 3;
+background: #2c2c2c;
+padding: 1.5em;
+border-radius: 8px;
+display: flex;
+flex-direction: column;
+gap: 1.2em;
+align-items: center;
+box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+box-sizing: border-box;
+height: 100%;
+overflow-y: auto;
+}
+body.dragover #controls {
+border: 2px dashed var(--accent-color);
+}
+label {
+font-size: 1.1em;
+}
+input[type="file"],
+input[type="range"] {
+width: 98%;
+max-width: 300px;
+}
+button {
+background-color: var(--button-bg);
+color: var(--text-color);
+border: 1px solid var(--accent-color);
+border-radius: 5px;
+padding: 10px 20px;
+font-family: var(--font);
+font-size: 1em;
+cursor: pointer;
+transition: background-color 0.3s, box-shadow 0.3s;
+text-shadow: 0 0 3px var(--text-color);
+}
+button:hover {
+background-color: #6a1b9a;
+box-shadow: 0 0 10px var(--accent-color);
+}
+#ascii-output {
+grid-column: 2 / 3;
+grid-row: 2 / 3;
+background: #000;
+border: 1px solid var(--border-color);
+padding: 1em;
+overflow: auto;
+white-space: pre;
+line-height: 0.55em;
+font-size: 8px;
+letter-spacing: 0.05em;
+box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+box-sizing: border-box;
+height: 98%;
+font-family: 'Courier New', Courier, monospace;
+}
+.toggle-switch {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+.switch {
+position: relative;
+display: inline-block;
+width: 60px;
+height: 34px;
+}
+.switch input {
+opacity: 0;
+width: 0;
+height: 0;
+}
+.slider {
+position: absolute;
+cursor: pointer;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+background-color: #555;
+transition: .4s;
+border-radius: 34px;
+}
+.slider:before {
+position: absolute;
+content: "";
+height: 26px;
+width: 26px;
+left: 4px;
+bottom: 4px;
+background-color: white;
+transition: .4s;
+border-radius: 50%;
+}
+input:checked+.slider {
+background-color: var(--accent-color);
+}
+input:checked+.slider:before {
+transform: translateX(26px);
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="controls">
+<label for="image-upload">Upload Image (or drag & drop):</label>
+<input type="file" id="image-upload" accept="image/*">
+<label for="width-slider">ASCII Width: <span id="width-value">150</span></label>
+<input type="range" id="width-slider" min="50" max="500" value="150">
+<label for="contrast-slider">Contrast: <span id="contrast-value">1.0</span></label>
+<input type="range" id="contrast-slider" min="0.5" max="3.0" value="1.0" step="0.1">
+<div class="toggle-switch">
+<span>Mono</span>
+<label class="switch">
+<input type="checkbox" id="color-toggle">
+<span class="slider"></span>
+</label>
+<span>Color</span>
+</div>
+<button id="copy-button">Copy ASCII Art</button>
+<button id="export-html-button">Export as HTML</button>
+</div>
+<pre id="ascii-output">Your masterpiece will appear here...</pre>
+<canvas id="canvas" style="display:none;"></canvas>
+<script>
+const imageUpload = document.getElementById('image-upload');
+const asciiOutput = document.getElementById('ascii-output');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const widthSlider = document.getElementById('width-slider');
+const widthValue = document.getElementById('width-value');
+const copyButton = document.getElementById('copy-button');
+const exportHtmlButton = document.getElementById('export-html-button');
+const colorToggle = document.getElementById('color-toggle');
+const contrastSlider = document.getElementById('contrast-slider');
+const contrastValue = document.getElementById('contrast-value');
+const ASCII_CHARS = " `.\"^,:;Il!i><~+_-?][)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdkhbao*#MW&8%B@$".split('');
+const initialPlaceholderText = 'Your masterpiece will appear here...';
+let currentImage = null;
+widthSlider.addEventListener('input', () => {
+widthValue.textContent = widthSlider.value;
+handleLoadedImage();
+});
+contrastSlider.addEventListener('input', () => {
+contrastValue.textContent = parseFloat(contrastSlider.value).toFixed(1);
+handleLoadedImage();
+});
+colorToggle.addEventListener('change', handleLoadedImage);
+imageUpload.addEventListener('change', (e) => {
+const file = e.target.files[0];
+if (file) {
+handleImageFile(file);
+}
+});
+document.body.addEventListener('dragover', (e) => {
+e.preventDefault();
+document.body.classList.add('dragover');
+});
+document.body.addEventListener('dragleave', (e) => {
+e.preventDefault();
+document.body.classList.remove('dragover');
+});
+document.body.addEventListener('drop', (e) => {
+e.preventDefault();
+document.body.classList.remove('dragover');
+const file = e.dataTransfer.files[0];
+if (file && file.type.startsWith('image/')) {
+handleImageFile(file);
+}
+});
+copyButton.addEventListener('click', () => {
+const textToCopy = asciiOutput.innerText;
+if (textToCopy && textToCopy !== initialPlaceholderText) {
+navigator.clipboard.writeText(textToCopy).then(() => {
+const originalText = copyButton.textContent;
+copyButton.textContent = 'Copied! ✨';
+setTimeout(() => {
+copyButton.textContent = originalText;
+}, 2000);
+}).catch(err => {
+console.error('Could not copy text: ', err);
+});
+}
+});
+exportHtmlButton.addEventListener('click', () => {
+const isColor = colorToggle.checked;
+const asciiContent = isColor ? asciiOutput.innerHTML : asciiOutput.textContent;
+if (!asciiContent || asciiContent === initialPlaceholderText) {
+alert('Please generate some ASCII art first!');
+return;
+}
+const htmlContent = createHtmlForExport(asciiContent, isColor);
+const blob = new Blob([htmlContent], { type: 'text/html' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'ascii-art.html';
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+});
+function handleImageFile(file) {
+const reader = new FileReader();
+reader.onload = (e) => {
+const img = new Image();
+img.onload = () => {
+currentImage = img;
+generateAscii();
+};
+img.src = e.target.result;
+};
+reader.readAsDataURL(file);
+}
+function handleLoadedImage() {
+if (currentImage) {
+generateAscii();
+}
+}
+function generateAscii() {
+if (!currentImage) return;
+const maxWidth = parseInt(widthSlider.value);
+const contrast = parseFloat(contrastSlider.value);
+const aspectRatio = currentImage.height / currentImage.width;
+const newWidth = maxWidth;
+const newHeight = Math.round(newWidth * aspectRatio);
+canvas.width = newWidth;
+canvas.height = newHeight;
+ctx.drawImage(currentImage, 0, 0, newWidth, newHeight);
+const imageData = ctx.getImageData(0, 0, newWidth, newHeight).data;
+let outputString = '';
+const isColorMode = colorToggle.checked;
+for (let i = 0; i < imageData.length; i += 4) {
+const r = imageData[i];
+const g = imageData[i + 1];
+const b = imageData[i + 2];
+const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+let adjustedBrightness = (brightness - 128) * contrast + 128;
+adjustedBrightness = Math.max(0, Math.min(255, adjustedBrightness));
+const charIndex = Math.floor((adjustedBrightness / 255) * (ASCII_CHARS.length - 1));
+const char = ASCII_CHARS[charIndex];
+if (isColorMode) {
+const escapedChar = { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[char] || char;
+outputString += `<span style="color:rgb(${r},${g},${b})">${escapedChar}</span>`;
+} else {
+outputString += char;
+}
+if ((i / 4 + 1) % newWidth === 0) {
+outputString += '\n';
+}
+}
+if (isColorMode) {
+asciiOutput.innerHTML = outputString;
+} else {
+asciiOutput.textContent = outputString;
+}
+}
+function createHtmlForExport(asciiContent, isColor) {
+const styleColor = isColor ? '' : `color: #00ff00;`;
+return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ASCII Art Viewer</title>
+<style>
+body, html {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100%;
+overflow: auto;
+background-color: #000;
+display: flex;
+justify-content: center;
+align-items: center;
+}
+pre {
+${styleColor}
+font-family: 'Courier New', Courier, monospace;
+white-space: pre;
+line-height: .55em;
+letter-spacing: .05em;
+font-size: 8px;
+margin: 0;
+}
+</style>
+</head>
+<body>
+<pre>${asciiContent}</pre>
+</body>
+</html>`;
+}
+</script>
+</body>
+</html>

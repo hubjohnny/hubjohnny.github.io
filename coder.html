@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Editor for HTML, CSS & JavaScript</title>
+<meta name="description" content="Minimalist Code Editor designed for building Single-File Web Apps using HTML, CSS, and JavaScript.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--bg-color: #0d1117;
+--text-color: #c9d1d9;
+--accent-color: #61afef;
+--border-color: #282c34;
+--caret-color: #61afef;
+--selection-bg: rgba(97, 175, 239, 0.3);
+--font-mono: 'Fira Code', 'JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+--font-size: 15px;
+--whitespace-color: #FFBF00;
+}
+html,
+body {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100%;
+background-color: var(--bg-color);
+color: var(--text-color);
+font-family: var(--font-mono);
+overflow: hidden;
+}
+.editor-container {
+display: flex;
+height: 100vh;
+width: 100vw;
+}
+#line-numbers {
+border-right: 1px solid var(--border-color);
+min-width: 65px;
+padding: 15px 15px 100px 15px;
+box-sizing: border-box;
+text-align: right;
+color: #6e7681;
+user-select: none;
+pointer-events: none;
+overflow: hidden;
+font-size: var(--font-size);
+line-height: 1.5;
+background-color: var(--bg-color);
+white-space: pre;
+transition: width 0.2s ease, padding 0.2s ease;
+}
+.line-numbers-hidden #line-numbers {
+width: 0;
+min-width: 0;
+border: none;
+padding: 15px 0;
+overflow: hidden;
+}
+.editor-wrapper {
+position: relative;
+flex-grow: 1;
+height: 100%;
+}
+#highlight-layer {
+z-index: 1;
+pointer-events: none;
+overflow: hidden;
+color: var(--whitespace-color);
+}
+.editor-textarea {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+box-sizing: border-box;
+border: none;
+outline: none;
+resize: none;
+white-space: pre;
+overflow-wrap: normal;
+font-family: var(--font-mono);
+font-size: var(--font-size);
+padding: 15px 15px 100px 15px;
+line-height: 1.5;
+margin: 0;
+background-color: transparent;
+}
+textarea#editor {
+overflow: auto;
+color: var(--text-color);
+caret-color: var(--caret-color);
+z-index: 2;
+}
+textarea::selection {
+background-color: var(--selection-bg);
+}
+.modal {
+display: none;
+position: fixed;
+background-color: var(--bg-color);
+border: 1px solid var(--border-color);
+color: var(--text-color);
+z-index: 100;
+padding: 10px;
+box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+max-height: 90vh;
+overflow-y: auto;
+}
+#help-modal {
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+width: 430px;
+}
+#search-modal {
+top: 20px;
+right: 20px;
+width: 350px;
+}
+.modal h1,
+.modal h2 {
+margin: 0 10px 0 0;
+text-align: left;
+color: var(--accent-color);
+font-weight: normal;
+font-size: 0.9em;
+border-bottom: 1px solid var(--border-color);
+padding-bottom: 10px;
+margin-bottom: 15px;
+}
+.modal ul {
+list-style-type: none;
+padding-left: 0;
+}
+.modal li {
+margin-bottom: 4px;
+font-size: 0.9em;
+}
+.modal li strong {
+display: inline-block;
+width: 160px;
+color: var(--accent-color);
+}
+.modal-close-btn {
+position: absolute;
+top: 2px;
+right: 1px;
+font-size: 24px;
+color: var(--border-color);
+cursor: pointer;
+background: none;
+border: none;
+transition: color 0.2s;
+}
+.modal-close-btn:hover {
+color: var(--text-color);
+}
+#search-modal .input-group {
+margin-bottom: 15px;
+}
+#search-modal label {
+display: block;
+margin-bottom: 5px;
+font-size: 0.9em;
+}
+#search-modal #match-count {
+float: right;
+font-size: 0.9em;
+color: #888;
+}
+#search-modal input {
+width: 100%;
+background-color: #161b22;
+border: 1px solid var(--border-color);
+color: var(--text-color);
+padding: 8px;
+box-sizing: border-box;
+font-family: inherit;
+font-size: 0.9em;
+}
+#search-modal .button-group {
+display: flex;
+justify-content: space-between;
+gap: 10px;
+}
+#search-modal button {
+flex-grow: 1;
+background-color: #21262d;
+border: 1px solid var(--border-color);
+color: var(--text-color);
+padding: 8px 12px;
+cursor: pointer;
+transition: background-color 0.2s, border-color 0.2s;
+}
+#search-modal button:hover {
+background-color: #30363d;
+border-color: var(--accent-color);
+}
+#toast-notification {
+position: fixed;
+bottom: 20px;
+left: 50%;
+transform: translateX(-50%);
+background-color: var(--border-color);
+color: var(--text-color);
+padding: 10px 20px;
+border-radius: 5px;
+z-index: 200;
+opacity: 0;
+visibility: hidden;
+transition: opacity 0.4s ease-in-out, visibility 0.4s ease-in-out;
+font-size: 0.9em;
+}
+#toast-notification.show {
+opacity: 1;
+visibility: visible;
+}
+</style>
+</head>
+<body>
+<div id="editor-container" class="editor-container">
+<div id="line-numbers">1</div>
+<div class="editor-wrapper">
+<pre id="highlight-layer" class="editor-textarea" aria-hidden="true"></pre>
+<textarea id="editor" class="editor-textarea" spellcheck="false" draggable="false"></textarea>
+</div>
+</div>
+<div id="help-modal" class="modal">
+<button id="help-modal-close-btn" class="modal-close-btn" aria-label="Close">×</button>
+<h1 id="help-main-title"></h1>
+<h2 id="help-title"></h2>
+<ul id="help-list"></ul>
+</div>
+<div id="search-modal" class="modal">
+<div class="input-group">
+<label for="find-input">
+<span id="find-label-text"></span>
+<span id="match-count"></span>
+</label>
+<input type="text" id="find-input">
+</div>
+<div class="input-group">
+<label for="replace-input" id="replace-label"></label>
+<input type="text" id="replace-input">
+</div>
+<div class="button-group">
+<button id="find-next-btn"></button>
+<button id="replace-btn"></button>
+<button id="replace-all-btn"></button>
+</div>
+</div>
+<div id="toast-notification"></div>
+<script>
+const CodeEditor = {
+config: {
+debounceDelay: 100,
+indentUnit: '  ',
+toastDuration: 2500,
+},
+state: {
+fileHandle: null,
+fileName: 'Untitled',
+hasUnsavedChanges: false,
+searchResults: { term: '', indices: [], currentIndex: -1 },
+toastTimer: null,
+lastLineCount: 0,
+lastMatchPosition: 0,
+},
+elements: {},
+debouncedUpdateLineNumbers: null,
+lang: {
+title: "Coder",
+untitled: "Untitled",
+mainTitle: "Minimalist Code Editor designed for building Single-File Web Apps using HTML, CSS, and JavaScript. (c) 2025 Chromebooker.com",
+helpTitle: "Shortcuts",
+helpOpenFile: "Open File",
+helpSaveFile: "Save File",
+helpNewFile: "New File",
+helpSearchReplace: "Show/Hide Search & Replace",
+helpToggleHelp: "Show/Hide Help",
+helpCheckWhitespace: "Check Trailing Whitespace",
+helpRemoveEmptyLines: "Remove Empty Lines",
+helpPreview: "Preview in New Tab",
+helpIndent: "Indent",
+helpOutdent: "Outdent",
+helpNewTab: "Open in New Tab",
+helpJumpStyle: "Jump to &lt;style&gt;",
+helpJumpScript: "Jump to &lt;script&gt;",
+helpJumpBody: "Jump to &lt;body&gt;",
+helpToggleLineNumbers: "Toggle Line Numbers",
+searchTitle: "Search & Replace",
+findLabel: "Find:",
+replaceLabel: "Replace with:",
+findNext: "Find Next",
+replace: "Replace",
+replaceAll: "Replace All",
+matches: "matches",
+unsavedChanges: "You have unsaved changes. Are you sure?",
+unsavedChangesLost: "You have unsaved changes that will be lost. Are you sure?",
+unsupportedApi: "Your browser does not support the modern File System API.",
+userAbortedOpen: "User aborted file opening.",
+userAbortedSave: "User aborted the save dialog.",
+saveError: "Error: Could not save the file."
+},
+init() {
+this.cacheDOMElements();
+this.updateStaticUIText();
+this.bindEventListeners();
+this.debouncedUpdateLineNumbers = this.utils.debounce(this.updateLineNumbers.bind(this), this.config.debounceDelay);
+this.updateLineNumbers();
+this.highlight();
+if (localStorage.getItem('lineNumbersHidden') === 'true') {
+this.elements.editorContainer.classList.add('line-numbers-hidden');
+}
+this.toggleModal('help');
+},
+cacheDOMElements() {
+this.elements = {
+editorContainer: document.getElementById('editor-container'),
+editor: document.getElementById('editor'),
+lineNumbers: document.getElementById('line-numbers'),
+highlightLayer: document.getElementById('highlight-layer'),
+helpModal: document.getElementById('help-modal'),
+helpModalCloseBtn: document.getElementById('help-modal-close-btn'),
+searchModal: document.getElementById('search-modal'),
+findInput: document.getElementById('find-input'),
+replaceInput: document.getElementById('replace-input'),
+findNextBtn: document.getElementById('find-next-btn'),
+replaceBtn: document.getElementById('replace-btn'),
+replaceAllBtn: document.getElementById('replace-all-btn'),
+matchCountSpan: document.getElementById('match-count'),
+helpMainTitle: document.getElementById('help-main-title'),
+helpTitle: document.getElementById('help-title'),
+helpList: document.getElementById('help-list'),
+findLabelText: document.getElementById('find-label-text'),
+replaceLabel: document.getElementById('replace-label'),
+toast: document.getElementById('toast-notification'),
+};
+},
+bindEventListeners() {
+const { editor, findInput, helpModalCloseBtn, searchModalCloseBtn, findNextBtn, replaceBtn, replaceAllBtn } = this.elements;
+editor.addEventListener('scroll', this.handleEditorScroll.bind(this));
+editor.addEventListener('input', this.handleEditorInput.bind(this));
+editor.addEventListener('keydown', this.handleEditorKeyDown.bind(this));
+findInput.addEventListener('input', this.utils.debounce(this.updateSearchResults.bind(this), this.config.debounceDelay));
+helpModalCloseBtn.addEventListener('click', () => this.toggleModal('help'));
+findNextBtn.addEventListener('click', this.findNext.bind(this));
+replaceBtn.addEventListener('click', this.replaceCurrent.bind(this));
+replaceAllBtn.addEventListener('click', this.replaceAll.bind(this));
+document.addEventListener('keydown', this.handleGlobalKeyDown.bind(this));
+window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
+window.addEventListener('focus', () => {
+if (this.elements.helpModal.style.display !== 'block' && this.elements.searchModal.style.display !== 'block') {
+editor.focus();
+}
+});
+},
+handleEditorScroll() {
+const editor = this.elements.editor;
+const lineNumbers = this.elements.lineNumbers;
+const maxLineNumberScroll = lineNumbers.scrollHeight - lineNumbers.clientHeight;
+if (editor.scrollTop > maxLineNumberScroll) {
+editor.scrollTop = maxLineNumberScroll;
+}
+const scrollTop = editor.scrollTop;
+const scrollLeft = editor.scrollLeft;
+lineNumbers.scrollTop = scrollTop;
+this.elements.highlightLayer.scrollTop = scrollTop;
+this.elements.highlightLayer.scrollLeft = scrollLeft;
+},
+highlight() {
+const val = this.elements.editor.value;
+let hlText = val.replace(/[ \t]+$/gm, (match) => {
+return '·'.repeat(match.length);
+});
+hlText = hlText.replace(/[^\n\r·]/g, ' ');
+this.elements.highlightLayer.textContent = hlText;
+},
+checkWhitespace() {
+const lines = this.elements.editor.value.split('\n');
+const regex = /[ \t]+$/;
+const count = lines.filter(line => regex.test(line)).length;
+if (count === 0) {
+this.showToast("No trailing whitespace found. ✨");
+} else if (count === 1) {
+this.showToast("1 line has trailing whitespace.");
+} else {
+this.showToast(`${count} lines have trailing whitespace.`);
+}
+},
+toggleModal(modalName) {
+const modal = this.elements[`${modalName}Modal`];
+const isVisible = modal.style.display === 'block';
+modal.style.display = isVisible ? 'none' : 'block';
+if (!isVisible) {
+if (modalName === 'search') {
+this.elements.findInput.focus();
+this.elements.findInput.select();
+this.updateSearchResults();
+}
+} else {
+this.elements.editor.focus();
+}
+},
+showToast(message) {
+clearTimeout(this.state.toastTimer);
+this.elements.toast.textContent = message;
+this.elements.toast.classList.add('show');
+this.state.toastTimer = setTimeout(() => {
+this.elements.toast.classList.remove('show');
+}, this.config.toastDuration);
+},
+updateLineNumbers() {
+const text = this.elements.editor.value;
+const lineCount = (text.match(/\n/g) || []).length + 1;
+if (lineCount !== this.state.lastLineCount) {
+this.state.lastLineCount = lineCount;
+const numbers = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
+this.elements.lineNumbers.textContent = numbers;
+}
+},
+_safeModifyOutsideScript(regex, replacement) {
+const editor = this.elements.editor;
+const originalValue = editor.value;
+const scriptSplitRegex = /(<script[\s\S]*?>[\s\S]*?<\/script>)/gi;
+const parts = originalValue.split(scriptSplitRegex);
+let newValue = "";
+for (let i = 0; i < parts.length; i++) {
+if (i % 2 === 0) {
+newValue += parts[i].replace(regex, replacement);
+} else {
+newValue += parts[i];
+}
+}
+if (originalValue !== newValue) {
+const originalScrollTop = editor.scrollTop;
+const originalLines = (originalValue.match(/\n/g) || []).length;
+editor.value = newValue;
+editor.scrollTop = originalScrollTop;
+const newLines = (newValue.match(/\n/g) || []).length;
+const linesRemoved = originalLines - newLines;
+this.setUnsavedChanges(true);
+this.updateLineNumbers();
+this.highlight();
+return { linesRemoved: linesRemoved, didChange: true };
+}
+return { linesRemoved: 0, didChange: false };
+},
+removeEmptyLines() {
+const result = this._safeModifyOutsideScript(/(\r?\n){2,}/g, '\n');
+if (result.linesRemoved > 0) {
+this.showToast(`Removed ${result.linesRemoved} empty line(s) (outside script)`);
+}
+},
+previewInNewTab() {
+const content = this.elements.editor.value;
+const win = window.open('about:blank', '_blank');
+if (win) {
+win.document.open();
+win.document.write(content);
+win.document.close();
+} else {
+this.showToast("Popup blocked! Please allow popups.");
+}
+},
+async openFile() {
+if (this.state.hasUnsavedChanges && !confirm(this.lang.unsavedChangesLost)) return;
+if (!('showOpenFilePicker' in window)) return alert(this.lang.unsupportedApi);
+try {
+const [fileHandle] = await window.showOpenFilePicker();
+this.state.fileHandle = fileHandle;
+const file = await fileHandle.getFile();
+this.elements.editor.value = await file.text();
+this.state.fileName = file.name;
+this.setUnsavedChanges(false);
+this.updateLineNumbers();
+this.highlight();
+this.elements.editor.scrollTop = 0;
+this.elements.editor.setSelectionRange(0, 0);
+} catch (err) {
+if (err.name !== 'AbortError') console.warn(this.lang.userAbortedOpen, err);
+} finally {
+setTimeout(() => this.elements.editor.focus(), 0);
+}
+},
+newFile() {
+if (this.state.hasUnsavedChanges && !confirm(this.lang.unsavedChanges)) return;
+this.elements.editor.value = '';
+this.state.fileHandle = null;
+this.state.fileName = this.lang.untitled;
+this.setUnsavedChanges(false);
+this.updateLineNumbers();
+this.highlight();
+this.elements.editor.focus();
+},
+async saveFile() {
+if (!this.state.fileHandle) {
+try {
+this.state.fileHandle = await window.showSaveFilePicker({
+suggestedName: this.state.fileName.endsWith('.txt') ? this.state.fileName.replace('.txt', '.html') : this.state.fileName,
+types: [{
+description: 'Web Files',
+accept: {
+'text/html': ['.html', '.htm'], 'text/css': ['.css'],
+'application/javascript': ['.js'], 'text/plain': ['.txt', '.md'],
+},
+}],
+});
+this.state.fileName = this.state.fileHandle.name;
+} catch (err) {
+if (err.name !== 'AbortError') console.warn(this.lang.userAbortedSave, err);
+return;
+}
+}
+try {
+const writable = await this.state.fileHandle.createWritable();
+await writable.write(this.elements.editor.value);
+await writable.close();
+this.setUnsavedChanges(false);
+this.showToast(`Saved to ${this.state.fileName}`);
+} catch (err) {
+console.error('Could not save file:', err);
+alert(this.lang.saveError);
+}
+},
+jumpToSection(tagName) {
+const editor = this.elements.editor;
+const tag = `<${tagName}`;
+const position = editor.value.indexOf(tag);
+if (position === -1) return;
+editor.focus();
+editor.setSelectionRange(position, position);
+const textUpToMatch = editor.value.substring(0, position);
+const lineNumber = (textUpToMatch.match(/\n/g) || []).length;
+const totalLines = (editor.value.match(/\n/g) || []).length + 1;
+const avgLineHeight = editor.scrollHeight / totalLines;
+const targetScrollTop = lineNumber * avgLineHeight;
+const finalScrollTop = targetScrollTop - (editor.clientHeight / 3);
+editor.scrollTo({
+top: Math.max(0, finalScrollTop),
+behavior: 'smooth'
+});
+},
+setUnsavedChanges(isUnsaved) {
+this.state.hasUnsavedChanges = isUnsaved;
+document.title = isUnsaved ? `* ${this.state.fileName}` : this.state.fileName;
+},
+updateSearchResults() {
+const searchTerm = this.elements.findInput.value;
+this.elements.matchCountSpan.textContent = '';
+if (!searchTerm) {
+this.state.searchResults = { term: '', indices: [], currentIndex: -1 };
+return;
+}
+if (this.state.searchResults.term.toLowerCase() === searchTerm.toLowerCase()) return;
+this.state.searchResults = {
+term: searchTerm,
+indices: [],
+currentIndex: -1
+};
+const escapedTerm = this.utils.escapeRegExp(searchTerm);
+const regex = new RegExp(escapedTerm, 'gi');
+let match;
+while ((match = regex.exec(this.elements.editor.value)) !== null) {
+this.state.searchResults.indices.push(match.index);
+}
+if (this.state.searchResults.indices.length > 0) {
+this.elements.matchCountSpan.textContent = `${this.state.searchResults.indices.length} ${this.lang.matches}`;
+}
+if (this.state.lastMatchPosition > 0) {
+const nextIndex = this.state.searchResults.indices.findIndex(index => index >= this.state.lastMatchPosition);
+if (nextIndex !== -1) {
+this.state.searchResults.currentIndex = nextIndex - 1;
+}
+}
+},
+findNext() {
+this.updateSearchResults();
+const { indices, term } = this.state.searchResults;
+if (indices.length === 0) return;
+this.state.searchResults.currentIndex = (this.state.searchResults.currentIndex + 1) % indices.length;
+const startIndex = indices[this.state.searchResults.currentIndex];
+this.state.lastMatchPosition = startIndex;
+const editor = this.elements.editor;
+editor.focus();
+editor.setSelectionRange(startIndex, startIndex + term.length);
+const textUpToMatch = editor.value.substring(0, startIndex);
+const lineNumber = (textUpToMatch.match(/\n/g) || []).length;
+const totalLines = (editor.value.match(/\n/g) || []).length + 1;
+const avgLineHeight = editor.scrollHeight / totalLines;
+const targetScrollTop = lineNumber * avgLineHeight;
+const finalScrollTop = targetScrollTop - (editor.clientHeight / 2) + (avgLineHeight / 2);
+editor.scrollTo({
+top: Math.max(0, finalScrollTop),
+behavior: 'smooth'
+});
+},
+replaceCurrent() {
+const { term } = this.state.searchResults;
+const replaceTerm = this.elements.replaceInput.value;
+const { selectionStart, selectionEnd } = this.elements.editor;
+if (!term || selectionStart === selectionEnd) {
+this.findNext();
+return;
+}
+const selectedText = this.elements.editor.value.substring(selectionStart, selectionEnd);
+if (selectedText.toLowerCase() === term.toLowerCase()) {
+this.elements.editor.setRangeText(replaceTerm, selectionStart, selectionEnd, 'end');
+this.setUnsavedChanges(true);
+this.state.searchResults.term = null;
+this.highlight();
+}
+this.findNext();
+},
+replaceAll() {
+const term = this.elements.findInput.value;
+const replaceTerm = this.elements.replaceInput.value;
+if (!term) return;
+const originalValue = this.elements.editor.value;
+const newValue = originalValue.replace(new RegExp(this.utils.escapeRegExp(term), 'gi'), replaceTerm);
+if (originalValue !== newValue) {
+const originalScrollTop = this.elements.editor.scrollTop;
+this.elements.editor.value = newValue;
+this.elements.editor.scrollTop = originalScrollTop;
+this.setUnsavedChanges(true);
+this.updateSearchResults();
+this.highlight();
+}
+},
+handleEditorInput() {
+if (!this.state.hasUnsavedChanges) {
+this.setUnsavedChanges(true);
+}
+this.state.searchResults.term = '';
+this.debouncedUpdateLineNumbers();
+this.highlight();
+},
+handleEditorKeyDown(e) {
+const isCtrl = e.ctrlKey || e.metaKey;
+const isAlt = e.altKey;
+const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+if (Object.keys(pairs).includes(e.key) && !isCtrl && !isAlt) {
+e.preventDefault();
+const { selectionStart, selectionEnd, value } = this.elements.editor;
+const closingChar = pairs[e.key];
+if (selectionStart !== selectionEnd) {
+const selectedText = value.substring(selectionStart, selectionEnd);
+this.elements.editor.setRangeText(`${e.key}${selectedText}${closingChar}`, selectionStart, selectionEnd, 'select');
+} else {
+this.elements.editor.setRangeText(`${e.key}${closingChar}`, selectionStart, selectionEnd, 'end');
+this.elements.editor.setSelectionRange(selectionStart + 1, selectionStart + 1);
+}
+this.setUnsavedChanges(true);
+this.highlight();
+return;
+}
+if (e.key === 'Tab') {
+e.preventDefault();
+const { selectionStart, selectionEnd, value } = this.elements.editor;
+const indent = this.config.indentUnit;
+if (selectionStart !== selectionEnd && value.substring(selectionStart, selectionEnd).includes('\n')) {
+let lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+const affectedText = value.substring(lineStart, selectionEnd);
+let newText;
+if (e.shiftKey) {
+newText = affectedText.split('\n').map(line =>
+line.startsWith(indent) ? line.substring(indent.length) : line
+).join('\n');
+} else {
+newText = affectedText.split('\n').map(line => indent + line).join('\n');
+}
+this.elements.editor.setRangeText(newText, lineStart, selectionEnd, 'select');
+} else {
+if (e.shiftKey) {
+let lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+if (value.substring(lineStart, lineStart + indent.length) === indent) {
+const newSelectionStart = Math.max(lineStart, selectionStart - indent.length);
+const newSelectionEnd = Math.max(lineStart, selectionEnd - indent.length);
+this.elements.editor.setRangeText('', lineStart, lineStart + indent.length, 'end');
+this.elements.editor.setSelectionRange(newSelectionStart, newSelectionEnd);
+}
+} else {
+this.elements.editor.setRangeText(indent, selectionStart, selectionEnd, 'end');
+}
+}
+this.setUnsavedChanges(true);
+this.updateLineNumbers();
+this.highlight();
+}
+},
+handleGlobalKeyDown(e) {
+const isModalOpen = this.elements.helpModal.style.display === 'block' || this.elements.searchModal.style.display === 'block';
+const isCtrl = e.ctrlKey || e.metaKey;
+const key = e.key.toLowerCase();
+if (isCtrl && key === 's') {
+e.preventDefault();
+this.saveFile();
+return;
+}
+if (e.altKey && key === 'h') { e.preventDefault(); this.toggleModal('help'); }
+if (e.altKey && key === 'f') { e.preventDefault(); this.toggleModal('search'); }
+if (isCtrl) {
+if (key === 'o') { e.preventDefault(); this.openFile(); }
+if (e.shiftKey) {
+if (e.code === 'Digit1') { e.preventDefault(); this.jumpToSection('style'); }
+if (e.code === 'Digit2') { e.preventDefault(); this.jumpToSection('script'); }
+if (e.code === 'Digit3') { e.preventDefault(); this.jumpToSection('body'); }
+}
+} else if (e.altKey) {
+if (key === 'n') { e.preventDefault(); this.newFile(); }
+if (key === 'w') { e.preventDefault(); this.checkWhitespace(); }
+if (key === 'l') { e.preventDefault(); this.removeEmptyLines(); }
+if (key === 'p') { e.preventDefault(); this.previewInNewTab(); }
+if (key === 't') { e.preventDefault(); window.open(window.location.href, '_blank'); }
+if (key === 'i') { e.preventDefault(); this.toggleLineNumbers(); }
+}
+if (isModalOpen) {
+if (key === 'escape') {
+e.preventDefault();
+if (this.elements.searchModal.style.display === 'block') this.toggleModal('search');
+if (this.elements.helpModal.style.display === 'block') this.toggleModal('help');
+}
+return;
+}
+},
+handleBeforeUnload(e) {
+if (this.state.hasUnsavedChanges) {
+e.preventDefault();
+e.returnValue = '';
+}
+},
+toggleLineNumbers() {
+const container = this.elements.editorContainer;
+container.classList.toggle('line-numbers-hidden');
+localStorage.setItem('lineNumbersHidden', container.classList.contains('line-numbers-hidden'));
+},
+updateStaticUIText() {
+document.title = this.lang.title;
+const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim();
+const shortcuts = [
+{ key: 'Ctrl + O', action: this.lang.helpOpenFile },
+{ key: 'Ctrl + S', action: this.lang.helpSaveFile },
+{ key: 'Alt + N', action: this.lang.helpNewFile },
+{ isSeparator: true },
+{ key: 'Alt + F', action: this.lang.helpSearchReplace },
+{ key: 'Alt + P', action: this.lang.helpPreview },
+{ key: 'Alt + H', action: this.lang.helpToggleHelp },
+{ key: 'Alt + I', action: this.lang.helpToggleLineNumbers },
+{ isSeparator: true },
+{ key: 'Alt + W', action: this.lang.helpCheckWhitespace },
+{ key: 'Alt + L', action: this.lang.helpRemoveEmptyLines },
+{ isSeparator: true },
+{ key: 'Ctrl + Shift + 1', action: this.lang.helpJumpStyle },
+{ key: 'Ctrl + Shift + 2', action: this.lang.helpJumpScript },
+{ key: 'Ctrl + Shift + 3', action: this.lang.helpJumpBody },
+{ isSeparator: true },
+{ key: 'Alt + T', action: this.lang.helpNewTab },
+{ key: 'Tab', action: this.lang.helpIndent },
+{ key: 'Shift + Tab', action: this.lang.helpOutdent },
+];
+this.elements.helpList.innerHTML = shortcuts.map(item => {
+if (item.isSeparator) return `<hr style="border-color: ${borderColor}; margin: 10px 0;">`;
+return `<li><strong>${item.key}</strong> ${item.action}</li>`;
+}).join('');
+this.elements.helpMainTitle.textContent = this.lang.mainTitle;
+this.elements.helpTitle.textContent = this.lang.helpTitle;
+this.elements.findLabelText.textContent = this.lang.findLabel;
+this.elements.replaceLabel.textContent = this.lang.replaceLabel;
+this.elements.findNextBtn.textContent = this.lang.findNext;
+this.elements.replaceBtn.textContent = this.lang.replace;
+this.elements.replaceAllBtn.textContent = this.lang.replaceAll;
+},
+utils: {
+debounce(func, delay) {
+let timeout;
+return function (...args) {
+clearTimeout(timeout);
+timeout = setTimeout(() => func.apply(this, args), delay);
+};
+},
+escapeRegExp(string) {
+return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+}
+};
+window.addEventListener('load', () => CodeEditor.init());
+</script>
+</body>
+</html>

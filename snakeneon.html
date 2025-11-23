@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Neon Arcade Game</title>
+<meta name="description" content="Guide the snake to eat the food blocks that appear on the board, which will increase your score.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--bg-color: #121212;
+--primary-text: #e0e0e0;
+--border-color: #00ffff;
+--snake-head: #ff00ff;
+--snake-body: #00ff00;
+--obstacle-color: Red;
+--accent-color: #ff7f50;
+}
+body {
+color: var(--primary-text);
+font-family: 'Courier New', Courier, monospace;
+display: flex;
+flex-direction: column;
+height: 100vh;
+margin: 0;
+overflow: hidden;
+background-color: var(--bg-color);
+}
+body::before {
+content: '';
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100vh;
+z-index: -1;
+background-image: url("data:image/svg+xml,<svg width='40' height='40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' fill='%23030328'/><path d='M40 0v40H0' fill='none' stroke='%2300d1ff' stroke-width='0.5'/></svg>");
+background-size: 40px;
+background-repeat: repeat;
+background-position: top;
+opacity: 0.90;
+filter: blur(0px);
+}
+#game-container {
+width: 100%;
+height: 100%;
+display: flex;
+justify-content: center;
+align-items: center;
+position: relative;
+}
+canvas {
+background-color: #000;
+border: 4px solid var(--border-color);
+box-shadow: 0 0 20px var(--border-color);
+}
+#ui-top {
+position: absolute;
+top: 10px;
+left: 50%;
+transform: translateX(-50%);
+display: flex;
+gap: 100px;
+font-size: 1.7em;
+text-shadow: 2px 2px var(--snake-head);
+z-index: 10;
+}
+.overlay {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.2);
+display: none;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+text-align: center;
+z-index: 20;
+}
+.overlay.visible {
+display: flex;
+}
+.overlay h1 {
+font-size: 5em;
+color: var(--border-color);
+text-shadow: 4px 4px var(--snake-head);
+margin-bottom: 0;
+}
+.overlay h2 {
+font-size: 2.5em;
+color: var(--accent-color);
+text-shadow: 3px 3px var(--bg-color);
+margin-bottom: 20px;
+}
+button {
+font-family: 'Courier New', Courier, monospace;
+font-size: 1.2em;
+padding: 15px 30px;
+margin: 10px;
+border: 2px solid var(--primary-text);
+background-color: transparent;
+color: var(--primary-text);
+cursor: pointer;
+transition: all 0.2s ease-in-out;
+border-radius: 12px;
+width: 300px;
+}
+button:hover {
+background-color: var(--accent-color);
+color: var(--bg-color);
+border-color: var(--accent-color);
+box-shadow: 0 0 15px var(--accent-color);
+}
+#player-name-input {
+font-family: 'Courier New', Courier, monospace;
+text-align: center;
+font-size: 1.2em;
+padding: 10px;
+margin: 10px 0;
+width: 250px;
+background-color: var(--bg-color);
+border: 2px solid var(--border-color);
+color: var(--primary-text);
+text-transform: uppercase;
+}
+#player-name-input::placeholder {
+color: #666;
+}
+#highscore-section {
+position: absolute;
+right: 20px;
+top: 20px;
+bottom: 20px;
+width: 280px;
+text-align: left;
+padding: 10px;
+display: flex;
+flex-direction: column;
+}
+#highscore-section h3 {
+color: var(--border-color);
+text-align: left;
+margin-bottom: 15px;
+font-size: 1.7em;
+}
+#highscore-list {
+list-style-type: decimal;
+padding-left: 25px;
+font-size: 1.2em;
+line-height: 1.8;
+overflow-y: auto;
+flex-grow: 1;
+}
+#highscore-list li {
+display: grid;
+grid-template-columns: 1fr auto auto;
+gap: 10px;
+margin-bottom: 5px;
+}
+#highscore-list .score {
+color: var(--obstacle-color);
+font-weight: bold;
+}
+#highscore-list .date {
+color: var(--primary-text);
+opacity: 0.7;
+}
+.modal-overlay {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.85);
+display: flex;
+justify-content: center;
+align-items: center;
+z-index: 100;
+}
+.modal-content {
+background-color: var(--bg-color);
+padding: 40px;
+border: 4px solid var(--border-color);
+box-shadow: 0 0 20px var(--border-color);
+max-width: 600px;
+position: relative;
+line-height: 1.8;
+}
+.close-button {
+position: absolute;
+top: 10px;
+right: 20px;
+font-size: 30px;
+cursor: pointer;
+color: var(--primary-text);
+}
+.close-button:hover {
+color: var(--accent-color);
+}
+.modal-content ul {
+list-style: none;
+padding: 0;
+margin: 20px 0;
+}
+.modal-content li {
+margin-bottom: 10px;
+}
+.hidden {
+display: none !important;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="game-container">
+<div id="ui-top">
+<div id="score-container">SCORE: <span id="score-value">0</span></div>
+<div id="level-container">LEVEL: <span id="level-value">1</span></div>
+</div>
+<canvas id="game-canvas"></canvas>
+<div id="start-screen" class="overlay visible">
+<h1>SNAKE</h1>
+<button id="start-button">START GAME</button>
+<button id="how-to-play-button">HOW TO PLAY</button>
+</div>
+<div id="game-over-screen" class="overlay">
+<h2>GAME OVER</h2>
+<p>Your score: <span id="final-score">0</span></p>
+<div id="new-highscore-input-container" class="hidden">
+<p>🏆 NEW HIGHSCORE! 🏆</p>
+<input type="text" id="player-name-input" placeholder="NAME? (MAX 8 CHARS)" maxlength="8">
+<button id="submit-score-button">SUBMIT</button>
+</div>
+<button id="play-again-button">PLAY AGAIN</button>
+</div>
+</div>
+<div id="highscore-section">
+<h3>Your Highscores</h3>
+<ol id="highscore-list"></ol>
+</div>
+<div id="how-to-play-modal" class="modal-overlay hidden">
+<div class="modal-content">
+<span id="close-modal" class="close-button">×</span>
+<h2>HOW TO PLAY</h2>
+<p>Use <strong>ARROW KEYS</strong> or <strong>W, A, S, D</strong> to control the snake.</p>
+<ul>
+<li>Eat food to grow longer and earn points.</li>
+<li>🍎 Apple: +1 length, +10 points</li>
+<li>🍒 Cherry: +3 length, +50 points</li>
+<li>🍇 Grape: No length, +100 points, temporary speed boost!</li>
+</ul>
+<p>The game ends if you hit the walls, an obstacle, or your own tail.</p>
+<p>The difficulty increases with each level. Good luck! 😉</p>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+'use strict';
+const GRID_SIZE = 20;
+const BASE_MOVE_INTERVAL = 500;
+const SPEED_INCREASE_PER_LEVEL = 10;
+const MIN_MOVE_INTERVAL = 50;
+const POINTS_PER_LEVEL = 150;
+const SPEED_BOOST_DURATION = 5000;
+const OBSTACLES_PER_LEVEL = 2;
+const GRAPE_CHANCE = 0.05;
+const CHERRY_CHANCE = 0.2;
+const FOOD_TYPES = {
+APPLE: { emoji: '🍎', points: 10, growth: 1, action: null },
+CHERRY: { emoji: '🍒', points: 50, growth: 3, action: null },
+GRAPE: { emoji: '🍇', points: 100, growth: 0, action: 'speedBoost' },
+};
+const HIGHSCORE_KEY = 'snakeHighScores_v2';
+const MAX_HIGHSCORES = 10;
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const scoreValue = document.getElementById('score-value');
+const levelValue = document.getElementById('level-value');
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const finalScore = document.getElementById('final-score');
+const newHighscoreContainer = document.getElementById('new-highscore-input-container');
+const playerNameInput = document.getElementById('player-name-input');
+const highscoreList = document.getElementById('highscore-list');
+const startButton = document.getElementById('start-button');
+const howToPlayButton = document.getElementById('how-to-play-button');
+const playAgainButton = document.getElementById('play-again-button');
+const submitScoreButton = document.getElementById('submit-score-button');
+const howToPlayModal = document.getElementById('how-to-play-modal');
+const closeModalButton = document.getElementById('close-modal');
+const style = getComputedStyle(document.documentElement);
+const SNAKE_HEAD_COLOR = style.getPropertyValue('--snake-head').trim();
+const SNAKE_BODY_COLOR = style.getPropertyValue('--snake-body').trim();
+const OBSTACLE_COLOR = style.getPropertyValue('--obstacle-color').trim();
+let canvasSize, cellSize;
+let snake, food, direction, nextDirection, obstacles, score, level;
+let gameOver, gameStarted, gameLoopId;
+let highScores = [];
+let lastTime = 0;
+let moveTimer = 0;
+let currentMoveInterval = BASE_MOVE_INTERVAL;
+let speedBoostTimer = 0;
+function initializeApp() {
+setupEventListeners();
+highScores = loadHighScores();
+displayHighScores();
+resizeCanvas();
+}
+function setupEventListeners() {
+startButton.addEventListener('click', startGame);
+playAgainButton.addEventListener('click', startGame);
+submitScoreButton.addEventListener('click', submitAndSaveHighScore);
+howToPlayButton.addEventListener('click', () => howToPlayModal.classList.remove('hidden'));
+closeModalButton.addEventListener('click', () => howToPlayModal.classList.add('hidden'));
+window.addEventListener('keydown', handleKeyDown);
+window.addEventListener('resize', resizeCanvas);
+playerNameInput.addEventListener('keydown', (e) => {
+if (e.key === 'Enter') {
+submitAndSaveHighScore();
+}
+});
+}
+function resizeCanvas() {
+const highscoreSectionWidth = document.getElementById('highscore-section').offsetWidth + 40;
+const availableWidth = window.innerWidth - highscoreSectionWidth;
+const availableHeight = window.innerHeight - 80;
+const size = Math.min(availableWidth, availableHeight);
+canvasSize = Math.floor(size / GRID_SIZE) * GRID_SIZE;
+cellSize = canvasSize / GRID_SIZE;
+canvas.width = canvasSize;
+canvas.height = canvasSize;
+if (gameStarted && !gameOver) {
+draw();
+}
+}
+function initGame() {
+level = 1;
+score = 0;
+direction = 'right';
+nextDirection = 'right';
+gameOver = false;
+gameStarted = true;
+obstacles = [];
+snake = [{ x: 10, y: 10 }];
+currentMoveInterval = BASE_MOVE_INTERVAL;
+updateScoreAndLevelUI();
+spawnFood();
+gameOverScreen.classList.remove('visible');
+startScreen.classList.remove('visible');
+newHighscoreContainer.classList.add('hidden');
+}
+function startGame() {
+if (gameLoopId) {
+cancelAnimationFrame(gameLoopId);
+}
+initGame();
+lastTime = performance.now();
+gameLoopId = requestAnimationFrame(gameLoop);
+}
+function gameLoop(currentTime) {
+if (gameOver) return;
+gameLoopId = requestAnimationFrame(gameLoop);
+const deltaTime = currentTime - lastTime;
+lastTime = currentTime;
+moveTimer += deltaTime;
+if (speedBoostTimer > 0) {
+speedBoostTimer -= deltaTime;
+if (speedBoostTimer <= 0) {
+speedBoostTimer = 0;
+updateMoveInterval();
+}
+}
+if (moveTimer > currentMoveInterval) {
+moveTimer %= currentMoveInterval;
+update();
+draw();
+}
+}
+function endGame() {
+gameOver = true;
+gameStarted = false;
+cancelAnimationFrame(gameLoopId);
+gameOverScreen.classList.add('visible');
+finalScore.textContent = score;
+const worstHighScore = highScores.length < MAX_HIGHSCORES ? 0 : highScores[highScores.length - 1].score;
+const isHighScore = score > 0 && score > worstHighScore;
+if (isHighScore) {
+newHighscoreContainer.classList.remove('hidden');
+playerNameInput.focus();
+} else {
+newHighscoreContainer.classList.add('hidden');
+}
+}
+function update() {
+direction = nextDirection;
+const head = { ...snake[0] };
+if (direction === 'right') head.x++;
+if (direction === 'left') head.x--;
+if (direction === 'up') head.y--;
+if (direction === 'down') head.y++;
+if (checkCollision(head)) {
+endGame();
+return;
+}
+snake.unshift(head);
+if (head.x === food.x && head.y === food.y) {
+score += food.type.points;
+if (food.type.action === 'speedBoost') {
+speedBoostTimer = SPEED_BOOST_DURATION;
+updateMoveInterval();
+}
+const growth = food.type.growth;
+if (growth > 0) {
+const tail = snake[snake.length - 1];
+for (let i = 0; i < growth; i++) {
+snake.push({ ...tail });
+}
+}
+const newLevel = Math.floor(score / POINTS_PER_LEVEL) + 1;
+if (newLevel > level) {
+levelUp(newLevel);
+}
+updateScoreAndLevelUI();
+spawnFood();
+} else {
+snake.pop();
+}
+}
+function levelUp(newLevel) {
+level = newLevel;
+updateMoveInterval();
+generateObstacles();
+}
+function updateMoveInterval() {
+const baseInterval = BASE_MOVE_INTERVAL - (level - 1) * SPEED_INCREASE_PER_LEVEL;
+let interval = Math.max(MIN_MOVE_INTERVAL, baseInterval);
+if (speedBoostTimer > 0) {
+interval /= 2;
+}
+currentMoveInterval = interval;
+}
+function checkCollision(head) {
+if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
+return true;
+}
+for (let i = 1; i < snake.length; i++) {
+if (head.x === snake[i].x && head.y === snake[i].y) {
+return true;
+}
+}
+if (isPositionOccupied(head.x, head.y, false)) {
+return true;
+}
+return false;
+}
+function spawnFood() {
+if (snake.length + obstacles.length >= GRID_SIZE * GRID_SIZE) {
+endGame();
+return;
+}
+let position;
+do {
+position = { x: getRandomCoord(), y: getRandomCoord() };
+} while (isPositionOccupied(position.x, position.y) || isTooCloseToObstacle(position.x, position.y, 3));
+const rand = Math.random();
+let chosenType;
+if (rand < GRAPE_CHANCE && level >= 3) {
+chosenType = 'GRAPE';
+} else if (rand < GRAPE_CHANCE + CHERRY_CHANCE) {
+chosenType = 'CHERRY';
+} else {
+chosenType = 'APPLE';
+}
+food = { ...position, type: FOOD_TYPES[chosenType] };
+}
+function generateObstacles() {
+for (let i = 0; i < OBSTACLES_PER_LEVEL; i++) {
+if (snake.length + obstacles.length >= GRID_SIZE * GRID_SIZE) break;
+let pos;
+do {
+pos = { x: getRandomCoord(), y: getRandomCoord() };
+} while (isPositionOccupied(pos.x, pos.y) || (pos.x > 5 && pos.x < 15 && pos.y > 5 && pos.y < 15));
+obstacles.push(pos);
+}
+}
+function getRandomCoord() {
+return Math.floor(Math.random() * GRID_SIZE);
+}
+function isPositionOccupied(x, y, checkSnake = true) {
+if (obstacles.some((ob) => ob.x === x && ob.y === y)) return true;
+if (checkSnake && snake.some((seg) => seg.x === x && seg.y === y)) return true;
+return false;
+}
+function isTooCloseToObstacle(x, y, minDistance) {
+for (const ob of obstacles) {
+const distance = Math.abs(x - ob.x) + Math.abs(y - ob.y);
+if (distance < minDistance) {
+return true;
+}
+}
+return false;
+}
+function draw() {
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, canvasSize, canvasSize);
+ctx.fillStyle = OBSTACLE_COLOR;
+obstacles.forEach((ob) => {
+ctx.fillRect(ob.x * cellSize, ob.y * cellSize, cellSize, cellSize);
+});
+ctx.font = `${cellSize * 0.9}px Arial`;
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.fillText(food.type.emoji, food.x * cellSize + cellSize / 2, food.y * cellSize + cellSize / 2.2);
+snake.forEach((segment, index) => {
+ctx.fillStyle = index === 0 ? SNAKE_HEAD_COLOR : SNAKE_BODY_COLOR;
+ctx.fillRect(segment.x * cellSize, segment.y * cellSize, cellSize, cellSize);
+ctx.strokeStyle = '#000';
+ctx.strokeRect(segment.x * cellSize, segment.y * cellSize, cellSize, cellSize);
+});
+}
+function handleKeyDown(e) {
+if (gameOver) return;
+const key = e.key;
+if ((key === 'ArrowUp' || key.toLowerCase() === 'w') && direction !== 'down') nextDirection = 'up';
+else if ((key === 'ArrowDown' || key.toLowerCase() === 's') && direction !== 'up') nextDirection = 'down';
+else if ((key === 'ArrowLeft' || key.toLowerCase() === 'a') && direction !== 'right') nextDirection = 'left';
+else if ((key === 'ArrowRight' || key.toLowerCase() === 'd') && direction !== 'left') nextDirection = 'right';
+}
+function updateScoreAndLevelUI() {
+scoreValue.textContent = score;
+levelValue.textContent = level;
+}
+function loadHighScores() {
+const scoresJSON = localStorage.getItem(HIGHSCORE_KEY);
+const scores = scoresJSON ? JSON.parse(scoresJSON) : [];
+scores.sort((a, b) => b.score - a.score);
+return scores;
+}
+function saveHighScore(name, score) {
+const date = new Date().toISOString().split('T')[0];
+const newScore = { name, score, date };
+highScores.push(newScore);
+highScores.sort((a, b) => b.score - a.score);
+highScores = highScores.slice(0, MAX_HIGHSCORES);
+localStorage.setItem(HIGHSCORE_KEY, JSON.stringify(highScores));
+}
+function displayHighScores() {
+highscoreList.innerHTML = '';
+if (highScores.length === 0) {
+const li = document.createElement('li');
+li.textContent = 'No highscores have been set yet.';
+li.style.gridTemplateColumns = '1fr';
+highscoreList.appendChild(li);
+return;
+}
+highScores.forEach((entry) => {
+const li = document.createElement('li');
+const nameSpan = document.createElement('span');
+nameSpan.className = 'name';
+nameSpan.textContent = entry.name;
+const scoreSpan = document.createElement('span');
+scoreSpan.className = 'score';
+scoreSpan.textContent = entry.score;
+const dateSpan = document.createElement('span');
+dateSpan.className = 'date';
+dateSpan.textContent = entry.date;
+li.appendChild(nameSpan);
+li.appendChild(scoreSpan);
+li.appendChild(dateSpan);
+highscoreList.appendChild(li);
+});
+}
+function submitAndSaveHighScore() {
+const name = playerNameInput.value.trim().toUpperCase() || 'ANON';
+saveHighScore(name, score);
+displayHighScores();
+newHighscoreContainer.classList.add('hidden');
+playerNameInput.value = '';
+}
+initializeApp();
+});
+</script>
+</body>
+</html>

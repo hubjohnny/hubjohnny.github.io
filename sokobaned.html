@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sokoban Level Editor</title>
+<meta name="description" content="Sokoban level editor and player that allows you to test and play levels directly in your browser.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--bg-color: #1a1a1a;
+--text-color: #e0e0e0;
+--border-color: #333;
+--editor-bg: #222;
+--wall-color: #4a4a4a;
+--floor-color: #2a2a2a;
+--box-color: #a5682a;
+--goal-color: #4a6d4d;
+--player-color: #3a86ff;
+--box-on-goal-color: #5cb85c;
+--tile-size: 22px;
+--blue-button: #3a86ff;
+--blue-button-hover: #4c91ff;
+--green-button: #28a745;
+--green-button-hover: #2ebf4d;
+}
+* {
+box-sizing: border-box;
+}
+body,
+html {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100vh;
+font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+background-color: var(--bg-color);
+color: var(--text-color);
+overflow: hidden;
+display: flex;
+flex-direction: column;
+}
+h1 {
+font-size: 1rem;
+text-align: center;
+margin: 4px;
+flex-shrink: 0;
+}
+.top-bar {
+padding: 5px 10px;
+background-color: var(--editor-bg);
+border-bottom: 1px solid var(--border-color);
+display: flex;
+align-items: center;
+gap: 15px;
+flex-shrink: 0;
+}
+.top-bar label,
+.top-bar span {
+font-size: 14px;
+}
+.top-bar select,
+.top-bar button {
+background-color: #333;
+color: var(--text-color);
+border: 1px solid #555;
+padding: 3px 6px;
+font-size: 14px;
+border-radius: 3px;
+cursor: pointer;
+}
+.top-bar button:hover {
+background-color: #444;
+}
+input[type="file"] {
+display: none;
+}
+.file-label {
+background-color: var(--blue-button);
+color: white;
+padding: 4px 8px;
+border-radius: 3px;
+cursor: pointer;
+transition: background-color 0.2s;
+}
+.file-label:hover {
+background-color: var(--blue-button-hover);
+}
+#play-button {
+margin-left: auto;
+background-color: var(--green-button);
+color: white;
+border-color: var(--green-button);
+transition: background-color 0.2s;
+}
+#play-button:hover {
+background-color: var(--green-button-hover);
+}
+.container {
+display: flex;
+flex-direction: column;
+height: 100%;
+padding: 10px;
+flex-grow: 1;
+min-height: 0;
+}
+.panel {
+display: flex;
+flex-direction: column;
+background-color: var(--editor-bg);
+border: 1px solid var(--border-color);
+min-height: 0;
+height: 100%;
+}
+#editor-container {
+padding: 5px;
+}
+#level-editor {
+width: 100%;
+height: 100%;
+background-color: transparent;
+color: var(--text-color);
+border: none;
+outline: none;
+resize: none;
+font-size: 16px;
+line-height: 1.2;
+white-space: pre;
+overflow: auto;
+}
+.modal-overlay {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.85);
+display: none;
+justify-content: center;
+align-items: center;
+z-index: 1000;
+}
+.modal-content {
+position: relative;
+width: 95vw;
+height: 95vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+}
+.close-button {
+position: absolute;
+top: 0px;
+right: 5px;
+font-size: 2.5rem;
+color: #aaa;
+background: none;
+border: none;
+cursor: pointer;
+line-height: 1;
+}
+.close-button:hover {
+color: white;
+}
+#game-container {
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+width: 100%;
+height: 100%;
+overflow: hidden;
+}
+#game-board {
+display: grid;
+border: 1px solid var(--border-color);
+}
+.tile {
+width: var(--tile-size);
+height: var(--tile-size);
+background-color: var(--floor-color);
+position: relative;
+}
+.tile.wall {
+background-color: var(--wall-color);
+}
+.tile.goal::before {
+content: '';
+position: absolute;
+top: 35%;
+left: 35%;
+width: 30%;
+height: 30%;
+background-color: var(--goal-color);
+border-radius: 50%;
+}
+.tile.player::after,
+.tile.box::after,
+.tile.box-on-goal::after {
+content: '';
+position: absolute;
+top: 2px;
+left: 2px;
+right: 2px;
+bottom: 2px;
+}
+.tile.player::after {
+background-color: var(--player-color);
+border-radius: 50%;
+}
+.tile.box::after {
+background-color: var(--box-color);
+border-radius: 2px;
+}
+.tile.box-on-goal::after {
+background-color: var(--box-on-goal-color);
+border-radius: 2px;
+}
+#controls {
+margin-top: 15px;
+flex-shrink: 0;
+}
+#game-status {
+margin-top: 10px;
+font-size: 16px;
+height: 20px;
+flex-shrink: 0;
+color: #ffc107;
+text-align: center;
+}
+#error-status {
+font-size: 14px;
+color: #ffc107;
+height: 20px;
+margin-left: 20px;
+}
+.sticky-link {
+position: fixed;
+bottom: 8px;
+right: 8px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div class="top-bar">
+<label for="file-input" class="file-label">Load Level File(s)</label>
+<input type="file" id="file-input" multiple accept=".txt,.sok">
+<span>File:</span> <select id="file-selector"></select>
+<span>Level:</span> <select id="level-selector"></select>
+<span id="error-status"></span>
+<button id="play-button">Play Game</button>
+</div>
+<div class="container" id="main-container">
+<div class="panel" id="editor-container">
+<textarea id="level-editor" placeholder="Load or paste a level, then click 'Play Game' to test it."></textarea>
+</div>
+</div>
+<div id="game-modal" class="modal-overlay">
+<div class="modal-content">
+<button id="close-modal-button" class="close-button" title="Close (Esc)">&times;</button>
+<div id="game-container">
+<div id="game-board" tabindex="0"></div>
+<div id="game-status"></div>
+<div id="controls">
+<button id="reset-button">Reset Level</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+const editor = document.getElementById('level-editor');
+const gameBoard = document.getElementById('game-board');
+const resetButton = document.getElementById('reset-button');
+const gameStatus = document.getElementById('game-status');
+const errorStatus = document.getElementById('error-status');
+const fileInput = document.getElementById('file-input');
+const fileSelector = document.getElementById('file-selector');
+const levelSelector = document.getElementById('level-selector');
+const playButton = document.getElementById('play-button');
+const gameModal = document.getElementById('game-modal');
+const closeModalButton = document.getElementById('close-modal-button');
+const gameContainer = document.getElementById('game-container');
+let levelData = [];
+let originalLevelData = [];
+let playerPos = { x: 0, y: 0 };
+let gameWon = false;
+let loadedCollections = {};
+const TILE_MAP = {
+' ': 'floor', '#': 'wall', '@': 'player', '$': 'box',
+'.': 'goal', '*': 'box-on-goal', '+': 'player-on-goal'
+};
+async function loadDefaultFiles(filePaths) {
+try {
+const responses = await Promise.all(filePaths.map(path => fetch(path)));
+for (let i = 0; i < responses.length; i++) {
+if (!responses[i].ok) continue;
+const content = await responses[i].text();
+const fileName = filePaths[i].split('/').pop();
+const levels = content.split(/\n\s*\n/).filter(lvl => lvl.trim().length > 0);
+if (levels.length > 0) {
+loadedCollections[fileName] = levels;
+}
+}
+updateFileSelector();
+} catch (error) {
+console.error("Error loading default level files:", error);
+}
+}
+function updateFileSelector() {
+const currentSelection = fileSelector.value;
+fileSelector.innerHTML = '';
+Object.keys(loadedCollections).forEach(fileName => {
+const option = document.createElement('option');
+option.value = fileName;
+option.textContent = fileName;
+fileSelector.appendChild(option);
+});
+if (Object.keys(loadedCollections).includes(currentSelection)) {
+fileSelector.value = currentSelection;
+}
+fileSelector.dispatchEvent(new Event('change'));
+}
+function handleFileLoad(event) {
+const files = event.target.files;
+if (!files.length) return;
+let filesToLoad = files.length;
+Array.from(files).forEach(file => {
+const reader = new FileReader();
+reader.onload = (e) => {
+const content = e.target.result;
+const levels = content.split(/\n\s*\n/).filter(lvl => lvl.trim().length > 0);
+if (levels.length > 0) {
+loadedCollections[file.name] = levels;
+}
+if (--filesToLoad === 0) {
+updateFileSelector();
+fileSelector.value = file.name;
+fileSelector.dispatchEvent(new Event('change'));
+}
+};
+reader.readAsText(file);
+});
+}
+function populateLevelSelector() {
+const selectedFile = fileSelector.value;
+levelSelector.innerHTML = '';
+if (!selectedFile || !loadedCollections[selectedFile]) {
+loadSelectedLevel();
+return;
+}
+const levels = loadedCollections[selectedFile];
+levels.forEach((_, index) => {
+const option = document.createElement('option');
+option.value = index;
+option.textContent = `Level ${index + 1}`;
+levelSelector.appendChild(option);
+});
+levelSelector.dispatchEvent(new Event('change'));
+}
+function loadSelectedLevel() {
+const selectedFile = fileSelector.value;
+const levelIndex = levelSelector.value;
+if (selectedFile && levelIndex !== null && loadedCollections[selectedFile]) {
+editor.value = loadedCollections[selectedFile][levelIndex];
+} else {
+editor.value = '';
+}
+errorStatus.textContent = '';
+}
+function parseLevel(text) {
+const lines = text.split('\n');
+const newLevelData = lines.map(line => line.split(''));
+let maxLen = 0;
+newLevelData.forEach(row => { maxLen = Math.max(maxLen, row.length); });
+newLevelData.forEach(row => { while (row.length < maxLen) row.push(' '); });
+return newLevelData;
+}
+function validateLevel(data) {
+let playerFound = false;
+let boxCount = 0;
+let goalCount = 0;
+const errors = [];
+data.forEach(row => {
+row.forEach(char => {
+if (char === '@' || char === '+') playerFound = true;
+if (char === '$' || char === '*') boxCount++;
+if (char === '.' || char === '*' || char === '+') goalCount++;
+});
+});
+if (!playerFound) errors.push("Player '@' is missing.");
+if (boxCount === 0) errors.push("No boxes '$' found.");
+if (goalCount === 0) errors.push("No goals '.' found.");
+if (boxCount > 0 && goalCount > 0 && boxCount !== goalCount) {
+errors.push(`Mismatch: ${boxCount} boxes, ${goalCount} goals.`);
+}
+return errors;
+}
+function findStart(data) {
+for (let y = 0; y < data.length; y++) {
+for (let x = 0; x < data[y].length; x++) {
+if (data[y][x] === '@' || data[y][x] === '+') return { x, y };
+}
+}
+return null;
+}
+function resizeAndRenderGame() {
+if (!originalLevelData || originalLevelData.length === 0) return;
+gameWon = false;
+gameStatus.textContent = '';
+gameStatus.style.color = '#ffc107';
+levelData = JSON.parse(JSON.stringify(originalLevelData));
+playerPos = findStart(levelData);
+const rows = levelData.length;
+const cols = levelData[0].length;
+const containerWidth = gameContainer.clientWidth;
+const containerHeight = gameContainer.clientHeight - 80;
+const tileSizeW = containerWidth / cols;
+const tileSizeH = containerHeight / rows;
+const newTileSize = Math.floor(Math.min(tileSizeW, tileSizeH));
+document.documentElement.style.setProperty('--tile-size', `${newTileSize}px`);
+gameBoard.innerHTML = '';
+gameBoard.style.gridTemplateColumns = `repeat(${cols}, ${newTileSize}px)`;
+for (let y = 0; y < rows; y++) {
+for (let x = 0; x < cols; x++) {
+const tileDiv = document.createElement('div');
+updateTileDiv(tileDiv, x, y, levelData);
+gameBoard.appendChild(tileDiv);
+}
+}
+checkWin();
+gameBoard.focus();
+}
+function playGame() {
+const text = editor.value;
+if (text.trim() === '') {
+errorStatus.textContent = 'Error: Editor is empty.';
+return;
+}
+const parsedForValidation = parseLevel(text);
+const validationErrors = validateLevel(parsedForValidation);
+if (validationErrors.length > 0) {
+errorStatus.textContent = 'Error: ' + validationErrors.join(' ');
+return;
+}
+errorStatus.textContent = '';
+originalLevelData = parsedForValidation;
+gameModal.style.display = 'flex';
+resizeAndRenderGame();
+}
+function closeGame() {
+gameModal.style.display = 'none';
+gameBoard.innerHTML = '';
+originalLevelData = [];
+levelData = [];
+}
+function updateTileDiv(tileDiv, x, y, data) {
+tileDiv.className = 'tile';
+const tileChar = data[y][x];
+let type = TILE_MAP[tileChar] || 'floor';
+if (type === 'player-on-goal' || type === 'box-on-goal' || type === 'goal') {
+tileDiv.classList.add('goal');
+}
+if (type === 'player-on-goal') type = 'player';
+if (type === 'box-on-goal') type = 'box-on-goal';
+if (type === 'player' || type === 'box' || type === 'box-on-goal' || type === 'wall') {
+tileDiv.classList.add(type);
+}
+}
+function updateTile(x, y) {
+if (!levelData.length) return;
+const index = y * levelData[0].length + x;
+if (index < 0 || index >= gameBoard.children.length) return;
+const tileDiv = gameBoard.children[index];
+updateTileDiv(tileDiv, x, y, levelData);
+}
+function isOriginalGoal(x, y) {
+const originalChar = originalLevelData[y][x];
+return originalChar === '.' || originalChar === '+' || originalChar === '*';
+}
+function move(dx, dy) {
+if (gameWon || !levelData.length) return;
+const { x, y } = playerPos;
+const nx = x + dx, ny = y + dy;
+if (ny < 0 || ny >= levelData.length || nx < 0 || nx >= levelData[ny].length) return;
+const targetTile = levelData[ny][nx];
+const originalPlayerTile = levelData[y][x];
+if (targetTile === ' ' || targetTile === '.') {
+levelData[y][x] = (originalPlayerTile === '+') ? '.' : ' ';
+levelData[ny][nx] = (targetTile === '.') ? '+' : '@';
+playerPos = { x: nx, y: ny };
+updateTile(x, y);
+updateTile(nx, ny);
+}
+else if (targetTile === '$' || targetTile === '*') {
+const nnx = nx + dx, nny = ny + dy;
+if (nny < 0 || nny >= levelData.length || nnx < 0 || nnx >= levelData[nny].length) return;
+const behindBoxTile = levelData[nny][nnx];
+if (behindBoxTile === ' ' || behindBoxTile === '.') {
+levelData[nny][nnx] = (behindBoxTile === '.') ? '*' : '$';
+levelData[ny][nx] = (targetTile === '*') ? '+' : '@';
+levelData[y][x] = (originalPlayerTile === '+') ? '.' : ' ';
+playerPos = { x: nx, y: ny };
+updateTile(x, y);
+updateTile(nx, ny);
+updateTile(nnx, nny);
+}
+}
+checkWin();
+}
+function checkWin() {
+let totalGoals = 0;
+let boxesOnGoals = 0;
+for (let y = 0; y < originalLevelData.length; y++) {
+for (let x = 0; x < originalLevelData[y].length; x++) {
+if (isOriginalGoal(x, y)) {
+totalGoals++;
+if (levelData[y][x] === '*') {
+boxesOnGoals++;
+}
+}
+}
+}
+if (totalGoals > 0 && totalGoals === boxesOnGoals) {
+gameStatus.textContent = 'Level Complete!';
+gameStatus.style.color = '#5cb85c';
+gameWon = true;
+}
+}
+document.addEventListener('DOMContentLoaded', () => {
+loadDefaultFiles([
+'sok01orig.txt',
+'sok02micb.txt',
+'sok03mass.txt',
+'sok04misc.txt',
+'sok05misc.txt',
+'sok06misc.txt',
+'sok07misc.txt',
+'sok08misc.txt',
+'sok09misc.txt',
+'sok10misc.txt',
+'sok11misc.txt',
+'sok12misc.txt'
+]);
+});
+fileInput.addEventListener('change', handleFileLoad);
+fileSelector.addEventListener('change', populateLevelSelector);
+levelSelector.addEventListener('change', loadSelectedLevel);
+editor.addEventListener('input', () => { errorStatus.textContent = ''; });
+playButton.addEventListener('click', playGame);
+resetButton.addEventListener('click', resizeAndRenderGame);
+closeModalButton.addEventListener('click', closeGame);
+window.addEventListener('keydown', (e) => {
+if (e.key === 'Escape' && gameModal.style.display === 'flex') {
+closeGame();
+}
+});
+gameBoard.addEventListener('keydown', (e) => {
+e.preventDefault();
+switch (e.key) {
+case 'ArrowUp': move(0, -1); break;
+case 'ArrowDown': move(0, 1); break;
+case 'ArrowLeft': move(-1, 0); break;
+case 'ArrowRight': move(1, 0); break;
+}
+});
+new ResizeObserver(resizeAndRenderGame).observe(gameContainer);
+</script>
+</body>
+</html>

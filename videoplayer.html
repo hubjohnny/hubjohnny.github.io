@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Player Online</title>
+<meta name="description" content="Advanced controls, including subtitle size and offset adjustment, SDH (descriptive audio) filtering and much more!">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--subtitle-font-size: 2.5vh;
+}
+body {
+margin: 0;
+background-color: #0d0d0d;
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+overflow: hidden;
+color: #f0f0f0;
+}
+#video-player {
+width: 100vw;
+height: 100vh;
+object-fit: contain;
+position: absolute;
+top: 0;
+left: 0;
+z-index: 1;
+background-color: #000;
+cursor: pointer;
+}
+.controls-container {
+position: fixed;
+bottom: 0;
+left: 0;
+width: 100%;
+z-index: 10;
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0 1rem 1rem 1rem;
+box-sizing: border-box;
+transition: opacity 0.4s ease-in-out, visibility 0.4s;
+background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+}
+.controls-container.hidden {
+opacity: 0;
+visibility: hidden;
+pointer-events: none;
+}
+.controls-panel {
+display: flex;
+flex-direction: row;
+align-items: center;
+gap: 10px;
+width: auto;
+background-color: rgba(30, 30, 30, 0.85);
+padding: 1rem 1.5rem;
+border-radius: 12px;
+backdrop-filter: blur(8px);
+box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+.btn {
+font-weight: bold;
+cursor: pointer;
+color: white;
+padding: 12px 18px;
+border: none;
+border-radius: 6px;
+text-align: center;
+transition: background-color 0.2s ease, transform 0.1s ease;
+user-select: none;
+}
+.btn:hover {
+filter: brightness(1.1);
+}
+.btn:active {
+transform: scale(0.98);
+}
+::cue {
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+font-size: var(--subtitle-font-size);
+color: #ffffff;
+background-color: transparent;
+text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+}
+.main-label {
+background-color: #007bff;
+}
+#help-btn {
+background-color: #4a4a4a;
+width: 45px;
+height: 45px;
+padding: 0;
+font-size: 1.2rem;
+}
+#toggle-subs-btn,
+#filter-sdh-btn,
+#fullscreen-btn {
+background-color: #4a4a4a;
+width: 45px;
+height: 45px;
+padding: 0;
+font-size: 1.5rem;
+line-height: 45px;
+}
+#decrease-subs-size-btn,
+#increase-subs-size-btn {
+background-color: #4a4a4a;
+width: 45px;
+height: 45px;
+padding: 0;
+font-size: 1.8rem;
+line-height: 45px;
+}
+#toggle-subs-btn.active,
+#filter-sdh-btn.active {
+background-color: #007bff;
+}
+input[type="file"] {
+display: none;
+}
+.volume-controls {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+.volume-controls label {
+font-size: 1.5rem;
+font-weight: normal;
+cursor: default;
+color: #fff;
+}
+#volume-level {
+font-weight: bold;
+color: #00e0ff;
+margin-left: 8px;
+min-width: 50px;
+text-align: left;
+}
+.volume-slider {
+width: 100px;
+}
+.progress-bar-container {
+width: 100%;
+max-width: 900px;
+height: 8px;
+background-color: rgba(255, 255, 255, 0.3);
+border-radius: 4px;
+cursor: pointer;
+margin-bottom: 15px;
+position: relative;
+}
+.progress-bar-fill {
+height: 100%;
+width: 0;
+background-color: #00aaff;
+border-radius: 4px;
+}
+.loop-marker {
+position: absolute;
+top: -3px;
+width: 4px;
+height: 14px;
+background-color: #00e0ff;
+border-radius: 2px;
+transform: translateX(-50%);
+display: none;
+}
+#toast-notification {
+position: fixed;
+bottom: 120px;
+left: 50%;
+transform: translateX(-50%);
+background-color: rgba(0, 255, 255, 0.85);
+color: #000;
+padding: 10px 20px;
+border-radius: 20px;
+z-index: 100;
+font-weight: bold;
+opacity: 0;
+visibility: hidden;
+transition: opacity 0.4s, transform 0.4s, visibility 0.4s;
+pointer-events: none;
+}
+#toast-notification.show {
+opacity: 1;
+visibility: visible;
+transform: translateX(-50%) translateY(-15px);
+}
+.modal-overlay {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.7);
+display: none;
+justify-content: center;
+align-items: center;
+z-index: 1000;
+backdrop-filter: blur(5px);
+}
+.modal-box {
+background-color: #1e1e1e;
+padding: 12px 10px;
+border-radius: 12px;
+border: 1px solid #00aaff;
+box-shadow: 0 5px 25px rgba(0, 170, 255, 0.2);
+width: 90%;
+max-width: 300px;
+}
+.modal-box h2,
+h1 {
+margin: 0 0 0 0;
+color: #00aaff;
+text-align: center;
+}
+.modal-box ul {
+list-style: none;
+padding: 0;
+margin: 0;
+}
+.modal-box li {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 4px 0;
+border-bottom: 1px solid #333;
+}
+.modal-box li:last-child {
+border-bottom: none;
+}
+.modal-box span {
+background-color: #333;
+padding: 2px 10px;
+border-radius: 4px;
+font-weight: bold;
+color: #00e0ff;
+}
+#close-modal-btn {
+display: block;
+width: 100%;
+padding: 12px;
+margin-top: 20px;
+background-color: #007bff;
+font-size: 16px;
+}
+</style>
+</head>
+<body>
+<video id="video-player" crossorigin="anonymous" autoplay>
+<track kind="subtitles" srclang="en" label="Subtitles" default>
+</video>
+<div class="controls-container">
+<div class="progress-bar-container" id="progress-bar-container">
+<div class="progress-bar-fill" id="progress-bar-fill"></div>
+<div class="loop-marker" id="loop-start-marker"></div>
+<div class="loop-marker" id="loop-end-marker"></div>
+</div>
+<div class="controls-panel">
+<label for="file-upload" class="btn main-label" id="choose-files-btn"></label>
+<input type="file" id="file-upload" accept=".mp4,.srt, .webm, .mkv" multiple>
+<div class="volume-controls">
+<label for="volume-booster">🔊<b id="volume-level">100%</b></label>
+<input type="range" id="volume-booster" class="volume-slider" min="1" max="4" step="0.1" value="1"
+title="Volume Booster">
+</div>
+<button class="btn" id="fullscreen-btn" title="Toggle Fullscreen">⛶</button>
+<button class="btn" id="toggle-subs-btn" title="Toggle Subtitles">CC</button>
+<button class="btn" id="decrease-subs-size-btn" title="Decrease Subtitle Size">-</button>
+<button class="btn" id="increase-subs-size-btn" title="Increase Subtitle Size">+</button>
+<button class="btn" id="filter-sdh-btn" title="Show Descriptions">🧏</button>
+<button class="btn" id="help-btn">?</button>
+</div>
+</div>
+<div id="toast-notification"></div>
+<div id="shortcuts-modal" class="modal-overlay">
+<div class="modal-box">
+<p style="margin: 0 0 16px 0;">&copy; 2025 Chromebooker.com</p>
+<ul id="shortcuts-list">
+<li>Play / Pause <span>Space</span></li>
+<li>Frame Step Back/Fwd <span>,</span><span>.</span></li>
+<li>Capture Frame <span>S</span></li>
+<li>Toggle Fullscreen <span>F</span></li>
+<li>Toggle Mute <span>M</span></li>
+<li>Seek Forward 5s <span>→</span></li>
+<li>Seek Backward 5s <span>←</span></li>
+<li>Loop Control <span>L</span></li>
+<li>Record Loop <span>R</span></li>
+<li>Sub Offset -100ms <span>1</span></li>
+<li>Sub Offset +100ms <span>2</span></li>
+<li>Sub Offset Reset <span>0</span></li>
+</ul>
+<button id="close-modal-btn" class="btn">Close</button>
+</div>
+</div>
+<script>
+const lang = {
+title: "Video Player",
+chooseFiles: "Open files",
+subtitleLabel: "Subtitles",
+noTrackError: "Could not find a text track on the video element.",
+noVideoOnClipboard: "No video file found on the clipboard.",
+loopStartSet: (time) => `🔁 Loop start set to ${time}`,
+loopingFromTo: (start, end) => `🔁 Looping from ${start} to ${end}`,
+invalidLoop: "❌ Invalid loop. Reset.",
+loopRemoved: "✅ Loop removed.",
+resumingFrom: (time) => `Resuming from ${time}`,
+recordingStarted: "🔴 Recording loop...",
+recordingFinished: "✅ Recording finished. Download will start.",
+noLoopToRecord: "❌ Set a loop with 'L' key first!",
+frameCaptured: (time) => `📸 Frame captured at ${time}`
+};
+const videoPlayer = document.getElementById('video-player');
+const fileUpload = document.getElementById('file-upload');
+const volumeBooster = document.getElementById('volume-booster');
+const volumeLevel = document.getElementById('volume-level');
+const controlsContainer = document.querySelector('.controls-container');
+const progressBarContainer = document.getElementById('progress-bar-container');
+const progressBarFill = document.getElementById('progress-bar-fill');
+const loopStartMarker = document.getElementById('loop-start-marker');
+const loopEndMarker = document.getElementById('loop-end-marker');
+const toast = document.getElementById('toast-notification');
+const shortcutsModal = document.getElementById('shortcuts-modal');
+const closeModalBtn = document.getElementById('close-modal-btn');
+const helpBtn = document.getElementById('help-btn');
+const toggleSubsBtn = document.getElementById('toggle-subs-btn');
+const decreaseSubsSizeBtn = document.getElementById('decrease-subs-size-btn');
+const increaseSubsSizeBtn = document.getElementById('increase-subs-size-btn');
+const filterSdhBtn = document.getElementById('filter-sdh-btn');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+let inactivityTimeout;
+let videoUrl = null;
+let audioContext, gainNode, mediaStreamDestination;
+let loopStart = null;
+let loopEnd = null;
+let currentSubtitleSize = 4.2;
+let parsedSrtCues = [];
+let hideSdhDescriptions = true;
+let currentVideoIdentifier = null;
+let saveInterval = null;
+let mediaRecorder;
+let recordedChunks = [];
+let subtitleOffset = 0.0;
+function updateStaticUIText() {
+document.title = lang.title;
+document.getElementById('choose-files-btn').textContent = lang.chooseFiles;
+const trackElement = videoPlayer.querySelector('track');
+if (trackElement) trackElement.label = lang.subtitleLabel;
+}
+function updateSubtitleSize() {
+document.documentElement.style.setProperty('--subtitle-font-size', `${currentSubtitleSize}vh`);
+}
+function savePlaybackPosition() {
+if (!currentVideoIdentifier || videoPlayer.currentTime === 0 || videoPlayer.ended) {
+return;
+}
+try {
+const positions = JSON.parse(localStorage.getItem('videoPlaybackPositions')) || {};
+positions[currentVideoIdentifier] = videoPlayer.currentTime;
+localStorage.setItem('videoPlaybackPositions', JSON.stringify(positions));
+} catch (e) {
+console.error("Could not save playback position:", e);
+}
+}
+function loadPlaybackPosition() {
+if (!currentVideoIdentifier) return;
+try {
+const positions = JSON.parse(localStorage.getItem('videoPlaybackPositions')) || {};
+const savedTime = positions[currentVideoIdentifier];
+if (savedTime && savedTime > 0 && savedTime < videoPlayer.duration) {
+videoPlayer.currentTime = savedTime;
+showToast(lang.resumingFrom(formatTime(savedTime)));
+}
+} catch (e) {
+console.error("Could not load playback position:", e);
+}
+}
+function handleFiles(files) {
+if (!files || files.length === 0) return;
+toggleSubsBtn.classList.remove('active');
+filterSdhBtn.classList.remove('active');
+hideSdhDescriptions = true;
+clearInterval(saveInterval);
+currentVideoIdentifier = null;
+subtitleOffset = 0.0;
+const filesArray = Array.from(files);
+const videoFile = filesArray.find(f => f.name.toLowerCase().match(/\.(mp4|mkv|webm)$/));
+const srtFile = filesArray.find(f => f.name.toLowerCase().endsWith('.srt'));
+if (videoFile) {
+if (videoUrl) URL.revokeObjectURL(videoUrl);
+videoUrl = URL.createObjectURL(videoFile);
+videoPlayer.src = videoUrl;
+videoPlayer.load();
+parsedSrtCues = [];
+renderCues();
+currentVideoIdentifier = `${videoFile.name}-${videoFile.size}`;
+saveInterval = setInterval(savePlaybackPosition, 5000);
+const videoNameWithoutExt = videoFile.name.split('.').slice(0, -1).join('.');
+const expectedSrtName = `${videoNameWithoutExt.toLowerCase()}.srt`;
+const matchingSrtFile = filesArray.find(f => f.name.toLowerCase() === expectedSrtName);
+if (matchingSrtFile) {
+loadSrtFile(matchingSrtFile);
+} else if (srtFile) {
+loadSrtFile(srtFile);
+}
+} else if (srtFile) {
+loadSrtFile(srtFile);
+}
+}
+function loadSrtFile(file) {
+const track = videoPlayer.textTracks[0];
+if (!track) {
+console.error(lang.noTrackError);
+return;
+}
+track.mode = 'showing';
+toggleSubsBtn.classList.add('active');
+const reader = new FileReader();
+reader.onload = (e) => {
+parseSrtAndAddCues(e.target.result);
+};
+reader.readAsText(file, 'UTF-8');
+}
+function renderCues() {
+const track = videoPlayer.textTracks[0];
+if (!track) return;
+while (track.cues && track.cues.length > 0) {
+track.removeCue(track.cues[0]);
+}
+for (const cueData of parsedSrtCues) {
+let cueText;
+if (hideSdhDescriptions) {
+cueText = cueData.text.replace(/\[[\s\S]*?\]|\([\s\S]*?\)/g, '').replace(/\s{2,}/g, ' ').trim();
+} else {
+cueText = cueData.text;
+}
+if (cueText) {
+const newStartTime = Math.max(0, cueData.startTime + subtitleOffset);
+const newEndTime = Math.max(0, cueData.endTime + subtitleOffset);
+if (newEndTime > newStartTime) {
+const cue = new VTTCue(newStartTime, newEndTime, cueText);
+track.addCue(cue);
+}
+}
+}
+}
+function parseSrtAndAddCues(srtContent) {
+parsedSrtCues = [];
+const cleanContent = srtContent.replace(/\r\n|\r/g, '\n').replace(/^\uFEFF/, '');
+const blocks = cleanContent.split('\n\n');
+for (const block of blocks) {
+const trimmedBlock = block.trim();
+if (!trimmedBlock) continue;
+const lines = trimmedBlock.split('\n');
+if (lines.length < 2) continue;
+const timestampLine = lines.find(line => line.includes('-->'));
+if (!timestampLine) continue;
+const timeMatch = timestampLine.match(/(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})/);
+if (!timeMatch) continue;
+const startTime = timeStringToSeconds(timeMatch[1]);
+const endTime = timeStringToSeconds(timeMatch[2]);
+const cueText = lines.slice(lines.indexOf(timestampLine) + 1).join('\n');
+if (!isNaN(startTime) && !isNaN(endTime) && cueText) {
+parsedSrtCues.push({ startTime, endTime, text: cueText });
+}
+}
+renderCues();
+}
+function timeStringToSeconds(timeString) {
+const [hms, ms] = timeString.replace(',', '.').split('.');
+const parts = hms.split(':');
+if (parts.length !== 3) return NaN;
+return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]) + (parseInt(ms) / 1000);
+}
+function setupAudioBooster() {
+if (audioContext) return;
+try {
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+audioContext = new AudioContext();
+const source = audioContext.createMediaElementSource(videoPlayer);
+gainNode = audioContext.createGain();
+source.connect(gainNode);
+gainNode.connect(audioContext.destination);
+mediaStreamDestination = audioContext.createMediaStreamDestination();
+gainNode.connect(mediaStreamDestination);
+gainNode.gain.value = parseFloat(volumeBooster.value);
+} catch (e) {
+console.error("Could not create AudioContext:", e);
+volumeBooster.disabled = true;
+}
+}
+function showControls() {
+controlsContainer.classList.remove('hidden');
+videoPlayer.style.cursor = 'pointer';
+clearTimeout(inactivityTimeout);
+inactivityTimeout = setTimeout(hideControls, 3000);
+}
+function hideControls() {
+if (!videoPlayer.paused && !controlsContainer.matches(':hover')) {
+controlsContainer.classList.add('hidden');
+videoPlayer.style.cursor = 'none';
+}
+}
+function showToast(message) {
+if (!toast) return;
+toast.textContent = message;
+toast.classList.add('show');
+setTimeout(() => {
+toast.classList.remove('show');
+}, 2500);
+}
+function adjustSubtitleOffset(amount) {
+if (parsedSrtCues.length === 0) return;
+subtitleOffset += amount;
+renderCues();
+const offsetMs = Math.round(subtitleOffset * 1000);
+showToast(`Subtitle offset: ${offsetMs}ms`);
+}
+function resetSubtitleOffset() {
+if (parsedSrtCues.length === 0 || subtitleOffset === 0) return;
+subtitleOffset = 0;
+renderCues();
+showToast(`Subtitle offset reset to 0ms`);
+}
+function formatTime(seconds) {
+if (isNaN(seconds)) return "00:00:00";
+return new Date(seconds * 1000).toISOString().substr(11, 8);
+}
+function handleLoopKey() {
+if (loopStart === null) {
+loopStart = videoPlayer.currentTime;
+showToast(lang.loopStartSet(formatTime(loopStart)));
+} else if (loopEnd === null) {
+loopEnd = videoPlayer.currentTime;
+if (loopEnd <= loopStart) {
+loopStart = null;
+loopEnd = null;
+showToast(lang.invalidLoop);
+} else {
+showToast(lang.loopingFromTo(formatTime(loopStart), formatTime(loopEnd)));
+videoPlayer.currentTime = loopStart;
+}
+} else {
+loopStart = null;
+loopEnd = null;
+showToast(lang.loopRemoved);
+}
+updateLoopMarkers();
+}
+function handleRecordingKey() {
+if (loopStart === null || loopEnd === null) {
+showToast(lang.noLoopToRecord);
+return;
+}
+if (mediaRecorder && mediaRecorder.state === 'recording') {
+return;
+}
+if (!audioContext) {
+setupAudioBooster();
+}
+showToast(lang.recordingStarted);
+const videoTrack = videoPlayer.captureStream().getVideoTracks()[0];
+const audioTrack = mediaStreamDestination.stream.getAudioTracks()[0];
+const combinedStream = new MediaStream([videoTrack, audioTrack]);
+const options = {
+mimeType: 'video/webm; codecs=vp8,opus',
+videoBitsPerSecond: 4000000,
+audioBitsPerSecond: 128000
+};
+try {
+mediaRecorder = new MediaRecorder(combinedStream, options);
+} catch (e) {
+console.error("MediaRecorder error:", e);
+showToast("🔴 Recording failed. Check console.");
+return;
+}
+mediaRecorder.ondataavailable = event => {
+if (event.data.size > 0) {
+recordedChunks.push(event.data);
+}
+};
+mediaRecorder.onstop = () => {
+showToast(lang.recordingFinished);
+const blob = new Blob(recordedChunks, { type: 'video/webm' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+document.body.appendChild(a);
+a.style = 'display: none';
+a.href = url;
+a.download = `loop_${Date.now()}.webm`;
+a.click();
+window.URL.revokeObjectURL(url);
+document.body.removeChild(a);
+recordedChunks = [];
+};
+videoPlayer.currentTime = loopStart;
+if (videoPlayer.paused) {
+videoPlayer.play();
+}
+mediaRecorder.start();
+const loopDuration = (loopEnd - loopStart) * 1000;
+setTimeout(() => {
+if (mediaRecorder && mediaRecorder.state === 'recording') {
+mediaRecorder.stop();
+}
+}, loopDuration);
+}
+function captureFrame() {
+const canvas = document.createElement('canvas');
+canvas.width = videoPlayer.videoWidth;
+canvas.height = videoPlayer.videoHeight;
+const ctx = canvas.getContext('2d');
+ctx.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
+const dataURL = canvas.toDataURL('image/png');
+const a = document.createElement('a');
+document.body.appendChild(a);
+a.style = 'display: none';
+a.href = dataURL;
+const time = formatTime(videoPlayer.currentTime).replace(/:/g, '-');
+a.download = `frame_at_${time}.png`;
+a.click();
+document.body.removeChild(a);
+showToast(lang.frameCaptured(formatTime(videoPlayer.currentTime)));
+}
+function updateLoopMarkers() {
+const duration = videoPlayer.duration;
+if (loopStart !== null && duration > 0) {
+loopStartMarker.style.left = `${(loopStart / duration) * 100}%`;
+loopStartMarker.style.display = 'block';
+} else {
+loopStartMarker.style.display = 'none';
+}
+if (loopEnd !== null && duration > 0) {
+loopEndMarker.style.left = `${(loopEnd / duration) * 100}%`;
+loopEndMarker.style.display = 'block';
+} else {
+loopEndMarker.style.display = 'none';
+}
+}
+function showShortcuts() {
+shortcutsModal.style.display = 'flex';
+}
+function hideShortcuts() {
+shortcutsModal.style.display = 'none';
+}
+fileUpload.addEventListener('change', (e) => {
+handleFiles(e.target.files);
+e.target.value = null;
+});
+document.body.addEventListener('dragover', (e) => e.preventDefault());
+document.body.addEventListener('drop', (e) => {
+e.preventDefault();
+handleFiles(e.dataTransfer.files);
+});
+document.addEventListener('paste', (e) => {
+e.preventDefault();
+const items = e.clipboardData.items;
+let fileFound = false;
+for (const item of items) {
+if (item.kind === 'file') {
+const file = item.getAsFile();
+if (file) {
+handleFiles([file]);
+fileFound = true;
+break;
+}
+}
+}
+if (!fileFound) {
+showToast(lang.noVideoOnClipboard);
+}
+});
+volumeBooster.addEventListener('input', (e) => {
+if (!gainNode) setupAudioBooster();
+if (gainNode) {
+const boostValue = parseFloat(e.target.value);
+gainNode.gain.setValueAtTime(boostValue, audioContext.currentTime);
+volumeLevel.textContent = `${Math.round(boostValue * 100)}%`;
+}
+});
+fullscreenBtn.addEventListener('click', () => {
+if (document.fullscreenElement) {
+document.exitFullscreen();
+} else {
+document.documentElement.requestFullscreen();
+}
+});
+document.addEventListener('fullscreenchange', () => {
+fullscreenBtn.textContent = document.fullscreenElement ? '⤡' : '⛶';
+});
+toggleSubsBtn.addEventListener('click', () => {
+const track = videoPlayer.textTracks[0];
+if (!track || parsedSrtCues.length === 0) return;
+const isShowing = track.mode === 'showing';
+track.mode = isShowing ? 'hidden' : 'showing';
+toggleSubsBtn.classList.toggle('active', !isShowing);
+});
+increaseSubsSizeBtn.addEventListener('click', () => {
+currentSubtitleSize += 0.2;
+updateSubtitleSize();
+});
+decreaseSubsSizeBtn.addEventListener('click', () => {
+if (currentSubtitleSize > 1.0) {
+currentSubtitleSize -= 0.2;
+updateSubtitleSize();
+}
+});
+filterSdhBtn.addEventListener('click', () => {
+hideSdhDescriptions = !hideSdhDescriptions;
+filterSdhBtn.classList.toggle('active', !hideSdhDescriptions);
+renderCues();
+});
+videoPlayer.addEventListener('play', () => {
+showControls();
+setupAudioBooster();
+});
+videoPlayer.addEventListener('pause', showControls);
+videoPlayer.addEventListener('mouseenter', showControls);
+controlsContainer.addEventListener('mouseenter', showControls);
+document.addEventListener('mousemove', showControls);
+videoPlayer.addEventListener('click', () => videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause());
+videoPlayer.addEventListener('timeupdate', () => {
+if (loopStart !== null && loopEnd !== null) {
+if (videoPlayer.currentTime >= loopEnd || videoPlayer.currentTime < loopStart) {
+videoPlayer.currentTime = loopStart;
+}
+}
+if (videoPlayer.duration) {
+const progress = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+progressBarFill.style.width = `${progress}%`;
+}
+});
+videoPlayer.addEventListener('loadedmetadata', updateLoopMarkers);
+videoPlayer.addEventListener('loadedmetadata', loadPlaybackPosition);
+progressBarContainer.addEventListener('click', (e) => {
+const rect = progressBarContainer.getBoundingClientRect();
+const pos = (e.clientX - rect.left) / rect.width;
+videoPlayer.currentTime = pos * videoPlayer.duration;
+});
+helpBtn.addEventListener('click', showShortcuts);
+closeModalBtn.addEventListener('click', hideShortcuts);
+shortcutsModal.addEventListener('click', (e) => {
+if (e.target === shortcutsModal) hideShortcuts();
+});
+document.addEventListener('keydown', (e) => {
+if (e.key === 'Escape') {
+hideShortcuts();
+}
+if (shortcutsModal.style.display === 'flex' || e.target.tagName === 'INPUT' && e.target.type !== 'range') {
+return;
+}
+if (document.activeElement === volumeBooster && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+return;
+}
+switch (e.key.toLowerCase()) {
+case ' ':
+if (document.activeElement.tagName !== 'BUTTON') {
+e.preventDefault();
+videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause();
+}
+break;
+case '.':
+e.preventDefault();
+if (!videoPlayer.paused) {
+videoPlayer.pause();
+} else {
+videoPlayer.currentTime += 1 / 30;
+}
+break;
+case ',':
+e.preventDefault();
+if (videoPlayer.paused) {
+videoPlayer.currentTime -= 1 / 30;
+}
+break;
+case 's':
+e.preventDefault();
+captureFrame();
+break;
+case 'f':
+document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+break;
+case 'm':
+videoPlayer.muted = !videoPlayer.muted;
+break;
+case 'arrowright':
+videoPlayer.currentTime += 5;
+break;
+case 'arrowleft':
+videoPlayer.currentTime -= 5;
+break;
+case 'l':
+handleLoopKey();
+break;
+case 'r':
+handleRecordingKey();
+break;
+case '1':
+e.preventDefault();
+adjustSubtitleOffset(-0.1);
+break;
+case '2':
+e.preventDefault();
+adjustSubtitleOffset(0.1);
+break;
+case '0':
+e.preventDefault();
+resetSubtitleOffset();
+break;
+}
+});
+updateStaticUIText();
+updateSubtitleSize();
+showShortcuts();
+</script>
+</body>
+</html>

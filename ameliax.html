@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amelia X Endless Runner Game</title>
+<meta name="description" content="Endless runner game where you control a character escaping a corrupt data network after stealing a data core.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--background-color: #0d0221;
+--primary-neon: #00d9ff;
+--secondary-neon: #ff00c1;
+--grid-color: #241e4e;
+--text-color: #ffffff;
+--font-family: 'Consolas', 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+* {
+box-sizing: border-box;
+scrollbar-width: thin;
+scrollbar-color: var(--primary-neon) var(--background-color);
+}
+body {
+margin: 0;
+padding: 20px;
+display: flex;
+justify-content: center;
+align-items: center;
+min-height: 100vh;
+background-color: var(--background-color);
+font-family: var(--font-family);
+overflow-y: auto;
+}
+#mainContainer {
+display: flex;
+justify-content: center;
+align-items: stretch;
+gap: 2vw;
+width: 100%;
+max-width: 1400px;
+flex-wrap: wrap;
+}
+#gameArea {
+flex: 2;
+min-width: 300px;
+display: flex;
+flex-direction: column;
+}
+#highScoreContainer {
+color: var(--text-color);
+text-align: left;
+margin-bottom: 10px;
+font-size: clamp(14px, 1.2vw, 18px);
+text-shadow: 0 0 5px var(--primary-neon);
+}
+#gameContainer {
+position: relative;
+width: 100%;
+aspect-ratio: 2 / 1;
+min-height: 200px;
+}
+canvas {
+display: block;
+width: 100%;
+height: 100%;
+border: 2px solid var(--primary-neon);
+box-shadow: 0 0 15px var(--primary-neon);
+opacity: 0.90;
+}
+#explanationBox {
+flex: 1;
+min-width: 280px;
+padding: 20px;
+border: 2px solid var(--secondary-neon);
+box-shadow: 0 0 15px var(--secondary-neon);
+color: var(--text-color);
+background-color: rgba(13, 2, 33, 0.8);
+display: flex;
+flex-direction: column;
+overflow-y: auto;
+}
+#explanationBox h2 {
+text-align: center;
+color: var(--primary-neon);
+margin-top: 0;
+margin-bottom: 15px;
+text-shadow: 0 0 5px var(--primary-neon);
+font-size: clamp(1.5rem, 2vw, 2rem);
+}
+#explanationBox h3 {
+color: var(--secondary-neon);
+border-bottom: 1px solid var(--secondary-neon);
+padding-bottom: 5px;
+margin-bottom: 10px;
+}
+#explanationBox p {
+line-height: 1.6;
+font-size: clamp(12px, 1vw, 14px);
+margin-top: 0;
+}
+#explanationBox strong.highlight {
+color: var(--primary-neon);
+font-weight: 700;
+}
+#startButton,
+#playAgainButton {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+padding: clamp(10px, 1.5vw, 15px) clamp(20px, 3vw, 30px);
+font-size: clamp(18px, 2.5vw, 24px);
+font-family: var(--font-family);
+cursor: pointer;
+border: 2px solid var(--primary-neon);
+background-color: rgba(13, 2, 33, 0.8);
+color: var(--primary-neon);
+box-shadow: 0 0 10px var(--primary-neon) inset;
+transition: all .3s;
+white-space: nowrap;
+}
+#startButton:hover,
+#playAgainButton:hover {
+background-color: var(--primary-neon);
+color: var(--background-color);
+box-shadow: 0 0 20px var(--primary-neon);
+}
+::-webkit-scrollbar {
+width: 8px;
+height: 8px;
+}
+::-webkit-scrollbar-track {
+background: #241e4e;
+}
+::-webkit-scrollbar-thumb {
+background: var(--primary-neon);
+box-shadow: 0 0 5px var(--primary-neon);
+}
+::-webkit-scrollbar-thumb:hover {
+background: #fff;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="mainContainer">
+<div id="gameArea">
+<div id="highScoreContainer"></div>
+<div id="gameContainer">
+<canvas id="gameCanvas"></canvas>
+<button id="startButton"></button>
+<button id="playAgainButton" style="display: none;"></button>
+</div>
+</div>
+<div id="explanationBox">
+<h2 id="title-box"></h2>
+<h3 id="goal-title"></h3>
+<p id="goal-text"></p>
+<h3 id="controls-title"></h3>
+<p id="controls-text"></p>
+<h3 id="threats-title"></h3>
+<p id="threats-text"></p>
+</div>
+</div>
+<script>
+const lang = {
+startButton: "Start Game",
+playAgainButton: "Play Again!",
+title: "Amelia X",
+goalTitle: "Objective",
+goalText: "You've stolen a data core and are escaping a corrupt system. You must travel through the decaying data network and try to survive for as long as you can.",
+controlsTitle: "Controls",
+controlsText: "Press the <strong class=\"highlight\">Spacebar</strong> or <strong class=\"highlight\">Up Arrow</strong> to jump. The <strong class=\"highlight\">longer you hold</strong> the key, the <strong class=\"highlight\">higher you jump</strong>. Master this to control your trajectory.",
+threatsTitle: "Threats",
+threatsText: "Falling into the gaps means Game Over! Avoid contact with the magenta antivirus drones. Each hit drains 5% power. When power reaches zero, it's Game Over!",
+gameOver: "SYSTEM CORRUPT",
+score: "Score",
+power: "Power",
+yourTop3: "Your Top 3",
+noScores: "No scores saved"
+};
+const BASE_WIDTH = 800;
+const BASE_HEIGHT = 400;
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startButton = document.getElementById('startButton');
+const playAgainButton = document.getElementById('playAgainButton');
+const highScoreContainer = document.getElementById('highScoreContainer');
+const gameContainer = document.getElementById('gameContainer');
+const HIGH_SCORES_KEY = 'cyberRunnerHighScores';
+const NEON_CYAN = '#00d9ff';
+const NEON_MAGENTA = '#ff00c1';
+const NEON_GREEN = '#39ff14';
+const BG_COLOR_DARK = '#0d0221';
+const BG_COLOR_LIGHT = '#241e4e';
+const FONT_FACE = "'Consolas', 'Menlo', 'Monaco', 'Courier New', monospace";
+let player, gameSpeed, score, ground, drones, framesUntilNextFlock, gameState, backgroundElements;
+let lastTime = 0;
+let scale = 1;
+function resizeAndScale() {
+const rect = gameContainer.getBoundingClientRect();
+canvas.width = rect.width;
+canvas.height = rect.height;
+scale = canvas.width / BASE_WIDTH;
+createBackground();
+}
+function updateStaticUIText() {
+document.title = lang.title;
+startButton.textContent = lang.startButton;
+playAgainButton.textContent = lang.playAgainButton;
+document.getElementById('title-box').textContent = lang.title;
+document.getElementById('goal-title').textContent = lang.goalTitle;
+document.getElementById('goal-text').innerHTML = lang.goalText;
+document.getElementById('controls-title').textContent = lang.controlsTitle;
+document.getElementById('controls-text').innerHTML = lang.controlsText;
+document.getElementById('threats-title').textContent = lang.threatsTitle;
+document.getElementById('threats-text').innerHTML = lang.threatsText;
+}
+function getHighScores() {
+const scores = localStorage.getItem(HIGH_SCORES_KEY);
+return scores ? JSON.parse(scores) : [];
+}
+function saveAndDisplayHighScores(newScore) {
+const highScores = getHighScores();
+highScores.push(newScore);
+highScores.sort((a, b) => b - a);
+const topScores = highScores.slice(0, 3);
+localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(topScores));
+updateHighScoreDisplay();
+}
+function updateHighScoreDisplay() {
+const highScores = getHighScores();
+if (highScores.length > 0) {
+highScoreContainer.textContent = `${lang.yourTop3}: ${highScores.join(' / ')}`;
+} else {
+highScoreContainer.textContent = `${lang.yourTop3}: ${lang.noScores}`;
+}
+}
+function resetGame() {
+player = {
+x: 50 * scale,
+y: 300 * scale,
+width: 25 * scale,
+height: 25 * scale,
+velocityY: 0,
+isJumping: false,
+power: 100,
+trail: [],
+jumpKeyHeld: false,
+jumpHoldTime: 0
+};
+gameSpeed = 120 * scale;
+score = 0;
+drones = [];
+framesUntilNextFlock = 200;
+gameState = 'playing';
+ground = [];
+let lastGroundX = 0;
+const groundWidth = 100 * scale;
+for (let i = 0; i < canvas.width / groundWidth + 5; i++) {
+ground.push({ x: lastGroundX, width: groundWidth });
+lastGroundX += groundWidth;
+}
+}
+function spawnFlock() {
+const flockSize = Math.floor(Math.random() * 3) + 3;
+const startY = (Math.random() * 150 + 50) * scale;
+for (let i = 0; i < flockSize; i++) {
+let droneX = canvas.width + 50 * scale + (i * 40 * scale) + (Math.random() - 0.5) * 50 * scale;
+let droneY = startY + (Math.random() - 0.5) * 50 * scale;
+drones.push({
+x: droneX,
+y: droneY,
+width: 30 * scale,
+height: 10 * scale
+});
+}
+}
+function handleKeyDown(e) {
+if (gameState === 'playing' && (e.code === 'Space' || e.code === 'ArrowUp') && !player.isJumping) {
+player.isJumping = true;
+player.jumpKeyHeld = true;
+player.jumpHoldTime = 0;
+player.velocityY = -400 * scale;
+}
+}
+function handleKeyUp(e) {
+if (gameState === 'playing' && (e.code === 'Space' || e.code === 'ArrowUp')) {
+player.jumpKeyHeld = false;
+}
+}
+function update(deltaTime) {
+if (gameState !== 'playing' || !deltaTime) return;
+const GRAVITY_PPS = 1800 * scale;
+const JUMP_BOOST_FORCE_PPS = -2000 * scale;
+const MAX_JUMP_HOLD_TIME = 0.5;
+const DRONE_EXTRA_SPEED_PPS = 90 * scale;
+const GAME_SPEED_INCREASE_PPS = 3 * scale;
+const GROUND_HEIGHT = 50 * scale;
+const POWER_LOSS_ON_HIT = 5;
+let verticalAcceleration = GRAVITY_PPS;
+if (player.jumpKeyHeld && player.jumpHoldTime < MAX_JUMP_HOLD_TIME) {
+verticalAcceleration += JUMP_BOOST_FORCE_PPS;
+player.jumpHoldTime += deltaTime;
+}
+player.velocityY += verticalAcceleration * deltaTime;
+player.y += player.velocityY * deltaTime;
+player.trail.unshift({ x: player.x, y: player.y });
+if (player.trail.length > 10) player.trail.pop();
+ground.forEach(segment => segment.x -= gameSpeed * deltaTime);
+drones.forEach(drone => drone.x -= (gameSpeed + DRONE_EXTRA_SPEED_PPS) * deltaTime);
+if (ground.length > 0 && ground[0].x + ground[0].width < 0) {
+const lastGround = ground[ground.length - 1];
+ground.shift();
+const MAX_GAP_WIDTH = 100 * scale;
+const gap = Math.random() < 0.4 ? (Math.random() * MAX_GAP_WIDTH + 50 * scale) : 0;
+ground.push({ x: lastGround.x + lastGround.width + gap, width: 100 * scale });
+}
+framesUntilNextFlock--;
+if (framesUntilNextFlock <= 0) {
+spawnFlock();
+framesUntilNextFlock = Math.random() * 400 + 200;
+}
+drones = drones.filter(drone => drone.x + drone.width > 0);
+gameSpeed += GAME_SPEED_INCREASE_PPS * deltaTime;
+score += 60 * deltaTime;
+let onGround = false;
+for (const segment of ground) {
+if (player.x + player.width > segment.x && player.x < segment.x + segment.width) {
+if (player.y + player.height >= canvas.height - GROUND_HEIGHT && player.velocityY >= 0) {
+player.y = canvas.height - GROUND_HEIGHT - player.height;
+player.velocityY = 0;
+player.isJumping = false;
+player.jumpKeyHeld = false;
+onGround = true;
+break;
+}
+}
+}
+for (let i = drones.length - 1; i >= 0; i--) {
+const drone = drones[i];
+if (player.x < drone.x + drone.width && player.x + player.width > drone.x && player.y < drone.y + drone.height && player.y + player.height > drone.y) {
+drones.splice(i, 1);
+player.power -= POWER_LOSS_ON_HIT;
+}
+}
+const hasFallen = !onGround && (player.y + player.height > canvas.height - GROUND_HEIGHT) && player.velocityY > 0;
+if (hasFallen || player.power <= 0) {
+gameState = 'gameOver';
+saveAndDisplayHighScores(Math.round(score));
+playAgainButton.style.display = 'block';
+}
+}
+function draw() {
+const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+gradient.addColorStop(0, BG_COLOR_DARK);
+gradient.addColorStop(1, BG_COLOR_LIGHT);
+ctx.fillStyle = gradient;
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+drawBackground();
+if (gameState === 'playing' || gameState === 'gameOver') {
+drawGround();
+drawPlayer();
+drawDrones();
+drawScore();
+drawPowerBar();
+}
+if (gameState === 'gameOver') {
+ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+ctx.fillRect(0, canvas.height / 2 - 50 * scale, canvas.width, 100 * scale);
+ctx.fillStyle = NEON_MAGENTA;
+ctx.font = `${48 * scale}px ${FONT_FACE}`;
+ctx.textAlign = 'center';
+ctx.shadowColor = NEON_MAGENTA;
+ctx.shadowBlur = 10 * scale;
+ctx.fillText(lang.gameOver, canvas.width / 2, canvas.height / 2 + 15 * scale);
+ctx.shadowBlur = 0;
+}
+}
+function createBackground() {
+backgroundElements = { buildings: [], rain: [] };
+const GROUND_HEIGHT = 50 * scale;
+for (let i = 0; i < 5; i++) {
+const buildingHeight = (Math.random() * 150 + 50) * scale;
+backgroundElements.buildings.push({
+x: Math.random() * canvas.width,
+y: canvas.height - GROUND_HEIGHT - buildingHeight,
+width: (Math.random() * 50 + 20) * scale,
+height: buildingHeight
+});
+}
+for (let i = 0; i < 100; i++) {
+backgroundElements.rain.push({
+x: Math.random() * canvas.width,
+y: Math.random() * canvas.height,
+speed: (Math.random() * 2 + 1) * scale,
+length: (Math.random() * 15 + 5) * scale
+});
+}
+}
+function drawBackground() {
+ctx.fillStyle = '#100c24';
+backgroundElements.buildings.forEach(b => {
+ctx.fillRect(b.x, b.y, b.width, b.height);
+});
+ctx.strokeStyle = NEON_CYAN;
+ctx.lineWidth = 1;
+ctx.globalAlpha = 0.2;
+backgroundElements.rain.forEach(drop => {
+drop.y += drop.speed;
+if (drop.y > canvas.height) {
+drop.y = 0;
+drop.x = Math.random() * canvas.width;
+}
+ctx.beginPath();
+ctx.moveTo(drop.x, drop.y);
+ctx.lineTo(drop.x, drop.y + drop.length);
+ctx.stroke();
+});
+ctx.globalAlpha = 1.0;
+}
+function drawPlayer() {
+player.trail.forEach((p, index) => {
+ctx.fillStyle = NEON_CYAN;
+ctx.globalAlpha = 1 - (index / player.trail.length);
+ctx.fillRect(p.x, p.y + player.height / 4, player.width, player.height / 2);
+});
+ctx.globalAlpha = 1;
+ctx.fillStyle = '#fff';
+ctx.shadowColor = NEON_CYAN;
+ctx.shadowBlur = 15 * scale;
+ctx.fillRect(player.x, player.y, player.width, player.height);
+ctx.shadowBlur = 0;
+}
+function drawDrones() {
+drones.forEach(drone => {
+ctx.fillStyle = NEON_MAGENTA;
+ctx.shadowColor = NEON_MAGENTA;
+ctx.shadowBlur = 15 * scale;
+ctx.fillRect(drone.x, drone.y, drone.width, drone.height);
+ctx.fillStyle = '#fff';
+ctx.fillRect(drone.x + 5 * scale, drone.y + 2 * scale, 3 * scale, 3 * scale);
+});
+ctx.shadowBlur = 0;
+}
+function drawGround() {
+const GROUND_HEIGHT = 50 * scale;
+ground.forEach(segment => {
+ctx.fillStyle = '#000';
+ctx.fillRect(segment.x, canvas.height - GROUND_HEIGHT, segment.width, GROUND_HEIGHT);
+ctx.strokeStyle = BG_COLOR_LIGHT;
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.moveTo(segment.x, canvas.height - GROUND_HEIGHT);
+ctx.lineTo(segment.x + segment.width, canvas.height - GROUND_HEIGHT);
+ctx.stroke();
+});
+}
+function drawScore() {
+ctx.fillStyle = '#fff';
+ctx.shadowColor = NEON_CYAN;
+ctx.shadowBlur = 7 * scale;
+ctx.font = `${24 * scale}px ${FONT_FACE}`;
+ctx.textAlign = 'left';
+ctx.fillText(`${lang.score}: ${Math.round(score)}`, 10 * scale, 30 * scale);
+ctx.shadowBlur = 0;
+}
+function drawPowerBar() {
+const barWidth = 200 * scale;
+const barHeight = 25 * scale;
+const barX = canvas.width - barWidth - (10 * scale);
+const barY = 15 * scale;
+ctx.strokeStyle = NEON_GREEN;
+ctx.lineWidth = 2 * scale;
+ctx.strokeRect(barX, barY, barWidth, barHeight);
+const powerPercentage = player.power / 100;
+ctx.fillStyle = NEON_GREEN;
+ctx.shadowColor = NEON_GREEN;
+ctx.shadowBlur = 10 * scale;
+ctx.fillRect(barX, barY, Math.max(0, powerPercentage * barWidth), barHeight);
+ctx.shadowBlur = 0;
+}
+function gameLoop(currentTime) {
+if (lastTime === 0 && gameState === 'playing') {
+lastTime = currentTime;
+}
+let deltaTime = 0;
+if (lastTime !== 0) {
+deltaTime = (currentTime - lastTime) / 1000;
+}
+lastTime = currentTime;
+if (gameState === 'playing') {
+update(deltaTime);
+}
+draw();
+requestAnimationFrame(gameLoop);
+}
+function startGame() {
+resetGame();
+startButton.style.display = 'none';
+playAgainButton.style.display = 'none';
+lastTime = 0;
+}
+function showStartScreen() {
+gameState = 'start';
+resizeAndScale();
+startButton.style.display = 'block';
+playAgainButton.style.display = 'none';
+updateHighScoreDisplay();
+draw();
+}
+window.addEventListener('resize', () => {
+if (gameState === 'playing') {
+startGame();
+} else {
+showStartScreen();
+}
+});
+startButton.addEventListener('click', startGame);
+playAgainButton.addEventListener('click', startGame);
+document.addEventListener('keydown', handleKeyDown);
+document.addEventListener('keyup', handleKeyUp);
+updateStaticUIText();
+showStartScreen();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

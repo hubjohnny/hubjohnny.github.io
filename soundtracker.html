@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundtracker Music Maker</title>
+<meta name="description" content="Music sequencer where music is organized on a grid and flows from top to bottom.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--bg-color: #1a1a2e;
+--grid-bg: #16213e;
+--cell-bg: #0f3460;
+--header-bg: #e94560;
+--text-color: #dcdcdc;
+--accent-color: #16c79a;
+--playhead-color: rgba(22, 199, 154, 0.4);
+--cursor-color: rgba(233, 69, 96, 0.8);
+--font-family: 'Consolas', 'Monaco', monospace;
+}
+body {
+background-color: var(--bg-color);
+color: var(--text-color);
+font-family: var(--font-family);
+display: flex;
+flex-direction: column;
+align-items: center;
+margin: 0;
+padding: 10px 20px;
+}
+.title-bar {
+display: flex;
+align-items: center;
+gap: 20px;
+}
+h1 {
+color: var(--header-bg);
+}
+.main-container {
+display: flex;
+gap: 20px;
+width: 100%;
+justify-content: center;
+}
+.controls-panel {
+background-color: var(--grid-bg);
+padding: 15px;
+border-radius: 8px;
+box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+display: flex;
+flex-direction: column;
+gap: 15px;
+}
+.controls-group {
+display: flex;
+gap: 10px;
+align-items: center;
+border-bottom: 1px solid var(--cell-bg);
+padding-bottom: 15px;
+}
+.controls-group:last-child {
+border-bottom: none;
+padding-bottom: 0;
+}
+label {
+font-weight: bold;
+}
+button,
+input[type="number"] {
+font-family: var(--font-family);
+background-color: var(--cell-bg);
+color: var(--text-color);
+border: 1px solid var(--accent-color);
+padding: 8px 12px;
+border-radius: 5px;
+cursor: pointer;
+transition: background-color 0.2s;
+}
+button:hover {
+background-color: var(--header-bg);
+}
+input[type="number"] {
+width: 60px;
+text-align: center;
+}
+#tracker-container.recording {
+border: 2px solid var(--header-bg);
+border-radius: 4px;
+animation: recording-glow 1.5s infinite alternate;
+}
+@keyframes recording-glow {
+from {
+box-shadow: 0 0 5px var(--header-bg);
+}
+to {
+box-shadow: 0 0 20px var(--header-bg);
+}
+}
+#tracker-grid {
+border-collapse: collapse;
+font-size: 14px;
+}
+#tracker-grid th,
+#tracker-grid td {
+border: 1px solid #2a3a5e;
+padding: 4px 8px;
+text-align: center;
+min-width: 80px;
+}
+#tracker-grid th {
+background-color: var(--header-bg);
+}
+#tracker-grid .row-header {
+background-color: #2a3a5e;
+}
+#tracker-grid td {
+background-color: var(--cell-bg);
+}
+#tracker-grid td.playhead {
+background-color: var(--playhead-color);
+}
+#tracker-grid td.cursor {
+outline: 2px solid var(--cursor-color);
+outline-offset: -2px;
+}
+#tracker-grid .note {
+color: var(--accent-color);
+font-weight: bold;
+}
+#tracker-grid .instrument {
+color: var(--text-color);
+opacity: 0.7;
+}
+.right-panel {
+display: flex;
+flex-direction: column;
+gap: 20px;
+}
+.instrument-panel,
+.io-panel {
+background-color: var(--grid-bg);
+padding: 15px;
+border-radius: 8px;
+box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+#instrument-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 8px;
+list-style: none;
+padding: 0;
+margin: 0;
+}
+#instrument-grid li {
+padding: 10px;
+border-radius: 4px;
+cursor: pointer;
+border: 2px solid var(--cell-bg);
+transition: background-color 0.2s, border-color 0.2s;
+text-align: center;
+}
+#instrument-grid li:hover {
+background-color: var(--cell-bg);
+}
+#instrument-grid li.selected {
+background-color: var(--cell-bg);
+border-color: var(--header-bg);
+font-weight: bold;
+}
+#io-textarea {
+width: 100%;
+height: 100px;
+box-sizing: border-box;
+background-color: var(--cell-bg);
+color: var(--text-color);
+border: 1px solid var(--accent-color);
+border-radius: 5px;
+font-family: var(--font-family);
+}
+.io-panel div {
+display: flex;
+gap: 10px;
+margin-top: 10px;
+flex-wrap: wrap;
+}
+input[type=range].volume-slider {
+-webkit-appearance: none;
+appearance: none;
+width: 100%;
+height: 10px;
+background: var(--cell-bg);
+outline: none;
+border-radius: 5px;
+}
+input[type=range].volume-slider::-webkit-slider-thumb {
+-webkit-appearance: none;
+appearance: none;
+width: 15px;
+height: 15px;
+background: var(--accent-color);
+cursor: pointer;
+border-radius: 50%;
+}
+input[type=range].volume-slider::-moz-range-thumb {
+width: 15px;
+height: 15px;
+background: var(--accent-color);
+cursor: pointer;
+border-radius: 50%;
+border: none;
+}
+.modal-overlay {
+display: none;
+position: fixed;
+z-index: 100;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.7);
+justify-content: center;
+align-items: center;
+}
+.modal-content {
+background-color: var(--grid-bg);
+padding: 20px 40px;
+border: 1px solid var(--header-bg);
+border-radius: 10px;
+width: 80%;
+max-width: 600px;
+max-height: 80vh;
+overflow-y: auto;
+position: relative;
+}
+.modal-content h2 {
+color: var(--header-bg);
+}
+.modal-content h3 {
+color: var(--accent-color);
+}
+.modal-content code {
+background-color: var(--cell-bg);
+padding: 2px 5px;
+border-radius: 3px;
+}
+.modal-close-btn {
+position: absolute;
+top: 10px;
+right: 20px;
+color: #aaa;
+font-size: 28px;
+font-weight: bold;
+cursor: pointer;
+}
+.modal-close-btn:hover {
+color: white;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div class="title-bar">
+<h1>Soundtracker</h1>
+<button id="help-btn">Help (?)</button>
+</div>
+<div class="main-container">
+<div class="controls-panel">
+<div class="controls-group">
+<button id="record-btn">Record</button>
+<button id="play-btn">Play</button>
+<button id="stop-btn">Stop</button>
+</div>
+<div class="controls-group">
+<label for="octave-input">Octave:</label>
+<input type="number" id="octave-input" value="0" min="-3" max="3">
+</div>
+<div class="controls-group">
+<label for="bpm-input">BPM:</label>
+<input type="number" id="bpm-input" value="120" min="40" max="240">
+</div>
+<div class="controls-group">
+<label>Pattern:</label>
+<button id="prev-pattern-btn">&lt;</button>
+<span id="pattern-display">0</span>
+<button id="next-pattern-btn">&gt;</button>
+</div>
+<div class="controls-group">
+<label for="pattern-length-input">Length:</label>
+<input type="number" id="pattern-length-input" value="64" min="4" max="256" step="4">
+</div>
+</div>
+<div id="tracker-container">
+<table id="tracker-grid"></table>
+</div>
+<div class="right-panel">
+<div class="instrument-panel">
+<h3>Instruments</h3>
+<ul id="instrument-grid"></ul>
+</div>
+<div class="io-panel">
+<h3>Save / Load</h3>
+<textarea id="io-textarea" placeholder="Paste song data here to load..."></textarea>
+<div>
+<button id="export-json-btn">Export JSON</button>
+<button id="import-btn">Import JSON</button>
+<button id="export-html-btn">Export to HTML</button>
+</div>
+</div>
+</div>
+</div>
+<div id="help-modal" class="modal-overlay">
+<div class="modal-content">
+<span id="modal-close" class="modal-close-btn">&times;</span>
+<h2>How to Use Soundtracker</h2>
+<p>This is a "tracker", a type of music sequencer. Music flows from top to bottom.</p>
+<h3>🔴 Live Recording</h3>
+<p>Click the <strong>Record</strong> button to start looped playback. As it plays, use your computer keyboard to
+enter notes. They will be automatically placed on the nearest row (this is called quantization).</p>
+<h3>Core Concepts</h3>
+<ul>
+<li><strong>The Grid:</strong> The main editor, divided into rows and tracks.</li>
+<li><strong>Octave Control:</strong> Use the <strong>Octave</strong> input to shift the pitch of the keyboard up
+or down. Set it to `-1` or `-2` for basslines.</li>
+<li><strong>Track Volume:</strong> Use the sliders at the top of each track to control its volume.</li>
+<li><strong>Rows & Pattern Length:</strong> Each row is a step in time. You can change the number of rows for
+the current pattern using the <strong>Length</strong> input.</li>
+</ul>
+<h3>🎹 Keyboard Controls</h3>
+<ul>
+<li><strong>Navigation:</strong> Use the <code>Arrow Keys</code> to move the cursor.</li>
+<li><strong>Note Entry:</strong> The letter keys on your keyboard act like a piano. The notes you play are
+shifted by the <strong>Octave</strong> control.
+<ul>
+<li>Middle Row (<code>Z, S, X, D...</code>) plays notes in the base octave (e.g., C4).</li>
+<li>Top Row (<code>Q, 2, W, 3...</code>) plays notes one octave higher (e.g., C5).</li>
+</ul>
+</li>
+<li><strong>Instrument Entry:</strong> Press a number key (<code>1-9</code>, then <code>0</code> for instrument
+10) to change the instrument number in the current cell.</li>
+<li><strong>Deleting:</strong> Press <code>Delete</code> or <code>Backspace</code> to clear a cell.</li>
+</ul>
+</div>
+</div>
+<script>
+class AudioManager {
+constructor() { this.audioCtx = null; this.noteFrequencies = {}; this.instruments = []; this.initNoteFrequencies(); this.defineInstruments(); }
+initAudioContext() { if (!this.audioCtx) this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (this.audioCtx.state === 'suspended') this.audioCtx.resume(); }
+initNoteFrequencies() {
+const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+for (let o = 0; o < 10; o++) for (let i = 0; i < 12; i++) this.noteFrequencies[`${noteNames[i]}${o}`] = 440 * Math.pow(2, (o * 12 + i - 57) / 12);
+}
+defineInstruments() {
+this.instruments = [
+{ name: "---", play: () => { } },
+{
+name: "Kick", type: "drum", play: (note, time, vol) => {
+if (!this.audioCtx) return; const o = this.audioCtx.createOscillator(), g = this.audioCtx.createGain(); o.connect(g); g.connect(this.audioCtx.destination);
+o.frequency.setValueAtTime(150, time); o.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
+g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.01 * vol, time + 0.2); o.start(time); o.stop(time + 0.2);
+}
+},
+{
+name: "Snare", type: "drum", play: (note, time, vol) => {
+if (!this.audioCtx) return; const n = this.audioCtx.createBufferSource(), bS = this.audioCtx.sampleRate * 0.2, b = this.audioCtx.createBuffer(1, bS, this.audioCtx.sampleRate), d = b.getChannelData(0);
+for (let i = 0; i < bS; i++)d[i] = Math.random() * 2 - 1; n.buffer = b;
+const nF = this.audioCtx.createBiquadFilter(); nF.type = 'highpass'; nF.frequency.value = 1000; n.connect(nF);
+const nE = this.audioCtx.createGain(); nF.connect(nE); nE.connect(this.audioCtx.destination);
+nE.gain.setValueAtTime(vol, time); nE.gain.exponentialRampToValueAtTime(0.01 * vol, time + 0.15); n.start(time); n.stop(time + 0.15);
+}
+},
+{
+name: "Hat C", type: "drum", play: (note, time, vol) => {
+if (!this.audioCtx) return; const n = this.audioCtx.createBufferSource(), bS = this.audioCtx.sampleRate * 0.1, b = this.audioCtx.createBuffer(1, bS, this.audioCtx.sampleRate), d = b.getChannelData(0);
+for (let i = 0; i < bS; i++)d[i] = Math.random() * 2 - 1; n.buffer = b;
+const nF = this.audioCtx.createBiquadFilter(); nF.type = 'highpass'; nF.frequency.value = 7000; n.connect(nF);
+const g = this.audioCtx.createGain(); nF.connect(g); g.connect(this.audioCtx.destination);
+g.gain.setValueAtTime(0.3 * vol, time); g.gain.exponentialRampToValueAtTime(0.01 * vol, time + 0.05); n.start(time); n.stop(time + 0.05);
+}
+},
+{
+name: "Hat O", type: "drum", play: (note, time, vol) => {
+if (!this.audioCtx) return; const n = this.audioCtx.createBufferSource(), bS = this.audioCtx.sampleRate * 0.5, b = this.audioCtx.createBuffer(1, bS, this.audioCtx.sampleRate), d = b.getChannelData(0);
+for (let i = 0; i < bS; i++)d[i] = Math.random() * 2 - 1; n.buffer = b;
+const nF = this.audioCtx.createBiquadFilter(); nF.type = 'highpass'; nF.frequency.value = 6000; n.connect(nF);
+const g = this.audioCtx.createGain(); nF.connect(g); g.connect(this.audioCtx.destination);
+g.gain.setValueAtTime(0.3 * vol, time); g.gain.exponentialRampToValueAtTime(0.01 * vol, time + 0.4); n.start(time); n.stop(time + 0.4);
+}
+},
+{
+name: "Tom", type: "drum", play: (note, time, vol) => {
+if (!this.audioCtx) return; const o = this.audioCtx.createOscillator(), g = this.audioCtx.createGain(); o.connect(g); g.connect(this.audioCtx.destination);
+o.frequency.setValueAtTime(300, time); o.frequency.exponentialRampToValueAtTime(50, time + 0.2);
+g.gain.setValueAtTime(0.8 * vol, time); g.gain.linearRampToValueAtTime(0, time + 0.25); o.start(time); o.stop(time + 0.25);
+}
+},
+{
+name: "Bass", type: "melodic", play: (note, time, vol, dur) => {
+if (!this.audioCtx) return; const f = this.noteFrequencies[note]; if (!f) return;
+const o = this.audioCtx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f, time);
+const flt = this.audioCtx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.setValueAtTime(400, time);
+const g = this.audioCtx.createGain(); g.gain.setValueAtTime(0, time);
+g.gain.linearRampToValueAtTime(0.5 * vol, time + 0.01); g.gain.linearRampToValueAtTime(0, time + dur);
+o.connect(flt); flt.connect(g); g.connect(this.audioCtx.destination); o.start(time); o.stop(time + dur);
+}
+},
+{
+name: "Lead", type: "melodic", play: (note, time, vol, dur) => {
+if (!this.audioCtx) return; const f = this.noteFrequencies[note]; if (!f) return;
+const o = this.audioCtx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(f, time);
+const g = this.audioCtx.createGain(); g.gain.setValueAtTime(0, time);
+g.gain.linearRampToValueAtTime(0.2 * vol, time + 0.02); g.gain.linearRampToValueAtTime(0.1 * vol, time + 0.1);
+g.gain.setValueAtTime(0.1 * vol, time + dur - 0.1); g.gain.linearRampToValueAtTime(0, time + dur);
+o.connect(g); g.connect(this.audioCtx.destination); o.start(time); o.stop(time + dur);
+}
+},
+{
+name: "Pad", type: "melodic", play: (note, time, vol, dur) => {
+if (!this.audioCtx) return; const f = this.noteFrequencies[note]; if (!f) return;
+for (let i = 0; i < 3; i++) {
+const o = this.audioCtx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f, time); o.detune.setValueAtTime(i === 0 ? 0 : (i === 1 ? -7 : 7), time);
+const g = this.audioCtx.createGain(); g.gain.setValueAtTime(0, time);
+g.gain.linearRampToValueAtTime(0.1 * vol, time + 0.2); g.gain.setValueAtTime(0.1 * vol, time + dur - 0.3);
+g.gain.linearRampToValueAtTime(0, time + dur);
+o.connect(g); g.connect(this.audioCtx.destination); o.start(time); o.stop(time + dur);
+}
+}
+},
+{
+name: "Chip", type: "melodic", play: (note, time, vol, dur) => {
+if (!this.audioCtx) return; const f = this.noteFrequencies[note]; if (!f) return;
+for (let i = 0; i < 2; i++) {
+const o = this.audioCtx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(f, time); o.detune.setValueAtTime(i === 0 ? 0 : 10, time);
+const g = this.audioCtx.createGain(); g.gain.setValueAtTime(0, time);
+g.gain.linearRampToValueAtTime(0.15 * vol, time + 0.01); g.gain.setValueAtTime(0.15 * vol, time + dur - 0.01);
+g.gain.linearRampToValueAtTime(0, time + dur);
+o.connect(g); g.connect(this.audioCtx.destination); o.start(time); o.stop(time + dur);
+}
+}
+},
+{
+name: "Piano", type: "melodic", play: (note, time, vol, dur) => {
+if (!this.audioCtx) return; const f = this.noteFrequencies[note]; if (!f) return;
+const o = this.audioCtx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f, time);
+const g = this.audioCtx.createGain(); g.gain.setValueAtTime(0, time);
+g.gain.linearRampToValueAtTime(0.4 * vol, time + 0.01); g.gain.exponentialRampToValueAtTime(0.01 * vol, time + dur);
+o.connect(g); g.connect(this.audioCtx.destination); o.start(time); o.stop(time + dur);
+}
+}
+];
+}
+}
+class Sequencer {
+constructor(audioManager, ui) {
+this.audioManager = audioManager; this.ui = ui; this.config = { tracks: 8 };
+this.state = { isPlaying: false, isRecording: false, isPaused: false, loopStartTime: 0, currentPattern: 0, currentRow: 0, timerId: null, lookahead: 25.0, scheduleAheadTime: 0.1, nextNoteTime: 0.0 };
+this.song = this.createEmptySong(); this.loadDefaultSong();
+}
+createEmptySong() { return { bpm: 120, trackVolumes: Array(this.config.tracks).fill(1.0), patterns: [this.createEmptyPattern(64)] }; }
+createEmptyPattern(rows) { return { rows: rows, data: Array(rows).fill(0).map(() => Array(this.config.tracks).fill(null)) }; }
+loadDefaultSong() {
+this.song.trackVolumes[0] = 0.8; this.song.trackVolumes[1] = 0.7; this.song.trackVolumes[2] = 0.5;
+const p = this.song.patterns[0].data;
+p[0][0] = { note: 'C2', inst: 6 }; p[4][0] = { note: 'G1', inst: 6 }; p[8][0] = { note: 'A#1', inst: 6 }; p[12][0] = { note: 'A1', inst: 6 };
+p[4][1] = { note: 'C4', inst: 2 }; p[12][1] = { note: 'C4', inst: 2 };
+for (let i = 0; i < 16; i += 4) p[i][0] = { note: 'C4', inst: 1 };
+for (let i = 2; i < 16; i += 2) p[i][2] = { note: 'C4', inst: 3 };
+}
+setPatternLength(newLength) {
+const pattern = this.song.patterns[this.state.currentPattern]; const oldLength = pattern.rows;
+if (newLength > oldLength) {
+for (let i = oldLength; i < newLength; i++) pattern.data.push(Array(this.config.tracks).fill(null));
+} else pattern.data.length = newLength;
+pattern.rows = newLength;
+}
+record() {
+if (this.state.isPlaying) this.stop();
+this.state.isRecording = true;
+this.state.isPaused = false;
+this.state.currentRow = 0;
+this.play();
+}
+play() {
+this.audioManager.initAudioContext(); if (this.state.isPlaying) return;
+this.state.isPlaying = true;
+this.state.isRecording = this.state.isRecording && !this.state.isPaused;
+if (this.state.isPaused) {
+const timeDelta = this.audioManager.audioCtx.currentTime - this.state.nextNoteTime;
+this.state.loopStartTime += timeDelta;
+this.state.nextNoteTime = this.audioManager.audioCtx.currentTime + 0.05;
+this.state.isPaused = false;
+} else {
+this.state.currentRow = 0;
+this.state.loopStartTime = this.audioManager.audioCtx.currentTime + 0.1;
+this.state.nextNoteTime = this.state.loopStartTime;
+}
+this.state.timerId = setInterval(() => this.scheduler(), this.state.lookahead);
+this.ui.setPlaybackState(true, this.state.isRecording);
+}
+pause() {
+if (!this.state.isPlaying) return;
+this.state.isPlaying = false;
+this.state.isPaused = true;
+clearInterval(this.state.timerId);
+this.state.timerId = null;
+this.ui.setPlaybackState(false, this.state.isRecording);
+}
+stop() {
+if (!this.state.isPlaying && !this.state.isPaused) return;
+this.state.isPlaying = false;
+this.state.isRecording = false;
+this.state.isPaused = false;
+clearInterval(this.state.timerId); this.state.timerId = null;
+this.ui.setPlaybackState(false, false);
+}
+scheduler() { while (this.state.nextNoteTime < this.audioManager.audioCtx.currentTime + this.state.scheduleAheadTime) { this.scheduleRow(); this.advanceRow(); } }
+advanceRow() {
+const secondsPerRow = 60.0 / this.song.bpm / 4.0; this.state.nextNoteTime += secondsPerRow;
+this.state.currentRow++;
+if (this.state.currentRow >= this.song.patterns[this.state.currentPattern].rows) {
+this.state.currentRow = 0;
+this.state.loopStartTime = this.state.nextNoteTime;
+}
+}
+scheduleRow() {
+const pattern = this.song.patterns[this.state.currentPattern]; const row = pattern.data[this.state.currentRow]; if (!row) return;
+for (let i = 0; i < this.config.tracks; i++) {
+const cell = row[i];
+if (cell && cell.inst && cell.note && this.audioManager.instruments[cell.inst]) {
+const vol = this.song.trackVolumes[i];
+const instType = this.audioManager.instruments[cell.inst].type;
+const dur = (instType === 'drum') ? 0.2 : (60.0 / this.song.bpm / 4.0);
+this.audioManager.instruments[cell.inst].play(cell.note, this.state.nextNoteTime, vol, dur);
+}
+}
+requestAnimationFrame(() => this.ui.updatePlayhead(this.state.currentRow));
+}
+}
+class UI {
+constructor() {
+this.dom = {
+grid: document.getElementById('tracker-grid'), trackerContainer: document.getElementById('tracker-container'),
+playBtn: document.getElementById('play-btn'), stopBtn: document.getElementById('stop-btn'), recordBtn: document.getElementById('record-btn'),
+bpmInput: document.getElementById('bpm-input'), octaveInput: document.getElementById('octave-input'),
+patternDisplay: document.getElementById('pattern-display'), prevPatternBtn: document.getElementById('prev-pattern-btn'),
+nextPatternBtn: document.getElementById('next-pattern-btn'), patternLengthInput: document.getElementById('pattern-length-input'),
+instrumentGrid: document.getElementById('instrument-grid'), exportJsonBtn: document.getElementById('export-json-btn'),
+exportHtmlBtn: document.getElementById('export-html-btn'), importBtn: document.getElementById('import-btn'),
+ioTextarea: document.getElementById('io-textarea'), helpBtn: document.getElementById('help-btn'),
+helpModal: document.getElementById('help-modal'), modalClose: document.getElementById('modal-close'),
+};
+this.cursor = { row: 0, col: 0 }; this.selectedInstrument = 1; this.baseOctave = 4;
+}
+init(sequencer, audioManager) {
+this.sequencer = sequencer; this.audioManager = audioManager;
+this.createTrackerGrid(); this.createInstrumentList(); this.addEventListeners();
+this.updatePatternDisplay(); this.updateGrid(); this.updateCursor(); this.selectInstrument(1);
+}
+createTrackerGrid() {
+const pattern = this.sequencer.song.patterns[this.sequencer.state.currentPattern];
+let thead = '<thead><tr id="volume-sliders">';
+thead += '<th>VOL</th>';
+for (let i = 0; i < this.sequencer.config.tracks; i++) {
+thead += `<th><input type="range" class="volume-slider" data-track="${i}" min="0" max="1" step="0.01" value="${this.sequencer.song.trackVolumes[i]}"></th>`;
+}
+thead += '</tr><tr><th>Row</th>';
+for (let i = 0; i < this.sequencer.config.tracks; i++) thead += `<th>Track ${i + 1}</th>`;
+thead += '</tr></thead>';
+let tbody = '<tbody>';
+for (let i = 0; i < pattern.rows; i++) {
+tbody += `<tr data-row="${i}"><td class="row-header">${i.toString(16).toUpperCase().padStart(2, '0')}</td>`;
+for (let j = 0; j < this.sequencer.config.tracks; j++) tbody += `<td data-row="${i}" data-col="${j}">--- --</td>`;
+tbody += '</tr>';
+}
+tbody += '</tbody>'; this.dom.grid.innerHTML = thead + tbody;
+this.dom.grid.querySelectorAll('.volume-slider').forEach(slider => slider.addEventListener('input', (e) => this.sequencer.song.trackVolumes[e.target.dataset.track] = parseFloat(e.target.value)));
+}
+createInstrumentList() {
+this.dom.instrumentGrid.innerHTML = this.audioManager.instruments
+.map((inst, i) => i > 0 ? `<li data-inst="${i}">${i === 10 ? 0 : i}: ${inst.name}</li>` : '').join('');
+this.dom.instrumentGrid.querySelectorAll('li').forEach(li => li.addEventListener('click', () => this.selectInstrument(parseInt(li.dataset.inst))));
+}
+updateGrid() {
+const pattern = this.sequencer.song.patterns[this.sequencer.state.currentPattern];
+if (!pattern) return;
+for (let i = 0; i < pattern.rows; i++) {
+for (let j = 0; j < this.sequencer.config.tracks; j++) {
+const cellData = pattern.data[i] ? pattern.data[i][j] : null;
+const cellEl = this.dom.grid.querySelector(`td[data-row="${i}"][data-col="${j}"]`);
+if (cellEl) {
+if (cellData) {
+const noteStr = cellData.note ? cellData.note.padEnd(3, '-') : '---';
+const instStr = (cellData.inst === 10 ? 0 : cellData.inst).toString().padStart(2, '0');
+cellEl.innerHTML = `<span class="note">${noteStr}</span> <span class="instrument">${instStr}</span>`;
+} else {
+cellEl.innerHTML = `--- --`;
+}
+}
+}
+}
+}
+updatePlayhead(row) {
+this.dom.grid.querySelectorAll('.playhead').forEach(td => td.classList.remove('playhead'));
+this.dom.grid.querySelectorAll(`tr[data-row="${row}"] td`).forEach(td => td.classList.add('playhead'));
+}
+updateCursor() {
+this.dom.grid.querySelectorAll('.cursor').forEach(td => td.classList.remove('cursor'));
+const cell = this.dom.grid.querySelector(`td[data-row="${this.cursor.row}"][data-col="${this.cursor.col}"]`);
+if (cell) { cell.classList.add('cursor'); cell.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+}
+selectInstrument(instIndex) {
+this.selectedInstrument = instIndex;
+this.dom.instrumentGrid.querySelectorAll('li').forEach(li => li.classList.toggle('selected', parseInt(li.dataset.inst) === instIndex));
+}
+addEventListeners() {
+this.dom.recordBtn.addEventListener('click', () => this.sequencer.record());
+this.dom.playBtn.addEventListener('click', () => this.sequencer.state.isPlaying ? this.sequencer.pause() : this.sequencer.play());
+this.dom.stopBtn.addEventListener('click', () => { this.sequencer.stop(); this.sequencer.state.currentRow = 0; this.updatePlayhead(-1); });
+this.dom.bpmInput.addEventListener('change', (e) => this.sequencer.song.bpm = parseInt(e.target.value));
+this.dom.grid.addEventListener('click', (e) => { const c = e.target.closest('td'); if (c && c.dataset.row) { this.cursor.row = parseInt(c.dataset.row); this.cursor.col = parseInt(c.dataset.col); this.updateCursor(); } });
+window.addEventListener('keydown', (e) => this.handleKeyboard(e));
+this.dom.prevPatternBtn.addEventListener('click', () => this.changePattern(-1));
+this.dom.nextPatternBtn.addEventListener('click', () => this.changePattern(1));
+this.dom.patternLengthInput.addEventListener('change', (e) => { this.sequencer.setPatternLength(parseInt(e.target.value)); this.createTrackerGrid(); this.updateGrid(); this.updateCursor(); });
+this.dom.exportJsonBtn.addEventListener('click', () => {
+this.sequencer.song.bpm = parseInt(this.dom.bpmInput.value);
+this.dom.ioTextarea.value = JSON.stringify(this.sequencer.song, null, 2)
+});
+this.dom.exportHtmlBtn.addEventListener('click', () => this.exportToHtml());
+this.dom.importBtn.addEventListener('click', () => {
+try {
+const s = JSON.parse(this.dom.ioTextarea.value);
+if (s.patterns && s.trackVolumes) {
+this.sequencer.song = s;
+this.dom.bpmInput.value = s.bpm || 120;
+this.sequencer.state.currentPattern = 0;
+this.audioManager.initAudioContext();
+this.changePattern(0);
+alert('Song imported!');
+}
+} catch (err) { alert('Invalid JSON.'); console.error(err); }
+});
+this.dom.helpBtn.addEventListener('click', () => this.dom.helpModal.style.display = 'flex');
+this.dom.modalClose.addEventListener('click', () => this.dom.helpModal.style.display = 'none');
+this.dom.helpModal.addEventListener('click', (e) => { if (e.target === this.dom.helpModal) this.dom.helpModal.style.display = 'none'; });
+}
+setPlaybackState(isPlaying, isRecording) {
+this.dom.playBtn.textContent = isPlaying ? "Pause" : "Play";
+this.dom.trackerContainer.classList.toggle('recording', isPlaying && isRecording);
+}
+changePattern(delta) {
+let newIdx = this.sequencer.state.currentPattern + delta; if (newIdx < 0) return;
+const currentPatternLength = this.sequencer.song.patterns[this.sequencer.state.currentPattern].rows;
+while (newIdx >= this.sequencer.song.patterns.length) this.sequencer.song.patterns.push(this.sequencer.createEmptyPattern(currentPatternLength));
+this.sequencer.state.currentPattern = newIdx;
+this.updatePatternDisplay(); this.createTrackerGrid(); this.updateGrid(); this.updateCursor();
+}
+updatePatternDisplay() {
+const p = this.sequencer.song.patterns[this.sequencer.state.currentPattern];
+this.dom.patternDisplay.textContent = this.sequencer.state.currentPattern;
+this.dom.patternLengthInput.value = p.rows;
+}
+handleKeyboard(e) {
+if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || this.dom.helpModal.style.display === 'flex') return;
+switch (e.key) {
+case 'ArrowUp': this.cursor.row = Math.max(0, this.cursor.row - 1); break;
+case 'ArrowDown': this.cursor.row = Math.min(this.sequencer.song.patterns[this.sequencer.state.currentPattern].rows - 1, this.cursor.row + 1); break;
+case 'ArrowLeft': this.cursor.col = Math.max(0, this.cursor.col - 1); break;
+case 'ArrowRight': this.cursor.col = Math.min(this.sequencer.config.tracks - 1, this.cursor.col + 1); break;
+case 'Delete': case 'Backspace':
+if (this.sequencer.state.isRecording) return;
+this.sequencer.song.patterns[this.sequencer.state.currentPattern].data[this.cursor.row][this.cursor.col] = null;
+this.updateGrid(); break;
+default: this.handleNoteInput(e.key); break;
+}
+this.updateCursor(); if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
+}
+createNoteInputMap() {
+const octaveShift = parseInt(this.dom.octaveInput.value);
+const baseOctave = this.baseOctave + octaveShift;
+const keys1 = 'zsxdcvgbhnjm';
+const keys2 = 'q2w3er5t6y7u';
+const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const map = {};
+keys1.split('').forEach((key, i) => {
+if (notes[i % 12]) map[key] = notes[i % 12] + (baseOctave);
+});
+keys2.split('').forEach((key, i) => {
+if (notes[i % 12]) map[key] = notes[i % 12] + (baseOctave + 1);
+});
+return map;
+}
+handleNoteInput(key) {
+this.audioManager.initAudioContext();
+const noteMap = this.createNoteInputMap();
+const note = noteMap[key.toLowerCase()];
+const instNum = key === '0' ? 10 : parseInt(key);
+if (note) {
+const vol = this.sequencer.song.trackVolumes[this.cursor.col];
+this.audioManager.instruments[this.selectedInstrument].play(note, this.audioManager.audioCtx.currentTime, vol, 0.25);
+if (this.sequencer.state.isRecording) {
+const pattern = this.sequencer.song.patterns[this.sequencer.state.currentPattern];
+const secondsPerRow = 60.0 / this.sequencer.song.bpm / 4.0;
+const patternDuration = pattern.rows * secondsPerRow;
+const timeInCurrentLoop = (this.audioManager.audioCtx.currentTime - this.sequencer.state.loopStartTime) % patternDuration;
+let quantizedRow = Math.round(timeInCurrentLoop / secondsPerRow);
+if (quantizedRow >= pattern.rows) quantizedRow = 0;
+quantizedRow = Math.min(pattern.rows - 1, Math.max(0, quantizedRow));
+pattern.data[quantizedRow][this.cursor.col] = { note: note, inst: this.selectedInstrument };
+this.updateGrid();
+} else {
+const pattern = this.sequencer.song.patterns[this.sequencer.state.currentPattern];
+pattern.data[this.cursor.row][this.cursor.col] = { note: note, inst: this.selectedInstrument };
+this.cursor.row = Math.min(pattern.rows - 1, this.cursor.row + 1);
+this.updateGrid();
+}
+} else if (!isNaN(instNum) && instNum >= 0 && instNum < this.audioManager.instruments.length) {
+if (this.sequencer.state.isRecording) return;
+const pattern = this.sequencer.song.patterns[this.sequencer.state.currentPattern];
+let cell = pattern.data[this.cursor.row][this.cursor.col];
+if (!cell) {
+cell = { note: null, inst: instNum };
+pattern.data[this.cursor.row][this.cursor.col] = cell;
+} else {
+cell.inst = instNum;
+}
+this.selectInstrument(instNum);
+this.updateGrid();
+}
+}
+exportToHtml() {
+this.sequencer.song.bpm = parseInt(this.dom.bpmInput.value);
+const songJSON = JSON.stringify(this.sequencer.song);
+const playerCode = document.getElementById('player-template').textContent;
+const htmlContent = `
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>My Music</title><style>
+body { font-family: sans-serif; background-color: #1a1a2e; color: #dcdcdc; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+h1 { color: #e94560; } #playButton { font-size: 2em; padding: 20px 40px; cursor: pointer; border: 2px solid #16c79a; background-color: #0f3460; color: #dcdcdc; border-radius: 10px; }
+#playButton:hover { background-color: #e94560; } footer { margin-top: 2rem; opacity: 0.5; } a { color: #16c79a; }
+</style></head><body><h1>My Music Track</h1><button id="playButton">Play</button><footer><p>Created with <a href="https://gemini.google.com/">Gemini Soundtracker</a></p></footer>
+<script>
+const songData = ${songJSON};
+${playerCode}
+const player = new WebAudioMusicPlayer();
+player.loadSong(songData);
+document.getElementById('playButton').addEventListener('click', (e) => {
+if (!player.isPlaying) {
+player.play();
+e.target.textContent = "Playing...";
+}
+});
+<\/script></body></html>`;
+const blob = new Blob([htmlContent.trim()], { type: 'text/html' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'my-music.html';
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+}
+}
+document.addEventListener('DOMContentLoaded', () => {
+const audioManager = new AudioManager();
+const ui = new UI();
+const sequencer = new Sequencer(audioManager, ui);
+ui.init(sequencer, audioManager);
+});
+</script>
+<script id="player-template" type="text/template">
+class WebAudioMusicPlayer {
+constructor() {
+this.audioCtx = null; this.songData = null; this.instruments = []; this.noteFrequencies = {};
+this.isPlaying = false; this.currentRow = 0; this.currentPattern = 0;
+this.timerId = null; this.nextNoteTime = 0.0; this.lookahead = 25.0; this.scheduleAheadTime = 0.1;
+this._initNoteFrequencies(); this._defineInstruments();
+}
+loadSong(jsonData) { this.songData = jsonData; }
+play() {
+if (this.isPlaying || !this.songData) return;
+if (!this.audioCtx) this._initAudioContext();
+this.audioCtx.resume(); this.isPlaying = true; this.currentRow = 0; this.currentPattern = 0;
+this.nextNoteTime = this.audioCtx.currentTime + 0.1;
+this.timerId = setInterval(() => this._scheduler(), this.lookahead);
+}
+stop() { if (!this.isPlaying) return; this.isPlaying = false; clearInterval(this.timerId); this.timerId = null; }
+_initAudioContext() { this.audioCtx = new(window.AudioContext || window.webkitAudioContext)(); }
+_scheduler() { while (this.nextNoteTime < this.audioCtx.currentTime + this.scheduleAheadTime) { this._scheduleRow(); this._advanceRow(); } }
+_advanceRow() {
+const pattern = this.songData.patterns[this.currentPattern]; const bpm = this.songData.bpm || 120;
+const secondsPerRow = 60.0 / bpm / 4.0; this.nextNoteTime += secondsPerRow; this.currentRow++;
+if (this.currentRow >= pattern.rows) {
+this.currentRow = 0; this.currentPattern = (this.currentPattern + 1) % this.songData.patterns.length;
+}
+}
+_scheduleRow() {
+const pattern = this.songData.patterns[this.currentPattern]; const rowData = pattern.data[this.currentRow]; if (!rowData) return;
+for (let track = 0; track < this.songData.trackVolumes.length; track++) {
+const cell = rowData[track];
+if (cell && cell.inst && cell.note && this.instruments[cell.inst]) {
+const vol = this.songData.trackVolumes[track]; const bpm = this.songData.bpm || 120;
+const instType = this.instruments[cell.inst].type;
+const dur = (instType === 'drum') ? 0.2 : (60.0 / bpm / 4.0);
+this.instruments[cell.inst].play(cell.note, this.nextNoteTime, vol, dur);
+}
+}
+}
+_initNoteFrequencies() {
+const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+for (let o = 0; o < 10; o++) for (let i = 0; i < 12; i++) this.noteFrequencies[`${noteNames[i]}${o}`] = 440 * Math.pow(2, (o * 12 + i - 57) / 12);
+}
+_defineInstruments() {
+this.instruments = [
+{ name: "---", play: () => {} },
+{ name: "Kick", type: "drum", play: (note, time, vol) => { if(!this.audioCtx) return; const o = this.audioCtx.createOscillator(), g = this.audioCtx.createGain(); o.connect(g); g.connect(this.audioCtx.destination); o.frequency.setValueAtTime(150, time); o.frequency.exponentialRampToValueAtTime(0.01, time + 0.1); g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.01 * vol, time + 0.2); o.start(time); o.stop(time + 0.2); }},
+{ name: "Snare", type: "drum", play: (note, time, vol) => { if(!this.audioCtx) return; const n = this.audioCtx.createBufferSource(), bS = this.audioCtx.sampleRate*0.2, b=this.audioCtx.createBuffer(1,bS,this.audioCtx.sampleRate),d=b.getChannelData(0); for (let i=0;i<bS;i++)d[i]=Math.random()*2-1; n.buffer=b; const nF=this.audioCtx.createBiquadFilter();nF.type='highpass';nF.frequency.value=1000;n.connect(nF); const nE=this.audioCtx.createGain();nF.connect(nE);nE.connect(this.audioCtx.destination); nE.gain.setValueAtTime(vol, time); nE.gain.exponentialRampToValueAtTime(0.01 * vol, time + 0.15); n.start(time); n.stop(time + 0.15); }},
+{ name: "Hat C", type: "drum", play: (note, time, vol) => { if(!this.audioCtx) return; const n=this.audioCtx.createBufferSource(),bS=this.audioCtx.sampleRate*0.1,b=this.audioCtx.createBuffer(1,bS,this.audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bS;i++)d[i]=Math.random()*2-1;n.buffer=b; const nF=this.audioCtx.createBiquadFilter();nF.type='highpass';nF.frequency.value=7000;n.connect(nF); const g=this.audioCtx.createGain();nF.connect(g);g.connect(this.audioCtx.destination); g.gain.setValueAtTime(0.3*vol,time);g.gain.exponentialRampToValueAtTime(0.01*vol,time+0.05); n.start(time);n.stop(time+0.05); }},
+{ name: "Hat O", type: "drum", play: (note, time, vol) => { if(!this.audioCtx) return; const n=this.audioCtx.createBufferSource(),bS=this.audioCtx.sampleRate*0.5,b=this.audioCtx.createBuffer(1,bS,this.audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bS;i++)d[i]=Math.random()*2-1;n.buffer=b; const nF=this.audioCtx.createBiquadFilter();nF.type='highpass';nF.frequency.value=6000;n.connect(nF); const g=this.audioCtx.createGain();nF.connect(g);g.connect(this.audioCtx.destination); g.gain.setValueAtTime(0.3*vol,time);g.gain.exponentialRampToValueAtTime(0.01*vol,time+0.4);n.start(time);n.stop(time+0.4); }},
+{ name: "Tom", type: "drum", play: (note, time, vol) => { if(!this.audioCtx) return; const o=this.audioCtx.createOscillator(),g=this.audioCtx.createGain();o.connect(g);g.connect(this.audioCtx.destination); o.frequency.setValueAtTime(300,time);o.frequency.exponentialRampToValueAtTime(50,time+0.2); g.gain.setValueAtTime(0.8*vol,time);g.gain.linearRampToValueAtTime(0,time+0.25);o.start(time);o.stop(time+0.25); }},
+{ name: "Bass", type: "melodic", play: (note, time, vol, dur) => { if(!this.audioCtx) return; const f=this.noteFrequencies[note];if(!f)return; const o=this.audioCtx.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(f,time); const flt=this.audioCtx.createBiquadFilter();flt.type='lowpass';flt.frequency.setValueAtTime(400,time); const g=this.audioCtx.createGain();g.gain.setValueAtTime(0,time); g.gain.linearRampToValueAtTime(0.5*vol,time+0.01);g.gain.linearRampToValueAtTime(0,time+dur); o.connect(flt);flt.connect(g);g.connect(this.audioCtx.destination);o.start(time);o.stop(time+dur); }},
+{ name: "Lead", type: "melodic", play: (note, time, vol, dur) => { if(!this.audioCtx) return; const f=this.noteFrequencies[note];if(!f)return; const o=this.audioCtx.createOscillator();o.type='square';o.frequency.setValueAtTime(f,time); const g=this.audioCtx.createGain();g.gain.setValueAtTime(0,time); g.gain.linearRampToValueAtTime(0.2*vol,time+0.02);g.gain.linearRampToValueAtTime(0.1*vol,time+0.1); g.gain.setValueAtTime(0.1*vol,time+dur-0.1);g.gain.linearRampToValueAtTime(0,time+dur); o.connect(g);g.connect(this.audioCtx.destination);o.start(time);o.stop(time+dur); }},
+{ name: "Pad", type: "melodic", play: (note, time, vol, dur) => { if(!this.audioCtx) return; const f=this.noteFrequencies[note];if(!f)return; for(let i=0;i<3;i++){ const o=this.audioCtx.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(f,time);o.detune.setValueAtTime(i===0?0:(i===1?-7:7),time); const g=this.audioCtx.createGain();g.gain.setValueAtTime(0,time); g.gain.linearRampToValueAtTime(0.1*vol,time+0.2);g.gain.setValueAtTime(0.1*vol,time+dur-0.3); g.gain.linearRampToValueAtTime(0,time+dur); o.connect(g);g.connect(this.audioCtx.destination);o.start(time);o.stop(time+dur); }}},
+{ name: "Chip", type: "melodic", play: (note, time, vol, dur) => { if(!this.audioCtx) return; const f=this.noteFrequencies[note];if(!f)return; for(let i=0;i<2;i++){ const o=this.audioCtx.createOscillator();o.type='square';o.frequency.setValueAtTime(f,time);o.detune.setValueAtTime(i===0?0:10,time); const g=this.audioCtx.createGain();g.gain.setValueAtTime(0,time); g.gain.linearRampToValueAtTime(0.15*vol,time+0.01);g.gain.setValueAtTime(0.15*vol,time+dur-0.01); g.gain.linearRampToValueAtTime(0,time+dur); o.connect(g);g.connect(this.audioCtx.destination);o.start(time);o.stop(time+dur); }}},
+{ name: "Piano", type: "melodic", play: (note, time, vol, dur) => { if(!this.audioCtx) return; const f=this.noteFrequencies[note];if(!f)return; const o=this.audioCtx.createOscillator();o.type='sine';o.frequency.setValueAtTime(f,time); const g=this.audioCtx.createGain();g.gain.setValueAtTime(0,time); g.gain.linearRampToValueAtTime(0.4*vol,time+0.01);g.gain.exponentialRampToValueAtTime(0.01*vol,time+dur); o.connect(g);g.connect(this.audioCtx.destination);o.start(time);o.stop(time+dur); }}
+];
+}
+}
+</script>
+</body>
+</html>

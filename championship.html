@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Championship Racing Game</title>
+<meta name="description" content="Your goal is to compete in a 10-race championship against 9 AI opponents and get the highest score.">
+<meta name="robots" content="index, follow">
+<style>
+body,
+html {
+margin: 0;
+padding: 0;
+overflow: hidden;
+height: 100%;
+background-color: #1a1a1a;
+font-family: 'Courier New', Courier, monospace;
+}
+#game-container {
+position: relative;
+width: 100vw;
+height: 100vh;
+display: flex;
+justify-content: center;
+align-items: center;
+}
+canvas {
+background-color: #3a5944;
+display: block;
+}
+#miniMapCanvas {
+display: none;
+position: absolute;
+top: 20px;
+left: 20px;
+background-color: rgba(44, 62, 80, 0.8);
+border: 2px solid #f39c12;
+border-radius: 8px;
+z-index: 30;
+}
+#ui-container {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+text-align: center;
+color: #ecf0f1;
+z-index: 10;
+}
+#ui-container h1 {
+font-size: 4em;
+color: #f39c12;
+text-shadow: 3px 3px 0px #e67e22, 5px 5px 10px rgba(0, 0, 0, 0.5);
+margin-bottom: 30px;
+}
+button {
+background-color: #f39c12;
+color: #ecf0f1;
+padding: 15px 32px;
+text-align: center;
+text-decoration: none;
+display: inline-block;
+font-size: 16px;
+font-weight: bold;
+margin: 10px;
+cursor: pointer;
+border: none;
+border-bottom: 4px solid #c0392b;
+border-radius: 8px;
+transition: all 0.2s ease;
+box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.3);
+}
+button:hover {
+background-color: #e67e22;
+transform: translateY(-2px);
+box-shadow: 0px 7px 20px rgba(0, 0, 0, 0.4);
+}
+button:active {
+transform: translateY(2px);
+border-bottom-width: 2px;
+box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.3);
+}
+#hud-container {
+position: absolute;
+bottom: 20px;
+left: 50%;
+transform: translateX(-50%);
+color: white;
+background-color: rgba(28, 28, 28, 0.8);
+padding: 10px 20px;
+border-radius: 10px;
+font-size: 22px;
+font-weight: bold;
+display: none;
+z-index: 20;
+align-items: center;
+gap: 25px;
+will-change: transform;
+}
+#lap-display,
+#position-display {
+width: 200px;
+text-align: left;
+}
+#speed-display {
+color: #f39c12;
+width: 200px;
+text-align: left;
+}
+#drift-container {
+display: flex;
+align-items: center;
+gap: 8px;
+}
+#drift-label {
+font-size: 16px;
+color: #bdc3c7;
+}
+#drift-bar-background {
+width: 150px;
+height: 18px;
+background-color: #333;
+border: 2px solid #555;
+border-radius: 5px;
+padding: 2px;
+}
+#drift-bar {
+width: 0%;
+height: 100%;
+background-color: #3498db;
+border-radius: 3px;
+transition: width 0.1s linear, background-color 0.2s ease;
+}
+#drift-bar.is-full {
+background-color: #f1c40f;
+animation: blink-effect 1s infinite;
+}
+#pause-screen {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.7);
+color: #f39c12;
+font-size: 10em;
+display: flex;
+justify-content: center;
+align-items: center;
+text-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5);
+z-index: 50;
+display: none;
+}
+.modal {
+display: none;
+position: fixed;
+z-index: 100;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+overflow: auto;
+background-color: rgba(0, 0, 0, 0.8);
+backdrop-filter: blur(5px);
+}
+.modal-content {
+background-color: #2c3e50;
+color: #ecf0f1;
+margin: 1% auto;
+padding: 20px;
+border: 2px solid #f39c12;
+width: 80%;
+max-width: 800px;
+border-radius: 10px;
+text-align: center;
+box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.modal-content ul {
+list-style: none;
+padding: 0;
+text-align: left;
+display: inline-block;
+}
+.modal-content li {
+margin-bottom: 10px;
+}
+.close-button {
+color: #ecf0f1;
+float: right;
+font-size: 28px;
+font-weight: bold;
+transition: color 0.3s;
+}
+.close-button:hover,
+.close-button:focus {
+color: #f39c12;
+text-decoration: none;
+cursor: pointer;
+}
+.modal-content table {
+width: 95%;
+margin: 20px auto;
+border-collapse: collapse;
+text-align: left;
+font-size: 14px;
+}
+.modal-content th,
+.modal-content td {
+padding: 10px 14px;
+border-bottom: 1px solid #34495e;
+}
+.modal-content th {
+background-color: #34495e;
+color: #f39c12;
+font-size: 16px;
+}
+.modal-content tr:nth-child(even) {
+background-color: #273646;
+}
+.modal-content tr.player-row {
+background-color: #c0392b !important;
+font-weight: bold;
+color: #fff;
+}
+.modal-content h2 {
+color: #f39c12;
+}
+@keyframes blink-effect {
+50% {
+background-color: #2980b9;
+}
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="game-container">
+<canvas id="gameCanvas"></canvas>
+<canvas id="miniMapCanvas"></canvas>
+<div id="hud-container">
+<div id="lap-display">Lap: 1/3</div>
+<div id="position-display">Pos: 1/10</div>
+<div id="speed-display">0 MPH</div>
+<div id="drift-container">
+<div id="drift-label">BOOST</div>
+<div id="drift-bar-background">
+<div id="drift-bar"></div>
+</div>
+</div>
+</div>
+<div id="ui-container">
+<h1>Championship</h1>
+<button id="startButton">Start Championship</button>
+<button id="howToPlayButton">How to Play</button>
+</div>
+<div id="pause-screen">PAUSED</div>
+</div>
+<div id="howToPlayModal" class="modal">
+<div class="modal-content">
+<span class="close-button">&times;</span>
+<h2>How to Play</h2>
+<p>
+<strong>Goal:</strong> Beat 9 AI opponents in a 10-race championship to get the highest score!
+</p>
+<p><strong>Controls:</strong></p>
+<ul>
+<li><strong>W:</strong> Accelerate</li>
+<li><strong>S:</strong> Brake/Reverse</li>
+<li><strong>A/D:</strong> Steer</li>
+<li><strong>Spacebar:</strong> Drift</li>
+<li><strong>Shift:</strong> Use Boost</li>
+<li><strong>P:</strong> Pause</li>
+</ul>
+<p><strong>On the Track:</strong></p>
+<ul>
+<li>
+Hold <strong>Spacebar</strong> while turning to drift. Drifting charges up your boost meter!
+</li>
+<li>When the boost meter is full, press <strong>Shift</strong> for a powerful speed increase.</li>
+<li>Driving on the grass will slow you down.</li>
+<li>⚡️ - Pick up lightning bolts for an instant speed boost!</li>
+<li>⚫ - Avoid oil slicks, they'll make you spin out!</li>
+</ul>
+</div>
+</div>
+<div id="resultsModal" class="modal">
+<div class="modal-content">
+<h2 id="resultsTitle"></h2>
+<div id="resultsText"></div>
+<button id="nextRaceButton">Next Race</button>
+<button id="playAgainButton" style="display: none;">Play Again</button>
+</div>
+</div>
+<script>
+const LAPS_PER_RACE = 3;
+const NUM_OPPONENTS = 9;
+const TOTAL_RACES = 10;
+const RACE_END_GRACE_PERIOD = 12;
+const TRACK_WIDTH = 240;
+const CAR_COLORS = ['#3498db', '#2ecc71', '#9b59b6', '#1abc9c', '#f1c40f', '#e67e22', '#bdc3c7', '#27ae60', '#d35400'];
+const MAX_PARTICLES = 100;
+const lerp = (a, b, t) => a + (b - a) * t;
+const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+const clamp = (val, min, max) => Math.max(min, Math.min(val, max));
+function catmullRom(p0, p1, p2, p3, t) {
+const t2 = t * t;
+const t3 = t2 * t;
+return (
+0.5 *
+(2 * p1 +
+(-p0 + p2) * t +
+(2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+(-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+);
+}
+const formatTime = (seconds) => {
+if (seconds === Infinity || !isFinite(seconds)) {
+return 'Did not finish';
+}
+const mins = Math.floor(seconds / 60);
+const secs = Math.floor(seconds % 60);
+const ms = Math.floor((seconds * 1000) % 1000);
+return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+};
+class Game {
+constructor(canvasId) {
+this.canvas = document.getElementById(canvasId);
+this.ctx = this.canvas.getContext('2d');
+this.gameState = 'menu';
+this.player = null;
+this.cars = [];
+this.sortedCars = [];
+this.track = [];
+this.items = {
+boosts: [],
+oils: []
+};
+this.particlePool = [];
+this.initParticlePool();
+this.spatialGrid = null;
+this.camera = new Camera(this.canvas);
+this.keys = {
+w: false,
+s: false,
+a: false,
+d: false,
+shift: false,
+' ': false
+};
+this.lastTime = null;
+this.accumulator = 0;
+this.fixedDeltaTime = 1 / 60;
+this.gameLoopRunning = false;
+this.fps = 60;
+this.frameInterval = 1000 / this.fps;
+this.lastFrameTimestamp = 0;
+this.currentRace = 1;
+this.championshipStandings = [];
+this.raceTimer = 0;
+this.countdownValue = 3;
+this.firstFinisher = false;
+this.raceEndTimer = 0;
+this.finishNotifications = [];
+this.hudUpdateTimer = 0;
+this.miniMapUpdateTimer = 0;
+this.lastHud = {
+pos: '',
+lap: '',
+speed: ''
+};
+this.miniMapCanvas = document.getElementById('miniMapCanvas');
+this.miniMapCtx = this.miniMapCanvas.getContext('2d');
+this.shouldRedrawMinimap = true;
+this.trackBounds = null;
+this.backgroundCanvas = document.createElement('canvas');
+this.backgroundCtx = this.backgroundCanvas.getContext('2d', {
+alpha: false
+});
+this.roadPattern = null;
+this.initUI();
+this.resizeCanvas();
+window.addEventListener('resize', () => this.resizeCanvas());
+}
+initParticlePool() {
+for (let i = 0; i < MAX_PARTICLES; i++) {
+this.particlePool.push(new Particle());
+}
+}
+initUI() {
+this.uiContainer = document.getElementById('ui-container');
+this.hudContainer = document.getElementById('hud-container');
+this.lapDisplay = document.getElementById('lap-display');
+this.positionDisplay = document.getElementById('position-display');
+this.speedDisplay = document.getElementById('speed-display');
+this.driftBar = document.getElementById('drift-bar');
+this.pauseScreen = document.getElementById('pause-screen');
+this.howToPlayModal = document.getElementById('howToPlayModal');
+this.resultsModal = document.getElementById('resultsModal');
+document.getElementById('startButton').addEventListener('click', () => this.startChampionship());
+document.getElementById('howToPlayButton').addEventListener('click', () => (this.howToPlayModal.style.display = 'block'));
+this.howToPlayModal.querySelector('.close-button').addEventListener('click', () => (this.howToPlayModal.style.display = 'none'));
+document.getElementById('nextRaceButton').addEventListener('click', () => this.prepareNextRace());
+document.getElementById('playAgainButton').addEventListener('click', () => this.startChampionship());
+window.addEventListener('keydown', (e) => {
+const k = e.key.toLowerCase();
+if (this.gameState === 'paused' && k !== 'p') {
+this.resumeGame();
+return;
+}
+if (k === 'p') {
+this.togglePause();
+} else if (Object.prototype.hasOwnProperty.call(this.keys, k)) {
+this.keys[k] = true;
+}
+});
+window.addEventListener('keyup', (e) => {
+const k = e.key.toLowerCase();
+if (Object.prototype.hasOwnProperty.call(this.keys, k)) {
+this.keys[k] = false;
+}
+});
+this.canvas.addEventListener('click', () => {
+if (this.gameState === 'paused') this.resumeGame();
+});
+window.onclick = (e) => {
+if (e.target == this.howToPlayModal) this.howToPlayModal.style.display = 'none';
+};
+document.addEventListener('visibilitychange', () => {
+if (document.hidden && this.gameState === 'playing') this.togglePause();
+});
+}
+resumeGame() {
+if (this.gameState !== 'paused') return;
+this.gameState = 'playing';
+this.pauseScreen.style.display = 'none';
+this.lastTime = null;
+this.accumulator = 0;
+}
+togglePause() {
+if (this.gameState === 'playing') {
+this.gameState = 'paused';
+this.pauseScreen.style.display = 'flex';
+} else if (this.gameState === 'paused') {
+this.resumeGame();
+}
+}
+resizeCanvas() {
+this.canvas.width = window.innerWidth;
+this.canvas.height = window.innerHeight;
+this.preRenderBackground();
+this.shouldRedrawMinimap = true;
+}
+startChampionship() {
+this.currentRace = 1;
+this.championshipStandings = [];
+this.resultsModal.style.display = 'none';
+this.uiContainer.style.display = 'none';
+this.prepareNextRace();
+}
+prepareNextRace() {
+this.gameState = 'countdown';
+this.countdownValue = 3;
+this.raceTimer = 0;
+this.firstFinisher = false;
+this.raceEndTimer = 0;
+this.finishNotifications = [];
+this.hudContainer.style.opacity = '1';
+this.hudContainer.style.display = 'flex';
+this.miniMapCanvas.style.display = 'block';
+this.uiContainer.style.display = 'none';
+this.resultsModal.style.display = 'none';
+document.getElementById('playAgainButton').style.display = 'none';
+document.getElementById('nextRaceButton').style.display = 'inline-block';
+this.particlePool.forEach((p) => (p.active = false));
+this.generateTrack();
+this.calculateTrackBounds();
+this.generateItems();
+this.createCars();
+if (this.currentRace === 1) {
+this.initializeChampionship();
+}
+this.cars.forEach((c) => {
+c.finishTime = 0;
+if (c.isPlayer) {
+c.finishState = 'none';
+}
+});
+this.spatialGrid = new SpatialGrid(
+this.trackBounds.minX,
+this.trackBounds.minY,
+this.trackBounds.width,
+this.trackBounds.height,
+200
+);
+this.preRenderBackground();
+this.camera.reset(this.player);
+if (!this.gameLoopRunning) {
+this.lastTime = null;
+this.gameLoopRunning = true;
+requestAnimationFrame((t) => this.gameLoop(t));
+}
+const countdownInterval = setInterval(() => {
+this.countdownValue--;
+if (this.countdownValue < 0) {
+clearInterval(countdownInterval);
+this.gameState = 'playing';
+}
+}, 1000);
+}
+initializeChampionship() {
+this.championshipStandings = [];
+this.cars.forEach((car) => {
+this.championshipStandings.push({
+name: car.name,
+totalPoints: 0
+});
+});
+}
+endRace() {
+this.gameState = 'raceOver';
+this.hudContainer.style.display = 'none';
+this.miniMapCanvas.style.display = 'none';
+this.cars.forEach((car) => {
+if (car.finishTime === 0) {
+car.finishTime = Infinity;
+}
+});
+const finalStandings = [...this.cars].sort((a, b) => a.finishTime - b.finishTime);
+let resultsHtml = `<table><thead><tr><th>Pos</th><th>Name</th><th>Time</th><th>Points</th></tr></thead><tbody>`;
+finalStandings.forEach((car, index) => {
+const position = index + 1;
+const points = isFinite(car.finishTime) ? Math.max(0, this.cars.length - position + 1) : 0;
+const standing = this.championshipStandings.find((s) => s.name === car.name);
+if (standing) {
+standing.totalPoints += points;
+}
+const playerClass = car.isPlayer ? 'class="player-row"' : '';
+resultsHtml += `<tr ${playerClass}><td>${position}</td><td>${car.name}</td><td>${formatTime(
+car.finishTime
+)}</td><td>+${points}</td></tr>`;
+});
+resultsHtml += `</tbody></table>`;
+const resultsTitle = document.getElementById('resultsTitle');
+const resultsText = document.getElementById('resultsText');
+const nextRaceButton = document.getElementById('nextRaceButton');
+const playAgainButton = document.getElementById('playAgainButton');
+resultsTitle.textContent = `🏁 Results for Race ${this.currentRace} of ${TOTAL_RACES} 🏁`;
+resultsText.innerHTML = resultsHtml;
+if (this.currentRace >= TOTAL_RACES) {
+this.championshipStandings.sort((a, b) => b.totalPoints - a.totalPoints);
+let championshipHtml = `<h2>🏆 Final Championship Standings 🏆</h2><table><thead><tr><th>Rank</th><th>Name</th><th>Total Points</th></tr></thead><tbody>`;
+this.championshipStandings.forEach((standing, index) => {
+const playerClass = standing.name === this.player.name ? 'class="player-row"' : '';
+championshipHtml += `<tr ${playerClass}><td>${index + 1}</td><td>${standing.name}</td><td>${standing.totalPoints}</td></tr>`;
+});
+championshipHtml += `</tbody></table>`;
+resultsText.innerHTML += championshipHtml;
+nextRaceButton.style.display = 'none';
+playAgainButton.style.display = 'inline-block';
+} else {
+this.currentRace++;
+nextRaceButton.style.display = 'inline-block';
+playAgainButton.style.display = 'none';
+}
+this.resultsModal.style.display = 'block';
+}
+generateTrack() {
+this.track = [];
+const trackRadius = 3000 + Math.random() * 500;
+const complexity = 10 + Math.floor(Math.random() * 12);
+const jitter = 0.4 + Math.random() * 0.3;
+const stretchX = 1 + (Math.random() - 0.5) * 0.5;
+const stretchY = 1 + (Math.random() - 0.5) * 0.5;
+const anchorPoints = [];
+for (let i = 0; i < complexity; i++) {
+const angle = (i / complexity) * Math.PI * 2;
+const radius = trackRadius * (1 + (Math.random() - 0.5) * jitter);
+anchorPoints.push({
+x: Math.cos(angle) * radius * stretchX,
+y: Math.sin(angle) * radius * stretchY
+});
+}
+for (let i = 0; i < anchorPoints.length; i++) {
+const p0 = anchorPoints[(i - 1 + anchorPoints.length) % anchorPoints.length];
+const p1 = anchorPoints[i];
+const p2 = anchorPoints[(i + 1) % anchorPoints.length];
+const p3 = anchorPoints[(i + 2) % anchorPoints.length];
+const segments = Math.floor(dist(p1.x, p1.y, p2.x, p2.y) / 30);
+for (let j = 0; j < segments; j++) {
+const t = j / segments;
+this.track.push({
+x: catmullRom(p0.x, p1.x, p2.x, p3.x, t),
+y: catmullRom(p0.y, p1.y, p2.y, p3.y, t),
+});
+}
+}
+}
+calculateTrackBounds() {
+if (this.track.length === 0) return;
+let minX = this.track[0].x,
+maxX = this.track[0].x,
+minY = this.track[0].y,
+maxY = this.track[0].y;
+for (let i = 1; i < this.track.length; i++) {
+minX = Math.min(minX, this.track[i].x);
+maxX = Math.max(maxX, this.track[i].x);
+minY = Math.min(minY, this.track[i].y);
+maxY = Math.max(maxY, this.track[i].y);
+}
+const padding = TRACK_WIDTH * 1.5;
+this.trackBounds = {
+minX: minX - padding,
+minY: minY - padding,
+width: maxX - minX + padding * 2,
+height: maxY - minY + padding * 2,
+};
+}
+preRenderBackground() {
+if (!this.trackBounds || this.trackBounds.width <= 0 || this.trackBounds.height <= 0) return;
+this.backgroundCanvas.width = this.trackBounds.width;
+this.backgroundCanvas.height = this.trackBounds.height;
+this.backgroundCtx.translate(-this.trackBounds.minX, -this.trackBounds.minY);
+this.backgroundCtx.fillStyle = '#3a5944';
+this.backgroundCtx.fillRect(this.trackBounds.minX, this.trackBounds.minY, this.trackBounds.width, this.trackBounds.height);
+const originalCtx = this.ctx;
+this.ctx = this.backgroundCtx;
+this.createRoadPattern();
+this.drawTrack();
+this.ctx = originalCtx;
+}
+createRoadPattern() {
+const patternCanvas = document.createElement('canvas');
+const patternCtx = patternCanvas.getContext('2d');
+const patternSize = 8;
+patternCanvas.width = patternSize;
+patternCanvas.height = patternSize;
+patternCtx.fillStyle = '#606060';
+patternCtx.fillRect(0, 0, patternSize, patternSize);
+patternCtx.fillStyle = '#4a4a4a';
+patternCtx.fillRect(0, 0, patternSize / 2, patternSize / 2);
+patternCtx.fillRect(patternSize / 2, patternSize / 2, patternSize / 2, patternSize / 2);
+this.roadPattern = this.backgroundCtx.createPattern(patternCanvas, 'repeat');
+}
+generateItems() {
+this.items = {
+boosts: [],
+oils: []
+};
+const itemCount = Math.floor(this.track.length / 100);
+for (let i = 0; i < itemCount; i++) {
+const p = this.track[Math.floor(this.track.length * Math.random())];
+this.items.boosts.push({
+x: p.x,
+y: p.y,
+active: true,
+radius: 20
+});
+}
+for (let i = 0; i < Math.floor(itemCount * 0.7); i++) {
+const p = this.track[Math.floor(this.track.length * Math.random())];
+this.items.oils.push({
+x: p.x,
+y: p.y,
+active: true,
+radius: 25
+});
+}
+}
+createCars() {
+this.cars = [];
+const aiCars = [];
+const trackLength = this.track.length;
+for (let i = 0; i < NUM_OPPONENTS + 1; i++) {
+const placementIndex = 20 + i * 7;
+const startPoint = this.track[placementIndex];
+const nextPoint = this.track[(placementIndex + 1) % trackLength];
+const startAngle = Math.atan2(nextPoint.y - startPoint.y, nextPoint.x - startPoint.x);
+if (i === 0) {
+this.player = new PlayerCar(startPoint.x, startPoint.y, startAngle, this);
+this.player.progress = placementIndex;
+} else {
+const side = i % 2 === 0 ? -1 : 1;
+const anglePerp = startAngle + Math.PI / 2;
+const offsetX = Math.cos(anglePerp) * (TRACK_WIDTH / 4) * side;
+const offsetY = Math.sin(anglePerp) * (TRACK_WIDTH / 4) * side;
+const aiCar = new AICar(startPoint.x + offsetX, startPoint.y + offsetY, startAngle, i - 1, this);
+aiCar.progress = placementIndex;
+aiCars.push(aiCar);
+}
+}
+this.cars = [this.player, ...aiCars];
+}
+gameLoop(timestamp) {
+requestAnimationFrame((t) => this.gameLoop(t));
+const elapsed = timestamp - this.lastFrameTimestamp;
+if (elapsed < this.frameInterval) return;
+this.lastFrameTimestamp = timestamp - (elapsed % this.frameInterval);
+if (this.lastTime === null) {
+this.lastTime = timestamp;
+return;
+}
+const deltaTime = (timestamp - this.lastTime) / 1000;
+this.lastTime = timestamp;
+if (this.gameState !== 'paused') {
+this.accumulator += deltaTime;
+}
+if (this.accumulator > 0.2) {
+this.accumulator = 0.2;
+}
+while (this.accumulator >= this.fixedDeltaTime) {
+if (this.gameState === 'playing') {
+this.update(this.fixedDeltaTime);
+}
+this.accumulator -= this.fixedDeltaTime;
+}
+const interpolation = this.accumulator / this.fixedDeltaTime;
+this.draw(interpolation);
+}
+updateCarRanks() {
+this.sortedCars = [...this.cars].sort(
+(a, b) => b.lap * this.track.length + b.progress - (a.lap * this.track.length + a.progress)
+);
+}
+update(dt) {
+if (this.gameState === 'playing') {
+this.raceTimer += dt;
+}
+if (!this.firstFinisher) {
+this.updateCarRanks();
+this.applyRubberBanding();
+}
+this.miniMapUpdateTimer += dt;
+if (this.miniMapUpdateTimer > 1 / 10) {
+this.miniMapUpdateTimer = 0;
+this.shouldRedrawMinimap = true;
+}
+this.updateHUD(dt);
+this.spatialGrid.clear();
+this.cars.forEach((car) => this.spatialGrid.insert(car));
+this.cars.forEach((car) => car.update(dt));
+this.particlePool.forEach((p) => {
+if (p.active) p.update(dt);
+});
+this.finishNotifications.forEach((n) => (n.life -= dt));
+this.finishNotifications = this.finishNotifications.filter((n) => n.life > 0);
+this.handleCollisions();
+this.camera.update(dt);
+if (!this.firstFinisher) {
+const winner = this.sortedCars[0];
+if (winner && winner.lap > LAPS_PER_RACE) {
+this.firstFinisher = true;
+this.raceEndTimer = RACE_END_GRACE_PERIOD;
+}
+}
+if (this.firstFinisher && this.gameState === 'playing') {
+this.raceEndTimer -= dt;
+if (this.raceEndTimer <= 0) {
+this.endRace();
+}
+}
+}
+applyRubberBanding() {
+if (!this.player) return;
+const playerRank = this.sortedCars.findIndex((c) => c.isPlayer) + 1;
+this.cars.forEach((car) => {
+if (car.isPlayer) return;
+if (playerRank > this.cars.length / 2) {
+car.rubberBandModifier = 0.94;
+} else if (playerRank > 0 && playerRank < 4 && car.lap <= this.player.lap) {
+car.rubberBandModifier = 1.07;
+} else {
+car.rubberBandModifier = 1.0;
+}
+});
+}
+addFinishNotification(name) {
+this.finishNotifications.push({
+text: `${name} has finished!`,
+life: 3,
+initialLife: 3
+});
+}
+isRectInView(x, y, w, h, v) {
+return x + w > v.left && x - w < v.right && y + h > v.top && y - h < v.bottom;
+}
+draw(interpolation) {
+this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+this.camera.apply(this.ctx, interpolation);
+if (this.backgroundCanvas.width > 0) {
+this.ctx.drawImage(this.backgroundCanvas, this.trackBounds.minX, this.trackBounds.minY);
+}
+const padding = 100;
+const viewWidth = this.canvas.width / this.camera.zoom;
+const viewHeight = this.canvas.height / this.camera.zoom;
+const viewBounds = {
+left: this.camera.x - viewWidth / 2 - padding,
+right: this.camera.x + viewWidth / 2 + padding,
+top: this.camera.y - viewHeight / 2 - padding,
+bottom: this.camera.y + viewHeight / 2 + padding,
+};
+this.items.boosts.forEach((b) => {
+if (b.active && this.isRectInView(b.x, b.y, b.radius, b.radius, viewBounds)) this.drawItem(b, '⚡️');
+});
+this.items.oils.forEach((o) => {
+if (o.active && this.isRectInView(o.x, o.y, o.radius, o.radius, viewBounds)) this.drawItem(o, '⚫');
+});
+this.particlePool.forEach((p) => {
+if (p.active && this.isRectInView(p.x, p.y, p.size, p.size, viewBounds)) p.draw(this.ctx, interpolation);
+});
+this.cars.slice().reverse().forEach((car) => {
+if (this.isRectInView(car.x, car.y, car.width, car.width, viewBounds)) car.draw(this.ctx, interpolation);
+});
+this.camera.restore(this.ctx);
+if (this.gameState !== 'menu') {
+if (this.shouldRedrawMinimap) {
+this.drawMiniMap();
+this.shouldRedrawMinimap = false;
+}
+}
+this.drawFinishUI();
+if (this.gameState === 'countdown') {
+this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+this.ctx.fillStyle = '#f39c12';
+this.ctx.font = "bold 200px 'Courier New', monospace";
+this.ctx.textAlign = 'center';
+this.ctx.textBaseline = 'middle';
+const text = this.countdownValue > 0 ? this.countdownValue : 'GO!';
+this.ctx.fillText(text, this.canvas.width / 2, this.canvas.height / 2);
+}
+}
+drawFinishUI() {
+if (this.player && this.player.finishState !== 'none') {
+this.ctx.fillStyle = '#f39c12';
+this.ctx.font = "bold 150px 'Courier New', monospace";
+this.ctx.textAlign = 'center';
+this.ctx.textBaseline = 'middle';
+this.ctx.shadowColor = 'black';
+this.ctx.shadowBlur = 15;
+this.ctx.fillText('FINISH!', this.canvas.width / 2, this.canvas.height / 2);
+this.ctx.shadowBlur = 0;
+}
+this.ctx.textAlign = 'center';
+this.ctx.font = "bold 24px 'Courier New', monospace";
+this.ctx.shadowColor = 'black';
+this.ctx.shadowBlur = 5;
+let yPos = 50;
+this.finishNotifications.forEach((n) => {
+const alpha = clamp(n.life / n.initialLife, 0, 1);
+this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+this.ctx.fillText(n.text, this.canvas.width / 2, yPos);
+yPos += 30;
+});
+this.ctx.shadowBlur = 0;
+}
+drawTrack() {
+if (this.track.length < 2) return;
+this.ctx.lineCap = 'round';
+this.ctx.lineJoin = 'round';
+this.ctx.strokeStyle = this.roadPattern;
+this.ctx.lineWidth = TRACK_WIDTH;
+this.ctx.beginPath();
+this.ctx.moveTo(this.track[0].x, this.track[0].y);
+for (let i = 1; i < this.track.length; i++) this.ctx.lineTo(this.track[i].x, this.track[i].y);
+this.ctx.closePath();
+this.ctx.stroke();
+const p0 = this.track[0];
+const p1 = this.track[this.track.length - 1];
+const angle = Math.atan2(p0.y - p1.y, p0.x - p1.x);
+const checkerSize = 20;
+const numCheckersAcross = Math.ceil(TRACK_WIDTH / checkerSize);
+const numCheckersDeep = 4;
+this.ctx.save();
+this.ctx.translate(p0.x, p0.y);
+this.ctx.rotate(angle);
+for (let row = 0; row < numCheckersDeep; row++) {
+for (let col = 0; col < numCheckersAcross; col++) {
+this.ctx.fillStyle = (row + col) % 2 === 0 ? '#FFFFFF' : '#1a1a1a';
+const x = (col - numCheckersAcross / 2) * checkerSize;
+const y = (row - numCheckersDeep / 2) * checkerSize;
+this.ctx.fillRect(y, x, checkerSize, checkerSize);
+}
+}
+this.ctx.restore();
+}
+drawMiniMap() {
+if (!this.trackBounds) return;
+const mapWidth = 200,
+mapHeight = 150;
+this.miniMapCanvas.width = mapWidth;
+this.miniMapCanvas.height = mapHeight;
+this.miniMapCtx.clearRect(0, 0, mapWidth, mapHeight);
+const scale = Math.min(mapWidth / this.trackBounds.width, mapHeight / this.trackBounds.height) * 0.9;
+const offsetX = (mapWidth - this.trackBounds.width * scale) / 2;
+const offsetY = (mapHeight - this.trackBounds.height * scale) / 2;
+this.miniMapCtx.strokeStyle = '#bdc3c7';
+this.miniMapCtx.lineWidth = 3;
+this.miniMapCtx.beginPath();
+for (let i = 0; i < this.track.length; i++) {
+const p = this.track[i];
+const mX = (p.x - this.trackBounds.minX) * scale + offsetX;
+const mY = (p.y - this.trackBounds.minY) * scale + offsetY;
+if (i === 0) this.miniMapCtx.moveTo(mX, mY);
+else this.miniMapCtx.lineTo(mX, mY);
+}
+this.miniMapCtx.closePath();
+this.miniMapCtx.stroke();
+this.cars.forEach((car) => {
+if (car.isPlayer && car.finishState !== 'none') return;
+const mapX = (car.x - this.trackBounds.minX) * scale + offsetX;
+const mapY = (car.y - this.trackBounds.minY) * scale + offsetY;
+this.miniMapCtx.fillStyle = car.isPlayer ? car.color : '#ecf0f1';
+this.miniMapCtx.beginPath();
+this.miniMapCtx.arc(mapX, mapY, car.isPlayer ? 4 : 3, 0, Math.PI * 2);
+this.miniMapCtx.fill();
+});
+}
+drawItem(item, emoji) {
+this.ctx.font = `${item.radius * 2}px serif`;
+this.ctx.textAlign = 'center';
+this.ctx.textBaseline = 'middle';
+this.ctx.fillText(emoji, item.x, item.y);
+}
+updateHUD(dt) {
+this.hudUpdateTimer += dt;
+if (this.hudUpdateTimer < 0.1) return;
+this.hudUpdateTimer = 0;
+if (!this.player || this.player.finishState !== 'none') {
+this.hudContainer.style.opacity = '0';
+return;
+}
+this.hudContainer.style.opacity = '1';
+const playerPos = this.sortedCars.findIndex((c) => c.isPlayer) + 1;
+const posText = `Pos: ${playerPos > 0 ? playerPos : 'N/A'}/${this.cars.length}`;
+const lapText = `Lap: ${Math.min(LAPS_PER_RACE, this.player.lap)}/${LAPS_PER_RACE}`;
+const speed = Math.floor(this.player.getSpeed() * 0.25);
+const speedText = `${speed} MPH`;
+if (posText !== this.lastHud.pos) {
+this.positionDisplay.textContent = posText;
+this.lastHud.pos = posText;
+}
+if (lapText !== this.lastHud.lap) {
+this.lapDisplay.textContent = lapText;
+this.lastHud.lap = lapText;
+}
+if (speedText !== this.lastHud.speed) {
+this.speedDisplay.textContent = speedText;
+this.lastHud.speed = speedText;
+}
+this.driftBar.style.width = `${this.player.driftCharge * 100}%`;
+this.driftBar.classList.toggle('is-full', this.player.driftCharge >= 1);
+}
+handleCollisions() {
+for (let i = 0; i < this.cars.length; i++) {
+const carA = this.cars[i];
+if (carA.isPlayer && carA.finishState !== 'none') continue;
+for (let j = i + 1; j < this.cars.length; j++) {
+const carB = this.cars[j];
+const d = dist(carA.x, carA.y, carB.x, carB.y);
+if (d < carA.width) {
+if (this.player === carA || this.player === carB) this.camera.shake(4, 0.15);
+carA.handleCollision(carB, d);
+carB.handleCollision(carA, d);
+}
+}
+this.items.boosts.forEach((b) => {
+if (b.active && dist(carA.x, carA.y, b.x, b.y) < b.radius + carA.width / 2) {
+carA.applyBoost(2, 1.5);
+b.active = false;
+setTimeout(() => (b.active = true), 10000);
+}
+});
+this.items.oils.forEach((o) => {
+if (o.active && dist(carA.x, carA.y, o.x, o.y) < o.radius + carA.width / 2) {
+carA.spinOut();
+o.active = false;
+setTimeout(() => (o.active = true), 15000);
+}
+});
+}
+}
+createParticles(x, y, count, {
+life,
+speed,
+angle,
+spread,
+color,
+size,
+gravity
+}) {
+let spawned = 0;
+for (let i = 0; i < this.particlePool.length && spawned < count; i++) {
+const p = this.particlePool[i];
+if (!p.active) {
+const pA = angle + (Math.random() - 0.5) * spread;
+const pS = speed * (1 + (Math.random() - 0.5) * 0.5);
+p.reset(
+x, y,
+Math.cos(pA) * pS, Math.sin(pA) * pS,
+life * (0.8 + Math.random() * 0.4),
+color,
+size * (0.8 + Math.random() * 0.4),
+gravity
+);
+spawned++;
+}
+}
+}
+}
+class SpatialGrid {
+constructor(x, y, w, h, s) {
+this.offsetX = x;
+this.offsetY = y;
+this.cellSize = s;
+this.gridWidth = Math.ceil(w / s);
+this.gridHeight = Math.ceil(h / s);
+this.grid = Array.from({
+length: this.gridWidth * this.gridHeight
+}, () => []);
+}
+clear() {
+for (let i = 0; i < this.grid.length; i++) this.grid[i].length = 0;
+}
+_getCoords(x, y) {
+return {
+gridX: Math.floor((x - this.offsetX) / this.cellSize),
+gridY: Math.floor((y - this.offsetY) / this.cellSize),
+};
+}
+insert(c) {
+const {
+gridX,
+gridY
+} = this._getCoords(c.x, c.y);
+if (gridX >= 0 && gridX < this.gridWidth && gridY >= 0 && gridY < this.gridHeight) {
+this.grid[gridY * this.gridWidth + gridX].push(c);
+}
+}
+query(c, r) {
+const n = [];
+const {
+gridX,
+gridY
+} = this._getCoords(c.x, c.y);
+for (let y = -1; y <= 1; y++) {
+for (let x = -1; x <= 1; x++) {
+const cX = gridX + x,
+cY = gridY + y;
+if (cX >= 0 && cX < this.gridWidth && cY >= 0 && cY < this.gridHeight) {
+for (const o of this.grid[cY * this.gridWidth + cX]) {
+if (o !== c) n.push(o);
+}
+}
+}
+}
+return n;
+}
+}
+class Camera {
+constructor(c) {
+this.x = 0;
+this.y = 0;
+this.prev_x = 0;
+this.prev_y = 0;
+this.target = null;
+this.canvas = c;
+this.shakeMag = 0;
+this.shakeDur = 0;
+this.lerpRate = 0.08;
+this.zoom = 1.0;
+}
+reset(t) {
+this.target = t;
+if (t) {
+this.x = this.prev_x = t.x;
+this.y = this.prev_y = t.y;
+}
+}
+update(dt) {
+if (!this.target) return;
+this.lerpRate = (this.target.isPlayer && this.target.finishState !== 'none') ? 0.02 : 0.08;
+this.prev_x = this.x;
+this.prev_y = this.y;
+this.x = lerp(this.x, this.target.x, this.lerpRate);
+this.y = lerp(this.y, this.target.y, this.lerpRate);
+const s = this.target.getSpeed();
+const tZ = 0.9 - clamp(s / 1000, 0, 0.2);
+this.zoom = lerp(this.zoom, tZ, 0.05);
+if (this.shakeDur > 0) {
+this.shakeDur -= dt;
+this.shakeMag = lerp(this.shakeMag, 0, 0.2);
+} else {
+this.shakeMag = 0;
+}
+}
+apply(ctx, i) {
+ctx.save();
+const rX = lerp(this.prev_x, this.x, i);
+const rY = lerp(this.prev_y, this.y, i);
+const sX = (Math.random() - 0.5) * this.shakeMag;
+const sY = (Math.random() - 0.5) * this.shakeMag;
+ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+ctx.scale(this.zoom, this.zoom);
+ctx.translate(-rX + sX, -rY + sY);
+}
+restore(ctx) {
+ctx.restore();
+}
+shake(m, d) {
+this.shakeMag = Math.max(this.shakeMag, m);
+this.shakeDur = Math.max(this.shakeDur, d);
+}
+}
+class Particle {
+constructor() {
+this.active = false;
+}
+reset(x, y, vx, vy, life, color, size, g = 0) {
+Object.assign(this, {
+x,
+y,
+vx,
+vy,
+life,
+color,
+size,
+prev_x: x,
+prev_y: y,
+initialLife: life,
+gravity: g,
+active: true,
+});
+}
+update(dt) {
+if (!this.active) return;
+this.life -= dt;
+if (this.life <= 0) {
+this.active = false;
+return;
+}
+this.prev_x = this.x;
+this.prev_y = this.y;
+this.x += this.vx * dt;
+this.y += this.vy * dt;
+this.vy += this.gravity * dt;
+this.vx *= 0.98;
+this.vy *= 0.98;
+}
+draw(ctx, i) {
+if (!this.active) return;
+ctx.fillStyle = this.color;
+ctx.fillRect(lerp(this.prev_x, this.x, i), lerp(this.prev_y, this.y, i), this.size, this.size);
+}
+}
+class Car {
+constructor(x, y, angle, color, game) {
+Object.assign(this, {
+game,
+x,
+y,
+angle,
+color,
+prev_x: x,
+prev_y: y,
+prev_angle: angle,
+vx: 0,
+vy: 0,
+width: 40,
+state: 'normal',
+stateTimer: 0,
+boostMultiplier: 1.0,
+lap: 1,
+progress: 0,
+isOffTrack: false,
+name: 'Car',
+finishTime: 0,
+});
+}
+getSpeed() {
+return Math.hypot(this.vx, this.vy);
+}
+update(dt) {
+this.prev_x = this.x;
+this.prev_y = this.y;
+this.prev_angle = this.angle;
+this._calculateMovement(dt);
+if (this.stateTimer > 0) {
+this.stateTimer -= dt;
+if (this.stateTimer <= 0) {
+this.state = 'normal';
+this.boostMultiplier = 1.0;
+}
+}
+this.x += this.vx * dt;
+this.y += this.vy * dt;
+this.updateProgress();
+this.handleTrackLimits();
+}
+_calculateMovement(dt) {
+}
+draw(ctx, i) {
+const rX = lerp(this.prev_x, this.x, i);
+const rY = lerp(this.prev_y, this.y, i);
+const rA = lerp(this.prev_angle, this.angle, i);
+ctx.save();
+ctx.translate(rX, rY);
+ctx.rotate(rA);
+ctx.fillStyle = this.color;
+ctx.fillRect(-this.width / 2, -this.width / 4, this.width, this.width / 2);
+ctx.fillStyle = '#222';
+ctx.fillRect(this.width / 8, -this.width / 4, this.width / 4, this.width / 2);
+ctx.restore();
+}
+updateProgress() {
+if (this.finishTime > 0) return;
+let closestDist = Infinity;
+let closestIndex = this.progress;
+const searchRange = 15;
+for (let i = -searchRange; i <= searchRange; i++) {
+let checkIndex = (this.progress + i + this.game.track.length) % this.game.track.length;
+const d = dist(this.x, this.y, this.game.track[checkIndex].x, this.game.track[checkIndex].y);
+if (d < closestDist) {
+closestDist = d;
+closestIndex = checkIndex;
+}
+}
+if (this.progress > this.game.track.length * 0.9 && closestIndex < this.game.track.length * 0.1) {
+this.lap++;
+if (this.lap > LAPS_PER_RACE && this.finishTime === 0) {
+this.finishTime = this.game.raceTimer;
+if (this.isPlayer) {
+this.triggerFinishSequence();
+} else {
+this.game.addFinishNotification(this.name);
+}
+}
+}
+this.progress = closestIndex;
+}
+handleTrackLimits() {
+if (this.isPlayer && this.finishState !== 'none') return;
+this.isOffTrack = dist(this.x, this.y, this.game.track[this.progress].x, this.game.track[this.progress].y) > TRACK_WIDTH / 2;
+}
+handleCollision(other, d) {
+const angle = Math.atan2(this.y - other.y, this.x - other.x);
+const overlap = this.width - d;
+const force = 50;
+const pushX = Math.cos(angle) * overlap * force;
+const pushY = Math.sin(angle) * overlap * force;
+this.vx += pushX;
+this.vy += pushY;
+other.vx -= pushX;
+other.vy -= pushY;
+}
+applyBoost(duration, multiplier) {
+if (this.state !== 'spinning') {
+this.state = 'boosting';
+this.stateTimer = duration;
+this.boostMultiplier = multiplier;
+this.game.createParticles(this.x, this.y, 20, {
+life: 0.6,
+speed: 400,
+angle: this.angle + Math.PI,
+spread: 0.8,
+color: '#f39c12',
+size: 4
+});
+}
+}
+spinOut() {
+if (this.state !== 'spinning') {
+this.state = 'spinning';
+this.stateTimer = 1.5;
+}
+}
+}
+class PlayerCar extends Car {
+constructor(x, y, angle, game) {
+super(x, y, angle, '#e74c3c', game);
+Object.assign(this, {
+isPlayer: true,
+name: 'You',
+isDrifting: false,
+driftCharge: 0,
+turnInput: 0,
+finishState: 'none',
+finishDriveTimer: 0,
+finishDonutTimer: 0,
+accel: 1000,
+brakeForce: 600,
+maxSpeed: 560,
+turnRate: 2.7,
+});
+}
+triggerFinishSequence() {
+this.finishState = 'driving';
+this.finishDriveTimer = 0.5;
+this.finishDonutTimer = 2.0;
+}
+_calculateMovement(dt) {
+if (this.finishState !== 'none') {
+if (this.finishState === 'driving') {
+this.finishDriveTimer -= dt;
+const speed = this.getSpeed();
+this.vx = Math.cos(this.angle) * speed * 0.98;
+this.vy = Math.sin(this.angle) * speed * 0.98;
+if (this.finishDriveTimer <= 0) this.finishState = 'donutting';
+} else if (this.finishState === 'donutting') {
+this.finishDonutTimer -= dt;
+const donutSpeed = 60,
+turnRate = 14;
+this.angle += turnRate * dt;
+this.vx = Math.cos(this.angle) * donutSpeed;
+this.vy = Math.sin(this.angle) * donutSpeed;
+if (this.finishDonutTimer <= 0) this.finishState = 'stopped';
+} else if (this.finishState === 'stopped') {
+this.vx *= 0.95;
+this.vy *= 0.95;
+}
+return;
+}
+const keys = this.game.keys;
+this.turnInput = (keys.a ? -1 : 0) + (keys.d ? 1 : 0);
+if (this.state === 'spinning') {
+this.angle += 18 * dt;
+this.vx *= 1 - 2 * dt;
+this.vy *= 1 - 2 * dt;
+return;
+}
+let sideFriction = 0.92,
+forwardFriction = 0.995;
+this.isDrifting = keys[' '] && this.getSpeed() > 150 && this.turnInput !== 0;
+if (this.isDrifting) {
+sideFriction = 0.97;
+this.driftCharge = Math.min(1, this.driftCharge + 0.5 * dt);
+}
+if (this.isOffTrack) {
+sideFriction = 0.75;
+forwardFriction = 0.92;
+}
+let accelInput = (keys.w ? 1 : 0) - (keys.s ? 0.5 : 0);
+const turnSpeedFactor = Math.max(0.2, 1 - this.getSpeed() / (this.maxSpeed * 1.5));
+this.angle += this.turnInput * this.turnRate * (this.isDrifting ? 1 : turnSpeedFactor) * dt;
+const cos = Math.cos(this.angle),
+sin = Math.sin(this.angle);
+const forwardVel = this.vx * cos + this.vy * sin;
+const sideVel = this.vx * -sin + this.vy * cos;
+let newForwardVel = forwardVel + accelInput * (accelInput > 0 ? this.accel : this.brakeForce) * dt;
+newForwardVel *= forwardFriction;
+const newSideVel = sideVel * sideFriction;
+this.vx = newForwardVel * cos - newSideVel * sin;
+this.vy = newForwardVel * sin + newSideVel * cos;
+let currentMaxSpeed = this.maxSpeed;
+if (this.state === 'boosting') currentMaxSpeed *= this.boostMultiplier;
+if (this.isOffTrack) currentMaxSpeed *= 0.4;
+if (this.getSpeed() > currentMaxSpeed) {
+const speed = this.getSpeed();
+this.vx = (this.vx / speed) * currentMaxSpeed;
+this.vy = (this.vy / speed) * currentMaxSpeed;
+}
+if (keys.shift && this.driftCharge >= 1) {
+this.driftCharge = 0;
+this.applyBoost(1.5, 1.8);
+this.game.createParticles(this.x, this.y, 40, {
+life: 0.8,
+speed: 500,
+angle: this.angle + Math.PI,
+spread: 0.6,
+color: '#3498db',
+size: 5
+});
+this.game.camera.shake(8, 0.4);
+}
+this.updateParticles(sideVel, accelInput);
+}
+updateParticles(sideVel, accelInput) {
+if (this.isDrifting || Math.abs(sideVel) > 80) {
+this.game.createParticles(this.x, this.y, 2, {
+life: 0.6,
+speed: 20,
+angle: this.angle + Math.PI,
+spread: 0.5,
+color: 'rgba(255,255,255,0.6)',
+size: 3,
+gravity: 30
+});
+}
+if (accelInput <= 0 && this.getSpeed() > 100 && Math.random() < 0.1) {
+const brakeAngle = this.angle + Math.PI;
+const backX = this.x + Math.cos(brakeAngle) * (this.width / 2);
+const backY = this.y + Math.sin(brakeAngle) * (this.width / 2);
+this.game.createParticles(backX, backY, 1, {
+life: 0.15,
+speed: 80,
+angle: brakeAngle,
+spread: 0.3,
+color: '#f39c12',
+size: 4
+});
+}
+}
+}
+class AICar extends Car {
+constructor(x, y, angle, index, game) {
+super(x, y, angle, CAR_COLORS[index % CAR_COLORS.length], game);
+this.isPlayer = false;
+this.name = `Driver ${index + 1}`;
+this.skill = {
+maxSpeed: 480 + Math.random() * 80,
+cornering: 0.15 + Math.random() * 0.3,
+avoidance: 2 + Math.random() * 2,
+};
+this.rubberBandModifier = 1.0;
+this.targetPoint = {
+x: 0,
+y: 0
+};
+this.reactionTimer = Math.random() * 0.2;
+this.accel = 900;
+}
+_calculateMovement(dt) {
+if (this.finishTime > 0) {
+this.vx *= 0.98;
+this.vy *= 0.98;
+return;
+}
+if (this.state === 'spinning') {
+this.angle += 15 * dt;
+this.vx *= 0.9;
+this.vy *= 0.9;
+return;
+}
+this.reactionTimer -= dt;
+if (this.reactionTimer < 0) {
+this.reactionTimer = 0.1 + Math.random() * 0.1;
+const speed = this.getSpeed();
+const lookAheadDist = clamp(speed * 0.8, 150, 450);
+const pointAheadIndex = (this.progress + Math.floor(lookAheadDist / 30)) % this.game.track.length;
+const targetTrackPoint = this.game.track[pointAheadIndex];
+const avoidanceVector = this.getAvoidanceVector();
+this.targetPoint = {
+x: targetTrackPoint.x + avoidanceVector.x,
+y: targetTrackPoint.y + avoidanceVector.y
+};
+}
+let targetAngle = Math.atan2(this.targetPoint.y - this.y, this.targetPoint.x - this.x);
+let angleDiff = targetAngle - this.angle;
+while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+this.angle += clamp(angleDiff, -4 * dt, 4 * dt);
+let targetSpeed = this.skill.maxSpeed * this.rubberBandModifier;
+if (this.state === 'boosting') targetSpeed *= this.boostMultiplier;
+if (this.isOffTrack) targetSpeed *= 0.4;
+const lookAheadDistForTurn = clamp(this.getSpeed() * 0.7, 150, 400);
+const turnSeverity = Math.abs(angleDiff) / (lookAheadDistForTurn / 100);
+targetSpeed *= 1 - clamp(turnSeverity * this.skill.cornering, 0, 0.8);
+let acceleration = this.getSpeed() < targetSpeed ? 1 : 0;
+const cos = Math.cos(this.angle),
+sin = Math.sin(this.angle);
+const forwardVel = this.vx * cos + this.vy * sin;
+const sideVel = this.vx * -sin + this.vy * cos;
+const newForwardVel = (forwardVel + acceleration * this.accel * dt) * (this.isOffTrack ? 0.92 : 0.99);
+const newSideVel = sideVel * (this.isOffTrack ? 0.75 : 0.9);
+this.vx = newForwardVel * cos - newSideVel * sin;
+this.vy = newForwardVel * sin + newSideVel * cos;
+}
+getAvoidanceVector() {
+let avoidance = {
+x: 0,
+y: 0
+};
+const feelerLength = this.width * 2.5;
+const nearbyCars = this.game.spatialGrid.query(this, feelerLength);
+nearbyCars.forEach((otherCar) => {
+const d = dist(this.x, this.y, otherCar.x, otherCar.y);
+if (d < feelerLength) {
+const avoidanceAngle = Math.atan2(this.y - otherCar.y, this.x - otherCar.x);
+const pushStrength = (feelerLength - d) * this.skill.avoidance;
+avoidance.x += Math.cos(avoidanceAngle) * pushStrength;
+avoidance.y += Math.sin(avoidanceAngle) * pushStrength;
+}
+});
+return avoidance;
+}
+}
+window.addEventListener('DOMContentLoaded', () => {
+new Game('gameCanvas');
+});
+</script>
+</body>
+</html>

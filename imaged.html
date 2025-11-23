@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Editor Online</title>
+<meta name="description" content="This online image editor is a powerful, layer-based tool for all your editing needs.">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--bg-color: #1e1e1e;
+--primary-color: #2d2d2d;
+--secondary-color: #3c3c3c;
+--text-color: #e0e0e0;
+--accent-color: #007acc;
+--border-color: #4a4a4a;
+--font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+html,
+body {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100vh;
+font-family: var(--font-family);
+background-color: var(--bg-color);
+color: var(--text-color);
+overflow: hidden;
+}
+body {
+display: grid;
+grid-template-rows: auto 1fr;
+}
+.main-container {
+display: flex;
+overflow: hidden;
+position: relative;
+}
+.toolbar {
+background-color: var(--primary-color);
+padding: 8px;
+display: flex;
+flex-direction: column;
+gap: 10px;
+width: 60px;
+border-right: 1px solid var(--border-color);
+align-items: center;
+z-index: 5;
+}
+.tool-btn {
+background-color: var(--secondary-color);
+border: 1px solid var(--border-color);
+color: var(--text-color);
+cursor: pointer;
+padding: 8px;
+width: 42px;
+height: 42px;
+font-size: 20px;
+border-radius: 4px;
+transition: background-color 0.2s;
+display: flex;
+align-items: center;
+justify-content: center;
+}
+.tool-btn:hover {
+background-color: var(--accent-color);
+}
+.tool-btn.active {
+background-color: var(--accent-color);
+border: 1px solid var(--text-color);
+}
+.options-bar {
+background-color: var(--primary-color);
+padding: 5px 15px;
+border-bottom: 1px solid var(--border-color);
+display: flex;
+align-items: center;
+gap: 10px;
+min-height: 40px;
+flex-wrap: wrap;
+position: relative;
+z-index: 10;
+}
+.options-bar label,
+.options-bar button,
+.options-bar input,
+.options-bar select,
+.options-bar span {
+margin: 0;
+font-size: 13px;
+align-items: center;
+display: flex;
+}
+.options-bar input[type="number"],
+.options-bar input[type="text"],
+.options-bar input[type="color"],
+.options-bar select {
+background-color: var(--secondary-color);
+color: var(--text-color);
+border: 1px solid var(--border-color);
+border-radius: 3px;
+padding: 3px 5px;
+max-width: 80px;
+transition: border-color 0.2s;
+}
+.options-bar input#text-input {
+max-width: 180px;
+}
+.options-bar input::placeholder {
+color: #9e9e9e;
+opacity: 1;
+}
+.options-bar input:focus,
+.options-bar select:focus {
+outline: none;
+border-color: var(--accent-color);
+}
+.options-bar button {
+background-color: var(--accent-color);
+color: var(--text-color);
+border: none;
+padding: 4px 10px;
+border-radius: 3px;
+cursor: pointer;
+}
+.options-bar .separator {
+width: 1px;
+height: 25px;
+background-color: var(--border-color);
+margin: 0 5px;
+}
+.canvas-container {
+flex: 1;
+display: grid;
+place-items: center;
+overflow: hidden;
+background-image: linear-gradient(45deg, #2a2a2a 25%, transparent 25%), linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #2a2a2a 75%), linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+background-size: 20px 20px;
+background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+position: relative;
+}
+canvas {
+box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+cursor: default;
+}
+.right-panel {
+width: 200px;
+background-color: var(--primary-color);
+border-left: 1px solid var(--border-color);
+display: flex;
+flex-direction: column;
+overflow-y: auto;
+z-index: 5;
+}
+.panel-section {
+padding: 10px;
+border-bottom: 1px solid var(--border-color);
+}
+.panel-section h4 {
+margin: 0 0 10px 0;
+font-size: 14px;
+border-bottom: 1px solid var(--border-color);
+padding-bottom: 5px;
+}
+#layers-list {
+list-style: none;
+padding: 0;
+margin: 0;
+max-height: 200px;
+overflow-y: auto;
+}
+#layers-list li {
+background-color: var(--secondary-color);
+padding: 8px;
+margin-bottom: 5px;
+cursor: pointer;
+border: 1px solid transparent;
+border-radius: 3px;
+font-size: 13px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+}
+#layers-list li.active {
+border: 1px solid var(--accent-color);
+background-color: #4a4a4a;
+}
+#layers-list li .visibility-toggle {
+cursor: pointer;
+opacity: 0.7;
+margin-right: 5px;
+}
+#layers-list li .visibility-toggle:hover {
+opacity: 1;
+}
+.layer-controls {
+display: flex;
+gap: 5px;
+margin-top: 10px;
+}
+.layer-controls button {
+flex: 1;
+padding: 5px;
+font-size: 16px;
+}
+#export-preview {
+max-width: 100%;
+height: auto;
+margin-top: 10px;
+border: 1px solid var(--border-color);
+}
+#file-size-info {
+font-size: 12px;
+margin-top: 5px;
+text-align: center;
+}
+#crop-info {
+position: fixed;
+background-color: rgba(0, 0, 0, 0.7);
+color: white;
+padding: 3px 6px;
+font-size: 12px;
+border-radius: 3px;
+pointer-events: none;
+display: none;
+z-index: 20;
+transform: translate(15px, 15px);
+}
+#zoom-display {
+font-size: 13px;
+color: var(--text-color);
+min-width: 50px;
+text-align: center;
+}
+.adjustment-slider {
+width: calc(100% - 10px);
+margin-bottom: 5px;
+-webkit-appearance: none;
+height: 4px;
+background: #555;
+outline: none;
+opacity: 0.7;
+transition: opacity .2s;
+border-radius: 2px;
+}
+.adjustment-slider:hover {
+opacity: 1;
+}
+.adjustment-slider::-webkit-slider-thumb {
+-webkit-appearance: none;
+appearance: none;
+width: 12px;
+height: 12px;
+border-radius: 50%;
+background: var(--accent-color);
+cursor: pointer;
+}
+.adjustment-slider::-moz-range-thumb {
+width: 12px;
+height: 12px;
+border-radius: 50%;
+background: var(--accent-color);
+cursor: pointer;
+}
+.adjustment-group {
+margin-bottom: 10px;
+padding-bottom: 5px;
+border-bottom: 1px solid var(--border-color);
+}
+.adjustment-group:last-child {
+border-bottom: none;
+margin-bottom: 0;
+}
+.adjustment-group label {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 3px;
+font-size: 12px;
+}
+.adjustment-group input[type="range"]+span {
+font-size: 11px;
+min-width: 25px;
+text-align: right;
+}
+h1 {
+font-size: 1.4rem;
+margin: 0;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<input type="file" id="file-input" accept="image/*" style="display: none;">
+<input type="file" id="project-input" accept=".json" style="display: none;">
+<div class="options-bar">
+<button id="open-btn"></button>
+<button id="import-btn"></button>
+<button id="paste-btn"></button>
+<div class="separator"></div>
+<button id="save-project-btn"></button>
+<button id="load-project-btn"></button>
+<div class="separator"></div>
+<button id="flatten-btn"></button>
+<div class="separator"></div>
+<label for="resize-width" id="width-label"></label>
+<input type="number" id="resize-width" min="1">
+<label for="resize-height" id="height-label"></label>
+<input type="number" id="resize-height" min="1">
+<label id="keep-proportions-label"><input type="checkbox" id="keep-proportions" checked> 🔗</label>
+<button id="resize-btn"></button>
+<div class="separator"></div>
+<button id="zoom-out-btn" title="Zoom out">-</button>
+<button id="fit-to-screen-btn" title="Fit to screen">[ ]</button>
+<button id="zoom-in-btn" title="Zoom in">+</button>
+<span id="zoom-display">100%</span>
+<div class="separator"></div>
+<div id="crop-options" style="display: none; align-items: center; gap: 10px;">
+<button id="apply-crop-btn"></button>
+</div>
+<div id="text-options" style="display: none; align-items: center; gap: 15px;">
+<input type="text" id="text-input">
+<input type="color" id="text-color" value="#000000">
+<select id="font-select">
+<option>Arial</option>
+<option>Verdana</option>
+<option>Times New Roman</option>
+<option>Courier New</option>
+<option>Impact</option>
+</select>
+<input type="number" id="font-size" value="48" min="1">
+<button id="add-text-btn"></button>
+<div class="separator"></div>
+<label><input type="checkbox" id="text-shadow"> <span id="shadow-label"></span></label>
+</div>
+</div>
+<div class="main-container">
+<div class="toolbar">
+<button class="tool-btn active" id="tool-move" title="Move (V)">V</button>
+<button class="tool-btn" id="tool-crop" title="Crop (C)">C</button>
+<button class="tool-btn" id="tool-text" title="Text (T)">T</button>
+</div>
+<div class="canvas-container" id="canvas-container">
+<canvas id="canvas"></canvas>
+<div id="crop-info"></div>
+</div>
+<div class="right-panel">
+<div class="panel-section">
+<h4 id="layers-title"></h4>
+<ul id="layers-list"></ul>
+<div class="layer-controls">
+<button id="layer-up-btn" title="Move Layer Up">▲</button>
+<button id="layer-down-btn" title="Move Layer Down">▼</button>
+<button id="layer-duplicate-btn" title="Duplicate Layer">📋</button>
+<button id="layer-delete-btn" title="Delete Layer">🗑️</button>
+</div>
+<div style="margin-top: 10px; display: flex; align-items: center; gap: 5px;">
+<label for="layer-opacity" style="flex: 0 0 auto;"></label>
+<input type="range" id="layer-opacity" class="adjustment-slider" min="0" max="1" step="0.01" value="1">
+<span id="layer-opacity-value">100%</span>
+</div>
+<div style="margin-top: 5px; display: flex; align-items: center; gap: 5px;">
+<label for="layer-blend-mode" style="flex: 0 0 auto;"></label>
+<select id="layer-blend-mode">
+<option value="source-over">Normal</option>
+<option value="multiply">Multiply</option>
+<option value="screen">Screen</option>
+<option value="overlay">Overlay</option>
+<option value="darken">Darken</option>
+<option value="lighten">Lighten</option>
+<option value="color-dodge">Color Dodge</option>
+<option value="color-burn">Color Burn</option>
+<option value="hard-light">Hard Light</option>
+<option value="soft-light">Soft Light</option>
+<option value="difference">Difference</option>
+<option value="exclusion">Exclusion</option>
+<option value="hue">Hue</option>
+<option value="saturation">Saturation</option>
+<option value="color">Color</option>
+<option value="luminosity">Luminosity</option>
+</select>
+</div>
+</div>
+<div class="panel-section" id="adjustments-panel" style="display: none;">
+<h4 id="adjustments-title"></h4>
+<div class="adjustment-group">
+<label for="adj-brightness">Brightness: <span id="brightness-value">0</span></label>
+<input type="range" id="adj-brightness" class="adjustment-slider" min="-100" max="100" value="0">
+</div>
+<div class="adjustment-group">
+<label for="adj-contrast">Contrast: <span id="contrast-value">0</span></label>
+<input type="range" id="adj-contrast" class="adjustment-slider" min="-100" max="100" value="0">
+</div>
+<div class="adjustment-group">
+<label for="adj-saturation">Saturation: <span id="saturation-value">0</span></label>
+<input type="range" id="adj-saturation" class="adjustment-slider" min="-100" max="100" value="0">
+</div>
+<div class="adjustment-group">
+<label for="adj-hue">Hue: <span id="hue-value">0</span></label>
+<input type="range" id="adj-hue" class="adjustment-slider" min="0" max="360" value="0">
+</div>
+<div class="adjustment-group">
+<label for="adj-sepia">Sepia: <span id="sepia-value">0%</span></label>
+<input type="range" id="adj-sepia" class="adjustment-slider" min="0" max="100" value="0">
+</div>
+<div class="adjustment-group">
+<label for="adj-grayscale">Grayscale: <span id="grayscale-value">0%</span></label>
+<input type="range" id="adj-grayscale" class="adjustment-slider" min="0" max="100" value="0">
+</div>
+<div class="adjustment-group">
+<label for="adj-invert">Invert: <span id="invert-value">0%</span></label>
+<input type="range" id="adj-invert" class="adjustment-slider" min="0" max="100" value="0">
+</div>
+</div>
+<div class="panel-section" id="filters-panel" style="display: none;">
+<h4 id="filters-title"></h4>
+<div class="adjustment-group">
+<label for="filter-blur">Blur (px): <span id="blur-value">0</span></label>
+<input type="range" id="filter-blur" class="adjustment-slider" min="0" max="20" step="0.1" value="0">
+</div>
+<div class="adjustment-group">
+<button id="filter-sharpen" style="width: 100%; margin-bottom: 5px;"></button>
+<button id="filter-emboss" style="width: 100%;"></button>
+</div>
+</div>
+<div class="panel-section">
+<h4 id="export-title"></h4>
+<label for="export-format" id="format-label"></label>
+<select id="export-format">
+<option value="image/png">PNG</option>
+<option value="image/jpeg">JPEG</option>
+<option value="image/webp">WEBP</option>
+</select>
+<div id="quality-control" style="display:none; margin-top: 10px;">
+<label for="export-quality" id="quality-label"></label>
+<input type="range" id="export-quality" min="0.1" max="1" step="0.1" value="0.9">
+</div>
+<img id="export-preview" src="" alt="Export Preview">
+<div id="file-size-info"></div>
+<div id="export-note-text" style="font-size: 11px; color: #888; margin-top: 5px;"></div>
+<button id="export-btn" style="width: 100%; margin-top: 10px;"></button>
+</div>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+const lang = {
+open: "Open",
+importImage: "Import",
+paste: "Paste",
+saveProject: "Save Project",
+loadProject: "Load Project",
+flatten: "Flatten",
+openTitle: "Open image (replaces canvas)",
+importTitle: "Import image as a new layer",
+pasteTitle: "Paste image from clipboard",
+saveProjectTitle: "Save project file (.json)",
+loadProjectTitle: "Load project file (.json)",
+flattenTitle: "Flatten all visible layers into one",
+width: "Width:",
+height: "Height:",
+keepAspectRatio: "Keep aspect ratio",
+resize: "Resize",
+zoomOut: "Zoom out",
+fitToScreen: "Fit to screen",
+zoomIn: "Zoom in",
+applyCrop: "Apply Crop",
+textInputPlaceholder: "Enter text here...",
+addText: "Add Text",
+shadow: "Shadow",
+toolMove: "Move (V)",
+toolCrop: "Crop (C)",
+toolText: "Text (T)",
+layers: "Layers",
+layerOpacity: "Opacity:",
+layerBlendMode: "Blend Mode:",
+moveUp: "Move Up",
+moveDown: "Move Down",
+delete: "Delete",
+showHideLayer: "Show/hide layer",
+duplicateLayer: "Duplicate Layer",
+adjustments: "Adjustments",
+filters: "Filters",
+brightness: "Brightness:",
+contrast: "Contrast:",
+saturation: "Saturation:",
+hue: "Hue:",
+sepia: "Sepia:",
+grayscale: "Grayscale:",
+invert: "Invert:",
+blur: "Blur (px):",
+sharpen: "Sharpen",
+emboss: "Emboss",
+exportTitle: "Export",
+exportImage: "Export Image",
+format: "Format:",
+quality: "Quality:",
+previewAlt: "Preview",
+fileSize: "File size:",
+exportNote: "Note: The exported image is flattened.",
+pastedImage: "Pasted Image",
+croppedImage: "Cropped Image",
+resizedImage: "Resized Image",
+textLayer: "Text:",
+backgroundLayer: "Background",
+flattenedImage: "Flattened Image",
+cropConfirm: "Cropping will merge all layers into one. Do you want to continue?",
+resizeConfirm: "Resizing will merge all layers into one. Do you want to continue?",
+flattenConfirm: "This will merge all visible layers into one. Continue?",
+invalidSize: "Invalid width/height.",
+noImageOnClipboard: "Could not find an image on the clipboard.",
+pasteError: "Could not paste. Please check the console for errors.",
+clipboardDenied: "Access to the clipboard was denied.",
+projectLoadError: "Could not load the project. Please ensure it's a valid .json file.",
+};
+const CONSTANTS = {
+TOOLS: {
+MOVE: 'move',
+CROP: 'crop',
+TEXT: 'text'
+},
+PAN_BUTTON: 1,
+DEFAULT_CANVAS_WIDTH: 800,
+DEFAULT_CANVAS_HEIGHT: 600,
+ADJUSTMENT_DEFAULTS: {
+brightness: 0,
+contrast: 0,
+saturation: 0,
+hue: 0,
+sepia: 0,
+grayscale: 0,
+invert: 0,
+blur: 0
+},
+};
+const state = {
+layers: [],
+activeLayerIndex: -1,
+currentTool: CONSTANTS.TOOLS.MOVE,
+logicalWidth: CONSTANTS.DEFAULT_CANVAS_WIDTH,
+logicalHeight: CONSTANTS.DEFAULT_CANVAS_HEIGHT,
+currentAspectRatio: CONSTANTS.DEFAULT_CANVAS_WIDTH / CONSTANTS.DEFAULT_CANVAS_HEIGHT,
+zoom: 1.0,
+panX: 0,
+panY: 0,
+mouse: {
+isDown: false,
+startX: 0,
+startY: 0,
+dragOffsetX: 0,
+dragOffsetY: 0,
+originalLayerState: null,
+activeHandle: null,
+},
+status: {
+isDragging: false,
+isCropping: false,
+isPanning: false,
+isResizingLayer: false,
+isMovingCrop: false,
+isResizingCrop: false,
+},
+cropRect: {
+x: 0,
+y: 0,
+w: 0,
+h: 0
+},
+};
+const DOM = {
+canvas: document.getElementById('canvas'),
+canvasContainer: document.getElementById('canvas-container'),
+ctx: document.getElementById('canvas').getContext('2d'),
+fileInput: document.getElementById('file-input'),
+projectInput: document.getElementById('project-input'),
+openBtn: document.getElementById('open-btn'),
+importBtn: document.getElementById('import-btn'),
+pasteBtn: document.getElementById('paste-btn'),
+saveProjectBtn: document.getElementById('save-project-btn'),
+loadProjectBtn: document.getElementById('load-project-btn'),
+flattenBtn: document.getElementById('flatten-btn'),
+zoomInBtn: document.getElementById('zoom-in-btn'),
+zoomOutBtn: document.getElementById('zoom-out-btn'),
+fitToScreenBtn: document.getElementById('fit-to-screen-btn'),
+zoomDisplay: document.getElementById('zoom-display'),
+layersList: document.getElementById('layers-list'),
+layerOpacitySlider: document.getElementById('layer-opacity'),
+layerOpacityValue: document.getElementById('layer-opacity-value'),
+layerBlendModeSelect: document.getElementById('layer-blend-mode'),
+layerUpBtn: document.getElementById('layer-up-btn'),
+layerDownBtn: document.getElementById('layer-down-btn'),
+layerDuplicateBtn: document.getElementById('layer-duplicate-btn'),
+layerDeleteBtn: document.getElementById('layer-delete-btn'),
+textOptions: document.getElementById('text-options'),
+addTextBtn: document.getElementById('add-text-btn'),
+textInput: document.getElementById('text-input'),
+textColorInput: document.getElementById('text-color'),
+fontSelect: document.getElementById('font-select'),
+fontSizeInput: document.getElementById('font-size'),
+textShadowCheckbox: document.getElementById('text-shadow'),
+cropOptions: document.getElementById('crop-options'),
+applyCropBtn: document.getElementById('apply-crop-btn'),
+cropInfo: document.getElementById('crop-info'),
+resizeWidthInput: document.getElementById('resize-width'),
+resizeHeightInput: document.getElementById('resize-height'),
+resizeBtn: document.getElementById('resize-btn'),
+keepProportionsCheckbox: document.getElementById('keep-proportions'),
+toolMoveBtn: document.getElementById('tool-move'),
+toolCropBtn: document.getElementById('tool-crop'),
+toolTextBtn: document.getElementById('tool-text'),
+adjustmentsPanel: document.getElementById('adjustments-panel'),
+adjBrightness: document.getElementById('adj-brightness'),
+brightnessValue: document.getElementById('brightness-value'),
+adjContrast: document.getElementById('adj-contrast'),
+contrastValue: document.getElementById('contrast-value'),
+adjSaturation: document.getElementById('adj-saturation'),
+saturationValue: document.getElementById('saturation-value'),
+adjHue: document.getElementById('adj-hue'),
+hueValue: document.getElementById('hue-value'),
+adjSepia: document.getElementById('adj-sepia'),
+sepiaValue: document.getElementById('sepia-value'),
+adjGrayscale: document.getElementById('adj-grayscale'),
+grayscaleValue: document.getElementById('grayscale-value'),
+adjInvert: document.getElementById('adj-invert'),
+invertValue: document.getElementById('invert-value'),
+filtersPanel: document.getElementById('filters-panel'),
+filterBlur: document.getElementById('filter-blur'),
+blurValue: document.getElementById('blur-value'),
+filterSharpenBtn: document.getElementById('filter-sharpen'),
+filterEmbossBtn: document.getElementById('filter-emboss'),
+exportFormatSelect: document.getElementById('export-format'),
+qualityControl: document.getElementById('quality-control'),
+exportQualitySlider: document.getElementById('export-quality'),
+exportPreview: document.getElementById('export-preview'),
+fileSizeInfo: document.getElementById('file-size-info'),
+exportBtn: document.getElementById('export-btn'),
+};
+function updateStaticUIText() {
+DOM.openBtn.textContent = lang.open;
+DOM.openBtn.title = lang.openTitle;
+DOM.importBtn.textContent = lang.importImage;
+DOM.importBtn.title = lang.importTitle;
+DOM.pasteBtn.textContent = lang.paste;
+DOM.pasteBtn.title = lang.pasteTitle;
+DOM.saveProjectBtn.textContent = lang.saveProject;
+DOM.saveProjectBtn.title = lang.saveProjectTitle;
+DOM.loadProjectBtn.textContent = lang.loadProject;
+DOM.loadProjectBtn.title = lang.loadProjectTitle;
+DOM.flattenBtn.textContent = lang.flatten;
+DOM.flattenBtn.title = lang.flattenTitle;
+document.getElementById('width-label').textContent = lang.width;
+document.getElementById('height-label').textContent = lang.height;
+document.getElementById('keep-proportions-label').title = lang.keepAspectRatio;
+DOM.resizeBtn.textContent = lang.resize;
+DOM.applyCropBtn.textContent = lang.applyCrop;
+DOM.textInput.placeholder = lang.textInputPlaceholder;
+DOM.addTextBtn.textContent = lang.addText;
+document.getElementById('shadow-label').textContent = lang.shadow;
+document.getElementById('layers-title').textContent = lang.layers;
+document.getElementById('layer-opacity').previousElementSibling.textContent = lang.layerOpacity;
+document.getElementById('layer-blend-mode').previousElementSibling.textContent = lang.layerBlendMode;
+DOM.layerUpBtn.title = lang.moveUp;
+DOM.layerDownBtn.title = lang.moveDown;
+DOM.layerDuplicateBtn.title = lang.duplicateLayer;
+DOM.layerDeleteBtn.title = lang.delete;
+document.getElementById('adjustments-title').textContent = lang.adjustments;
+document.getElementById('adj-brightness').previousElementSibling.childNodes[0].nodeValue = lang.brightness + ' ';
+document.getElementById('adj-contrast').previousElementSibling.childNodes[0].nodeValue = lang.contrast + ' ';
+document.getElementById('adj-saturation').previousElementSibling.childNodes[0].nodeValue = lang.saturation + ' ';
+document.getElementById('adj-hue').previousElementSibling.childNodes[0].nodeValue = lang.hue + ' ';
+document.getElementById('adj-sepia').previousElementSibling.childNodes[0].nodeValue = lang.sepia + ' ';
+document.getElementById('adj-grayscale').previousElementSibling.childNodes[0].nodeValue = lang.grayscale + ' ';
+document.getElementById('adj-invert').previousElementSibling.childNodes[0].nodeValue = lang.invert + ' ';
+document.getElementById('filters-title').textContent = lang.filters;
+document.getElementById('filter-blur').previousElementSibling.childNodes[0].nodeValue = lang.blur + ' ';
+DOM.filterSharpenBtn.textContent = lang.sharpen;
+DOM.filterEmbossBtn.textContent = lang.emboss;
+document.getElementById('export-title').textContent = lang.exportTitle;
+DOM.exportBtn.textContent = lang.exportImage;
+document.getElementById('format-label').textContent = lang.format;
+document.getElementById('quality-label').textContent = lang.quality;
+DOM.exportPreview.alt = lang.previewAlt;
+document.getElementById('export-note-text').textContent = lang.exportNote;
+}
+const drawAllLayers = (targetCtx) => {
+state.layers.forEach(layer => {
+if (!layer.visible) return;
+const tempCanvas = document.createElement('canvas');
+tempCanvas.width = layer.width;
+tempCanvas.height = layer.height;
+const tempCtx = tempCanvas.getContext('2d', {
+willReadFrequently: true
+});
+if (layer.type === 'image') {
+tempCtx.drawImage(layer.content, 0, 0, layer.width, layer.height);
+} else if (layer.type === 'text') {
+tempCtx.save();
+tempCtx.font = `${layer.fontSize}px ${layer.font}`;
+tempCtx.fillStyle = layer.color;
+if (layer.shadow) {
+tempCtx.shadowColor = 'rgba(0,0,0,0.5)';
+tempCtx.shadowBlur = 5;
+tempCtx.shadowOffsetX = 3;
+tempCtx.shadowOffsetY = 3;
+}
+tempCtx.textBaseline = 'top';
+tempCtx.fillText(layer.content, 0, 0);
+tempCtx.restore();
+}
+const filters = [];
+if (layer.adjustments.brightness !== 0) filters.push(`brightness(${100 + layer.adjustments.brightness}%)`);
+if (layer.adjustments.contrast !== 0) filters.push(`contrast(${100 + layer.adjustments.contrast}%)`);
+if (layer.adjustments.saturation !== 0) filters.push(`saturate(${100 + layer.adjustments.saturation}%)`);
+if (layer.adjustments.hue !== 0) filters.push(`hue-rotate(${layer.adjustments.hue}deg)`);
+if (layer.adjustments.sepia !== 0) filters.push(`sepia(${layer.adjustments.sepia}%)`);
+if (layer.adjustments.grayscale !== 0) filters.push(`grayscale(${layer.adjustments.grayscale}%)`);
+if (layer.adjustments.invert !== 0) filters.push(`invert(${layer.adjustments.invert}%)`);
+if (layer.adjustments.blur > 0) filters.push(`blur(${layer.adjustments.blur}px)`);
+if (filters.length > 0) {
+const snapshot = document.createElement('canvas');
+snapshot.width = tempCanvas.width;
+snapshot.height = tempCanvas.height;
+snapshot.getContext('2d').drawImage(tempCanvas, 0, 0);
+tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+tempCtx.filter = filters.join(' ');
+tempCtx.drawImage(snapshot, 0, 0);
+tempCtx.filter = 'none';
+}
+targetCtx.globalAlpha = layer.opacity;
+targetCtx.globalCompositeOperation = layer.blendMode;
+targetCtx.drawImage(tempCanvas, layer.x, layer.y, layer.width, layer.height);
+targetCtx.globalAlpha = 1.0;
+targetCtx.globalCompositeOperation = 'source-over';
+});
+};
+const updateCanvasSize = () => {
+const rect = DOM.canvasContainer.getBoundingClientRect();
+DOM.canvas.style.width = `${rect.width}px`;
+DOM.canvas.style.height = `${rect.height}px`;
+const dpr = window.devicePixelRatio || 1;
+DOM.canvas.width = rect.width * dpr;
+DOM.canvas.height = rect.height * dpr;
+DOM.ctx.scale(dpr, dpr);
+redrawCanvas();
+};
+const applyConvolutionFilter = (imageData, filterType) => {
+const weights = {
+sharpen: [0, -1, 0, -1, 5, -1, 0, -1, 0],
+emboss: [-2, -1, 0, -1, 1, 1, 0, 1, 2]
+}[filterType];
+const opacity = 1;
+const offset = filterType === 'emboss' ? 128 : 0;
+const pixels = imageData.data;
+const width = imageData.width;
+const height = imageData.height;
+const output = new Uint8ClampedArray(pixels.length);
+const side = Math.round(Math.sqrt(weights.length));
+const halfSide = Math.floor(side / 2);
+for (let y = 0; y < height; y++) {
+for (let x = 0; x < width; x++) {
+const dstOff = (y * width + x) * 4;
+let r = 0,
+g = 0,
+b = 0;
+for (let cy = 0; cy < side; cy++) {
+for (let cx = 0; cx < side; cx++) {
+const scy = y + cy - halfSide;
+const scx = x + cx - halfSide;
+if (scy >= 0 && scy < height && scx >= 0 && scx < width) {
+const srcOff = (scy * width + scx) * 4;
+const wt = weights[cy * side + cx];
+r += pixels[srcOff] * wt;
+g += pixels[srcOff + 1] * wt;
+b += pixels[srcOff + 2] * wt;
+}
+}
+}
+output[dstOff] = Math.min(255, Math.max(0, r * opacity + offset));
+output[dstOff + 1] = Math.min(255, Math.max(0, g * opacity + offset));
+output[dstOff + 2] = Math.min(255, Math.max(0, b * opacity + offset));
+output[dstOff + 3] = pixels[dstOff + 3];
+}
+}
+for (let i = 0; i < pixels.length; i++) {
+pixels[i] = output[i];
+}
+};
+const redrawCanvas = () => {
+const dpr = window.devicePixelRatio || 1;
+const ctx = DOM.ctx;
+ctx.save();
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+const viewWidth = DOM.canvas.width / dpr;
+const viewHeight = DOM.canvas.height / dpr;
+ctx.translate(viewWidth / 2 + state.panX, viewHeight / 2 + state.panY);
+ctx.scale(state.zoom, state.zoom);
+ctx.translate(-state.logicalWidth / 2, -state.logicalHeight / 2);
+drawCheckerboard(ctx, 0, 0, state.logicalWidth, state.logicalHeight, 20);
+drawAllLayers(ctx);
+if (state.activeLayerIndex !== -1 && state.layers[state.activeLayerIndex]?.visible && state.currentTool === CONSTANTS.TOOLS.MOVE) {
+const layer = state.layers[state.activeLayerIndex];
+ctx.strokeStyle = 'rgba(0, 122, 204, 0.8)';
+ctx.lineWidth = 2 / state.zoom;
+ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
+drawHandles(getHandles({
+x: layer.x,
+y: layer.y,
+w: layer.width,
+h: layer.height
+}));
+}
+if (state.currentTool === CONSTANTS.TOOLS.CROP && state.cropRect.w !== 0 && state.cropRect.h !== 0) {
+const normCrop = getNormalizedRect(state.cropRect);
+ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+ctx.beginPath();
+ctx.rect(normCrop.x, normCrop.y, normCrop.w, normCrop.h);
+ctx.rect(0, 0, state.logicalWidth, state.logicalHeight);
+ctx.closePath();
+ctx.fill('evenodd');
+ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+ctx.lineWidth = 1 / state.zoom;
+ctx.strokeRect(normCrop.x, normCrop.y, normCrop.w, normCrop.h);
+drawHandles(getHandles(normCrop));
+}
+ctx.restore();
+};
+const drawCheckerboard = (ctx, x, y, width, height, size) => {
+const light = '#454545';
+const dark = '#3c3c3c';
+for (let i = 0; i < Math.ceil(width / size); i++) {
+for (let j = 0; j < Math.ceil(height / size); j++) {
+ctx.fillStyle = (i + j) % 2 === 0 ? light : dark;
+ctx.fillRect(x + i * size, y + j * size, size, size);
+}
+}
+};
+const drawHandles = (handles) => {
+const ctx = DOM.ctx;
+const handleSize = 8 / state.zoom;
+ctx.fillStyle = 'white';
+ctx.strokeStyle = 'black';
+ctx.lineWidth = 1 / state.zoom;
+for (const handle in handles) {
+const pos = handles[handle];
+ctx.fillRect(pos.x - handleSize / 2, pos.y - handleSize / 2, handleSize, handleSize);
+ctx.strokeRect(pos.x - handleSize / 2, pos.y - handleSize / 2, handleSize, handleSize);
+}
+};
+const getHandles = (rect) => {
+const {
+x,
+y,
+w,
+h
+} = rect;
+return {
+topLeft: {
+x,
+y
+},
+topMiddle: {
+x: x + w / 2,
+y
+},
+topRight: {
+x: x + w,
+y
+},
+middleLeft: {
+x,
+y: y + h / 2
+},
+middleRight: {
+x: x + w,
+y: y + h / 2
+},
+bottomLeft: {
+x,
+y: y + h
+},
+bottomMiddle: {
+x: x + w / 2,
+y: y + h
+},
+bottomRight: {
+x: x + w,
+y: y + h
+},
+};
+};
+const getCursorForHandle = (handleName) => {
+switch (handleName) {
+case 'topLeft':
+case 'bottomRight':
+return 'nwse-resize';
+case 'topRight':
+case 'bottomLeft':
+return 'nesw-resize';
+case 'topMiddle':
+case 'bottomMiddle':
+return 'ns-resize';
+case 'middleLeft':
+case 'middleRight':
+return 'ew-resize';
+default:
+return 'grab';
+}
+};
+const getNormalizedRect = (rect) => ({
+x: rect.w < 0 ? rect.x + rect.w : rect.x,
+y: rect.h < 0 ? rect.y + rect.h : rect.y,
+w: Math.abs(rect.w),
+h: Math.abs(rect.h),
+});
+const getMousePos = (e) => {
+const rect = DOM.canvas.getBoundingClientRect();
+const viewWidth = rect.width;
+const viewHeight = rect.height;
+const mouseX = e.clientX - rect.left;
+const mouseY = e.clientY - rect.top;
+const worldX = (mouseX - viewWidth / 2 - state.panX) / state.zoom + state.logicalWidth / 2;
+const worldY = (mouseY - viewHeight / 2 - state.panY) / state.zoom + state.logicalHeight / 2;
+return {
+x: worldX,
+y: worldY
+};
+};
+const fitToScreen = () => {
+const rect = DOM.canvasContainer.getBoundingClientRect();
+const padding = 40;
+const availableWidth = rect.width - padding;
+const availableHeight = rect.height - padding;
+const scale = Math.min(availableWidth / state.logicalWidth, availableHeight / state.logicalHeight);
+state.zoom = scale;
+state.panX = 0;
+state.panY = 0;
+DOM.zoomDisplay.textContent = `${(state.zoom * 100).toFixed(0)}%`;
+redrawCanvas();
+};
+const doZoom = (delta, centerX, centerY) => {
+const rect = DOM.canvas.getBoundingClientRect();
+const viewWidth = rect.width;
+const viewHeight = rect.height;
+const mouseX = centerX ?? viewWidth / 2;
+const mouseY = centerY ?? viewHeight / 2;
+const worldX_before = (mouseX - viewWidth / 2 - state.panX) / state.zoom + state.logicalWidth / 2;
+const worldY_before = (mouseY - viewHeight / 2 - state.panY) / state.zoom + state.logicalHeight / 2;
+const oldZoom = state.zoom;
+state.zoom = Math.max(0.02, Math.min(32, state.zoom * (1 + delta)));
+state.panX += (worldX_before - state.logicalWidth / 2) * (oldZoom - state.zoom);
+state.panY += (worldY_before - state.logicalHeight / 2) * (oldZoom - state.zoom);
+DOM.zoomDisplay.textContent = `${(state.zoom * 100).toFixed(0)}%`;
+redrawCanvas();
+};
+const createFlattenedCanvas = () => {
+const tempCanvas = document.createElement('canvas');
+tempCanvas.width = state.logicalWidth;
+tempCanvas.height = state.logicalHeight;
+const tempCtx = tempCanvas.getContext('2d', {
+willReadFrequently: true
+});
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = state.logicalWidth;
+bgCanvas.height = state.logicalHeight;
+const bgCtx = bgCanvas.getContext('2d');
+bgCtx.fillStyle = 'white';
+bgCtx.fillRect(0, 0, state.logicalWidth, state.logicalHeight);
+tempCtx.drawImage(bgCanvas, 0, 0);
+drawAllLayers(tempCtx);
+return tempCanvas;
+};
+const updateLayersList = () => {
+DOM.layersList.innerHTML = '';
+[...state.layers].reverse().forEach((layer, index) => {
+const originalIndex = state.layers.length - 1 - index;
+const li = document.createElement('li');
+li.textContent = `${layer.name}`;
+li.dataset.index = originalIndex;
+if (originalIndex === state.activeLayerIndex) {
+li.classList.add('active');
+}
+const visibilityToggle = document.createElement('span');
+visibilityToggle.className = 'visibility-toggle';
+visibilityToggle.innerHTML = layer.visible ? '👁️' : '🙈';
+visibilityToggle.title = lang.showHideLayer;
+visibilityToggle.addEventListener('click', (e) => {
+e.stopPropagation();
+toggleLayerVisibility(originalIndex);
+});
+li.prepend(visibilityToggle);
+li.addEventListener('click', () => setActiveLayer(originalIndex));
+DOM.layersList.appendChild(li);
+});
+updateAdjustmentPanelsVisibility();
+updateAdjustmentPanelValues();
+};
+const toggleLayerVisibility = (index) => {
+state.layers[index].visible = !state.layers[index].visible;
+redrawCanvas();
+updateLayersList();
+updateExportPreview();
+};
+const setActiveLayer = (index) => {
+state.activeLayerIndex = index;
+updateLayersList();
+redrawCanvas();
+};
+const addLayer = (layer, center = false) => {
+layer.opacity = layer.opacity ?? 1.0;
+layer.blendMode = layer.blendMode ?? 'source-over';
+layer.adjustments = layer.adjustments ?? {
+...CONSTANTS.ADJUSTMENT_DEFAULTS
+};
+layer.filterApplied = layer.filterApplied ?? null;
+layer.visible = layer.visible ?? true;
+if (center) {
+layer.x = (state.logicalWidth - layer.width) / 2;
+layer.y = (state.logicalHeight - layer.height) / 2;
+}
+state.layers.push(layer);
+setActiveLayer(state.layers.length - 1);
+updateExportPreview();
+};
+const moveLayer = (direction) => {
+if (state.activeLayerIndex < 0) return;
+const newIndex = state.activeLayerIndex + direction;
+if (newIndex < 0 || newIndex >= state.layers.length) return;
+[state.layers[state.activeLayerIndex], state.layers[newIndex]] = [state.layers[newIndex], state.layers[state.activeLayerIndex]];
+setActiveLayer(newIndex);
+updateExportPreview();
+};
+const duplicateActiveLayer = () => {
+if (state.activeLayerIndex < 0) return;
+const originalLayer = state.layers[state.activeLayerIndex];
+let newContent;
+const newLayer = {
+...originalLayer,
+name: `${originalLayer.name} (copy)`,
+x: originalLayer.x + 10,
+y: originalLayer.y + 10,
+};
+if (originalLayer.type === 'image') {
+newContent = new Image();
+newContent.onload = () => {
+newLayer.content = newContent;
+addLayer(newLayer);
+};
+if (originalLayer.content instanceof HTMLImageElement) {
+newContent.src = originalLayer.content.src;
+} else if (originalLayer.content instanceof HTMLCanvasElement) {
+newContent.src = originalLayer.content.toDataURL();
+}
+} else if (originalLayer.type === 'text') {
+addLayer(newLayer);
+}
+};
+const deleteActiveLayer = () => {
+if (state.activeLayerIndex > -1) {
+state.layers.splice(state.activeLayerIndex, 1);
+const newActiveIndex = state.layers.length > 0 ? Math.min(state.activeLayerIndex, state.layers.length - 1) : -1;
+setActiveLayer(newActiveIndex);
+updateLayersList();
+redrawCanvas();
+updateExportPreview();
+}
+};
+const switchTool = (tool) => {
+document.querySelector('.tool-btn.active')?.classList.remove('active');
+document.getElementById(`tool-${tool}`).classList.add('active');
+state.currentTool = tool;
+DOM.textOptions.style.display = tool === CONSTANTS.TOOLS.TEXT ? 'flex' : 'none';
+DOM.cropOptions.style.display = 'none';
+if (tool !== CONSTANTS.TOOLS.CROP) {
+state.cropRect = {
+x: 0,
+y: 0,
+w: 0,
+h: 0
+};
+} else if (tool === CONSTANTS.TOOLS.CROP && state.cropRect.w !== 0) {
+DOM.cropOptions.style.display = 'flex';
+}
+DOM.canvas.style.cursor = tool === CONSTANTS.TOOLS.CROP ? 'crosshair' : (tool === CONSTANTS.TOOLS.MOVE ? 'grab' : 'default');
+redrawCanvas();
+};
+const updateExportPreview = () => {
+const tempCanvas = createFlattenedCanvas();
+const format = DOM.exportFormatSelect.value;
+const quality = parseFloat(DOM.exportQualitySlider.value);
+DOM.qualityControl.style.display = ['image/jpeg', 'image/webp'].includes(format) ? 'block' : 'none';
+tempCanvas.toBlob(blob => {
+if (blob) {
+if (DOM.exportPreview.src) URL.revokeObjectURL(DOM.exportPreview.src);
+const url = URL.createObjectURL(blob);
+DOM.exportPreview.src = url;
+DOM.fileSizeInfo.textContent = `${lang.fileSize} ${(blob.size / 1024).toFixed(2)} KB`;
+} else {
+DOM.fileSizeInfo.textContent = `${lang.fileSize} N/A`;
+}
+}, format, quality);
+};
+const applyCrop = () => {
+if (Math.abs(state.cropRect.w) < 1 || Math.abs(state.cropRect.h) < 1) return;
+if (!confirm(lang.cropConfirm)) return;
+const normCrop = getNormalizedRect(state.cropRect);
+const newWidth = Math.round(normCrop.w);
+const newHeight = Math.round(normCrop.h);
+const flattenedCanvas = createFlattenedCanvas();
+const tempCanvas = document.createElement('canvas');
+tempCanvas.width = newWidth;
+tempCanvas.height = newHeight;
+const tempCtx = tempCanvas.getContext('2d');
+tempCtx.drawImage(flattenedCanvas, normCrop.x, normCrop.y, normCrop.w, normCrop.h, 0, 0, newWidth, newHeight);
+state.logicalWidth = newWidth;
+state.logicalHeight = newHeight;
+state.currentAspectRatio = newWidth / newHeight;
+DOM.resizeWidthInput.value = newWidth;
+DOM.resizeHeightInput.value = newHeight;
+const newImg = new Image();
+newImg.onload = () => {
+state.layers = [{
+type: 'image',
+name: lang.croppedImage,
+content: newImg,
+x: 0,
+y: 0,
+width: newWidth,
+height: newHeight,
+visible: true,
+opacity: 1.0,
+blendMode: 'source-over',
+adjustments: {
+...CONSTANTS.ADJUSTMENT_DEFAULTS
+},
+filterApplied: null
+}];
+setActiveLayer(0);
+switchTool(CONSTANTS.TOOLS.MOVE);
+fitToScreen();
+};
+newImg.src = tempCanvas.toDataURL();
+};
+const pasteFromClipboard = async () => {
+try {
+const permission = await navigator.permissions.query({
+name: 'clipboard-read'
+});
+if (permission.state === 'denied') {
+throw new Error(lang.clipboardDenied);
+}
+const clipboardItems = await navigator.clipboard.read();
+for (const item of clipboardItems) {
+const imageType = item.types.find(type => type.startsWith('image/'));
+if (imageType) {
+const blob = await item.getType(imageType);
+const img = new Image();
+img.onload = () => {
+addLayer({
+type: 'image',
+name: lang.pastedImage,
+content: img,
+x: 0,
+y: 0,
+width: img.width,
+height: img.height,
+visible: true
+}, true);
+URL.revokeObjectURL(img.src);
+};
+img.src = URL.createObjectURL(blob);
+return;
+}
+}
+alert(lang.noImageOnClipboard);
+} catch (err) {
+console.error('Could not paste from clipboard:', err);
+alert(lang.pasteError);
+}
+};
+const loadImageToLayer = (img, fileName, replaceAll = false) => {
+if (replaceAll) {
+state.logicalWidth = img.width;
+state.logicalHeight = img.height;
+state.currentAspectRatio = state.logicalWidth / state.logicalHeight;
+DOM.resizeWidthInput.value = img.width;
+DOM.resizeHeightInput.value = img.height;
+state.layers = [{
+type: 'image',
+name: fileName,
+content: img,
+x: 0,
+y: 0,
+width: img.width,
+height: img.height,
+visible: true,
+opacity: 1.0,
+blendMode: 'source-over',
+adjustments: {
+...CONSTANTS.ADJUSTMENT_DEFAULTS
+},
+filterApplied: null
+}];
+setActiveLayer(0);
+} else {
+addLayer({
+type: 'image',
+name: fileName,
+content: img,
+x: 0,
+y: 0,
+width: img.width,
+height: img.height,
+visible: true
+}, true);
+}
+fitToScreen();
+updateExportPreview();
+};
+const updateAdjustmentPanelsVisibility = () => {
+const activeLayer = state.layers[state.activeLayerIndex];
+const isImageLayer = activeLayer && activeLayer.type === 'image';
+DOM.adjustmentsPanel.style.display = isImageLayer ? 'block' : 'none';
+DOM.filtersPanel.style.display = isImageLayer ? 'block' : 'none';
+};
+const updateAdjustmentPanelValues = () => {
+const activeLayer = state.layers[state.activeLayerIndex];
+if (activeLayer) {
+DOM.layerOpacitySlider.value = activeLayer.opacity;
+DOM.layerOpacityValue.textContent = `${Math.round(activeLayer.opacity * 100)}%`;
+DOM.layerBlendModeSelect.value = activeLayer.blendMode;
+if (activeLayer.type === 'image') {
+DOM.adjBrightness.value = activeLayer.adjustments.brightness;
+DOM.brightnessValue.textContent = activeLayer.adjustments.brightness;
+DOM.adjContrast.value = activeLayer.adjustments.contrast;
+DOM.contrastValue.textContent = activeLayer.adjustments.contrast;
+DOM.adjSaturation.value = activeLayer.adjustments.saturation;
+DOM.saturationValue.textContent = activeLayer.adjustments.saturation;
+DOM.adjHue.value = activeLayer.adjustments.hue;
+DOM.hueValue.textContent = activeLayer.adjustments.hue;
+DOM.adjSepia.value = activeLayer.adjustments.sepia;
+DOM.sepiaValue.textContent = `${activeLayer.adjustments.sepia}%`;
+DOM.adjGrayscale.value = activeLayer.adjustments.grayscale;
+DOM.grayscaleValue.textContent = `${activeLayer.adjustments.grayscale}%`;
+DOM.adjInvert.value = activeLayer.adjustments.invert;
+DOM.invertValue.textContent = `${activeLayer.adjustments.invert}%`;
+DOM.filterBlur.value = activeLayer.adjustments.blur;
+DOM.blurValue.textContent = activeLayer.adjustments.blur;
+}
+} else {
+DOM.layerOpacitySlider.value = 1;
+DOM.layerOpacityValue.textContent = '100%';
+DOM.layerBlendModeSelect.value = 'source-over';
+}
+};
+const flattenImage = () => {
+if (!confirm(lang.flattenConfirm)) return;
+if (state.layers.length <= 1) return;
+const flattenedCanvas = createFlattenedCanvas();
+const newImg = new Image();
+newImg.onload = () => {
+state.layers = [{
+type: 'image',
+name: lang.flattenedImage,
+content: newImg,
+x: 0,
+y: 0,
+width: state.logicalWidth,
+height: state.logicalHeight,
+visible: true,
+opacity: 1.0,
+blendMode: 'source-over',
+adjustments: {
+...CONSTANTS.ADJUSTMENT_DEFAULTS
+},
+filterApplied: null
+}];
+setActiveLayer(0);
+fitToScreen();
+updateExportPreview();
+};
+newImg.src = flattenedCanvas.toDataURL();
+};
+const saveProject = () => {
+const projectData = {
+logicalWidth: state.logicalWidth,
+logicalHeight: state.logicalHeight,
+layers: state.layers.map(layer => {
+const layerCopy = {
+...layer
+};
+if (layerCopy.type === 'image' && (layerCopy.content instanceof Image || layerCopy.content instanceof HTMLCanvasElement)) {
+const tempCanvas = document.createElement('canvas');
+tempCanvas.width = layerCopy.width;
+tempCanvas.height = layerCopy.height;
+tempCanvas.getContext('2d').drawImage(layerCopy.content, 0, 0);
+layerCopy.content = tempCanvas.toDataURL();
+}
+return layerCopy;
+})
+};
+const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData));
+const downloadAnchorNode = document.createElement('a');
+downloadAnchorNode.setAttribute("href", dataStr);
+downloadAnchorNode.setAttribute("download", "image-project.json");
+document.body.appendChild(downloadAnchorNode);
+downloadAnchorNode.click();
+downloadAnchorNode.remove();
+};
+const loadProject = (jsonString) => {
+try {
+const projectData = JSON.parse(jsonString);
+state.logicalWidth = projectData.logicalWidth;
+state.logicalHeight = projectData.logicalHeight;
+state.currentAspectRatio = state.logicalWidth / state.logicalHeight;
+DOM.resizeWidthInput.value = state.logicalWidth;
+DOM.resizeHeightInput.value = state.logicalHeight;
+state.layers = [];
+let layersLoadedCount = 0;
+const totalLayers = projectData.layers.length;
+if (totalLayers === 0) {
+initDefaultBackground();
+return;
+}
+projectData.layers.forEach((layerData, index) => {
+const newLayerData = {
+...layerData,
+opacity: layerData.opacity ?? 1.0,
+blendMode: layerData.blendMode ?? 'source-over',
+adjustments: layerData.adjustments ?? {
+...CONSTANTS.ADJUSTMENT_DEFAULTS
+},
+filterApplied: layerData.filterApplied ?? null,
+visible: layerData.visible ?? true,
+};
+if (layerData.type === 'image' && typeof layerData.content === 'string') {
+const img = new Image();
+img.onload = () => {
+state.layers[index] = {
+...newLayerData,
+content: img
+};
+layersLoadedCount++;
+if (layersLoadedCount === totalLayers) onAllLayersLoaded();
+};
+img.onerror = () => {
+console.error(`Could not load image for layer: ${layerData.name}`);
+layersLoadedCount++;
+if (layersLoadedCount === totalLayers) onAllLayersLoaded();
+};
+img.src = layerData.content;
+} else {
+state.layers[index] = newLayerData;
+layersLoadedCount++;
+if (layersLoadedCount === totalLayers) onAllLayersLoaded();
+}
+});
+function onAllLayersLoaded() {
+setActiveLayer(state.layers.length > 0 ? state.layers.length - 1 : -1);
+fitToScreen();
+updateExportPreview();
+}
+} catch (e) {
+console.error(lang.projectLoadError, e);
+alert(lang.projectLoadError);
+}
+};
+function handleMouseDown(e) {
+if (e.button === CONSTANTS.PAN_BUTTON || (e.button === 0 && e.altKey && state.currentTool !== CONSTANTS.TOOLS.MOVE)) {
+state.status.isPanning = true;
+DOM.canvas.style.cursor = 'grabbing';
+return;
+}
+if (e.button !== 0) return;
+const pos = getMousePos(e);
+state.mouse.startX = pos.x;
+state.mouse.startY = pos.y;
+state.mouse.isDown = true;
+if (state.currentTool === CONSTANTS.TOOLS.MOVE && state.activeLayerIndex !== -1 && state.layers[state.activeLayerIndex].visible) {
+const layer = state.layers[state.activeLayerIndex];
+const handles = getHandles({
+x: layer.x,
+y: layer.y,
+w: layer.width,
+h: layer.height
+});
+const handleSize = 10 / state.zoom;
+for (const handleName in handles) {
+const handlePos = handles[handleName];
+if (Math.abs(pos.x - handlePos.x) < handleSize / 2 && Math.abs(pos.y - handlePos.y) < handleSize / 2) {
+state.status.isResizingLayer = true;
+state.mouse.activeHandle = handleName;
+state.mouse.originalLayerState = {
+...layer
+};
+DOM.canvas.style.cursor = getCursorForHandle(handleName);
+return;
+}
+}
+}
+if (state.currentTool === CONSTANTS.TOOLS.CROP && state.cropRect.w !== 0 && state.cropRect.h !== 0) {
+const normCrop = getNormalizedRect(state.cropRect);
+const handles = getHandles(normCrop);
+const handleSize = 10 / state.zoom;
+for (const handleName in handles) {
+const handlePos = handles[handleName];
+if (Math.abs(pos.x - handlePos.x) < handleSize / 2 && Math.abs(pos.y - handlePos.y) < handleSize / 2) {
+state.status.isResizingCrop = true;
+state.mouse.activeHandle = handleName;
+state.mouse.originalLayerState = {
+...state.cropRect
+};
+DOM.canvas.style.cursor = getCursorForHandle(handleName);
+return;
+}
+}
+if (pos.x >= normCrop.x && pos.x <= normCrop.x + normCrop.w && pos.y >= normCrop.y && pos.y <= normCrop.y + normCrop.h) {
+state.status.isMovingCrop = true;
+state.mouse.dragOffsetX = pos.x - state.cropRect.x;
+state.mouse.dragOffsetY = pos.y - state.cropRect.y;
+DOM.canvas.style.cursor = 'move';
+return;
+}
+}
+if (state.currentTool === CONSTANTS.TOOLS.MOVE) {
+let clickedIdx = -1;
+for (let i = state.layers.length - 1; i >= 0; i--) {
+const l = state.layers[i];
+if (l.visible && pos.x >= l.x && pos.x <= l.x + l.width && pos.y >= l.y && pos.y <= l.y + l.height) {
+clickedIdx = i;
+break;
+}
+}
+if (clickedIdx !== -1) {
+state.status.isDragging = true;
+setActiveLayer(clickedIdx);
+state.mouse.dragOffsetX = pos.x - state.layers[clickedIdx].x;
+state.mouse.dragOffsetY = pos.y - state.layers[clickedIdx].y;
+DOM.canvas.style.cursor = 'grabbing';
+}
+} else if (state.currentTool === CONSTANTS.TOOLS.CROP) {
+state.status.isCropping = true;
+state.cropRect = {
+x: state.mouse.startX,
+y: state.mouse.startY,
+w: 0,
+h: 0
+};
+DOM.cropOptions.style.display = 'none';
+}
+}
+function handleMouseMove(e) {
+if (state.status.isPanning) {
+state.panX += e.movementX;
+state.panY += e.movementY;
+redrawCanvas();
+return;
+}
+if (!state.mouse.isDown) {
+updateCursor(e);
+return;
+}
+const pos = getMousePos(e);
+if (state.status.isResizingLayer) handleLayerResize(pos, e.shiftKey, e.altKey);
+else if (state.status.isResizingCrop) handleCropResize(pos);
+else if (state.status.isMovingCrop) handleCropMove(pos);
+else if (state.status.isDragging) handleLayerDrag(pos);
+else if (state.status.isCropping) handleCropDraw(pos, e.clientX, e.clientY);
+}
+function handleMouseUp() {
+if (state.status.isCropping || state.status.isResizingCrop) {
+state.cropRect = getNormalizedRect(state.cropRect);
+}
+if (state.status.isCropping) {
+if (Math.abs(state.cropRect.w) > 5 || Math.abs(state.cropRect.h) > 5) {
+DOM.cropOptions.style.display = 'flex';
+} else {
+DOM.cropOptions.style.display = 'none';
+state.cropRect = {
+x: 0,
+y: 0,
+w: 0,
+h: 0
+};
+redrawCanvas();
+}
+}
+if (state.status.isResizingLayer || state.status.isDragging) {
+updateExportPreview();
+}
+DOM.cropInfo.style.display = 'none';
+for (let key in state.status) {
+state.status[key] = false;
+}
+state.mouse.isDown = false;
+state.mouse.activeHandle = null;
+updateCursor();
+}
+function handleLayerDrag(pos) {
+state.layers[state.activeLayerIndex].x = pos.x - state.mouse.dragOffsetX;
+state.layers[state.activeLayerIndex].y = pos.y - state.mouse.dragOffsetY;
+redrawCanvas();
+}
+function handleCropDraw(pos, clientX, clientY) {
+state.cropRect.w = pos.x - state.mouse.startX;
+state.cropRect.h = pos.y - state.mouse.startY;
+const normCrop = getNormalizedRect(state.cropRect);
+DOM.cropInfo.style.display = 'block';
+DOM.cropInfo.style.left = `${clientX}px`;
+DOM.cropInfo.style.top = `${clientY}px`;
+DOM.cropInfo.textContent = `${Math.round(normCrop.w)} x ${Math.round(normCrop.h)} px`;
+redrawCanvas();
+}
+function handleCropMove(pos) {
+state.cropRect.x = pos.x - state.mouse.dragOffsetX;
+state.cropRect.y = pos.y - state.mouse.dragOffsetY;
+redrawCanvas();
+}
+function handleLayerResize(pos, shiftKey, altKey) {
+const layer = state.layers[state.activeLayerIndex];
+const dx = pos.x - state.mouse.startX;
+const dy = pos.y - state.mouse.startY;
+let {
+x,
+y,
+width,
+height
+} = state.mouse.originalLayerState;
+const aspect = width / height;
+let newX = x,
+newY = y,
+newW = width,
+newH = height;
+switch (state.mouse.activeHandle) {
+case 'topLeft':
+newW = width - dx;
+newH = height - dy;
+newX = x + dx;
+newY = y + dy;
+if (shiftKey) {
+newH = newW / aspect;
+newY = y + (height - newH);
+}
+break;
+case 'topMiddle':
+newH = height - dy;
+newY = y + dy;
+break;
+case 'topRight':
+newW = width + dx;
+newH = height - dy;
+newY = y + dy;
+if (shiftKey) {
+newH = newW / aspect;
+newY = y + (height - newH);
+}
+break;
+case 'middleLeft':
+newW = width - dx;
+newX = x + dx;
+break;
+case 'middleRight':
+newW = width + dx;
+break;
+case 'bottomLeft':
+newW = width - dx;
+newH = height + dy;
+newX = x + dx;
+if (shiftKey) {
+newH = newW / aspect;
+}
+break;
+case 'bottomMiddle':
+newH = height + dy;
+break;
+case 'bottomRight':
+newW = width + dx;
+newH = height + dy;
+if (shiftKey) {
+newH = newW / aspect;
+}
+break;
+}
+if (altKey) {
+const dW = newW - width;
+const dH = newH - height;
+newX -= dW / 2;
+newY -= dH / 2;
+}
+if (layer.type === 'text') {
+const scaleFactor = newW / state.mouse.originalLayerState.width;
+const newFontSize = state.mouse.originalLayerState.fontSize * scaleFactor;
+if (newFontSize >= 5) {
+layer.fontSize = newFontSize;
+DOM.ctx.font = `${layer.fontSize}px ${layer.font}`;
+const metrics = DOM.ctx.measureText(layer.content);
+layer.width = metrics.width;
+layer.height = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+layer.x = newX;
+layer.y = newY;
+}
+} else {
+if (newW > 10) {
+layer.x = newX;
+layer.width = newW;
+}
+if (newH > 10) {
+layer.y = newY;
+layer.height = newH;
+}
+}
+redrawCanvas();
+}
+function handleCropResize(pos) {
+const dx = pos.x - state.mouse.startX;
+const dy = pos.y - state.mouse.startY;
+let {
+x,
+y,
+w,
+h
+} = state.mouse.originalLayerState;
+switch (state.mouse.activeHandle) {
+case 'topLeft':
+w -= dx;
+h -= dy;
+x += dx;
+y += dy;
+break;
+case 'topMiddle':
+h -= dy;
+y += dy;
+break;
+case 'topRight':
+w += dx;
+h -= dy;
+y += dy;
+break;
+case 'middleLeft':
+w -= dx;
+x += dx;
+break;
+case 'middleRight':
+w += dx;
+break;
+case 'bottomLeft':
+w -= dx;
+h += dy;
+x += dx;
+break;
+case 'bottomMiddle':
+h += dy;
+break;
+case 'bottomRight':
+w += dx;
+h += dy;
+break;
+}
+state.cropRect = {
+x,
+y,
+w,
+h
+};
+redrawCanvas();
+}
+function updateCursor(e) {
+if (state.mouse.isDown) return;
+const pos = e ? getMousePos(e) : null;
+let newCursor = 'default';
+if (state.currentTool === CONSTANTS.TOOLS.MOVE) {
+newCursor = 'grab';
+if (pos && state.activeLayerIndex !== -1 && state.layers[state.activeLayerIndex].visible) {
+const layer = state.layers[state.activeLayerIndex];
+const handles = getHandles({
+x: layer.x,
+y: layer.y,
+w: layer.width,
+h: layer.height
+});
+const handleSize = 10 / state.zoom;
+for (const handleName in handles) {
+const handlePos = handles[handleName];
+if (Math.abs(pos.x - handlePos.x) < handleSize / 2 && Math.abs(pos.y - handlePos.y) < handleSize / 2) {
+newCursor = getCursorForHandle(handleName);
+break;
+}
+}
+}
+} else if (state.currentTool === CONSTANTS.TOOLS.CROP) {
+newCursor = 'crosshair';
+if (pos && state.cropRect.w !== 0) {
+const normCrop = getNormalizedRect(state.cropRect);
+const handles = getHandles(normCrop);
+const handleSize = 10 / state.zoom;
+let onHandle = false;
+for (const handleName in handles) {
+const handlePos = handles[handleName];
+if (Math.abs(pos.x - handlePos.x) < handleSize / 2 && Math.abs(pos.y - handlePos.y) < handleSize / 2) {
+newCursor = getCursorForHandle(handleName);
+onHandle = true;
+break;
+}
+}
+if (!onHandle && pos.x >= normCrop.x && pos.x <= normCrop.x + normCrop.w && pos.y >= normCrop.y && pos.y <= normCrop.y + normCrop.h) {
+newCursor = 'move';
+}
+}
+}
+DOM.canvas.style.cursor = newCursor;
+}
+function setupEventListeners() {
+DOM.toolMoveBtn.addEventListener('click', () => switchTool(CONSTANTS.TOOLS.MOVE));
+DOM.toolCropBtn.addEventListener('click', () => switchTool(CONSTANTS.TOOLS.CROP));
+DOM.toolTextBtn.addEventListener('click', () => switchTool(CONSTANTS.TOOLS.TEXT));
+DOM.openBtn.addEventListener('click', () => {
+DOM.fileInput.dataset.mode = '';
+DOM.fileInput.click();
+});
+DOM.importBtn.addEventListener('click', () => {
+DOM.fileInput.dataset.mode = 'import';
+DOM.fileInput.click();
+});
+DOM.fileInput.addEventListener('change', (e) => {
+const file = e.target.files[0];
+if (!file) return;
+const reader = new FileReader();
+reader.onload = (event) => {
+const img = new Image();
+img.onload = () => loadImageToLayer(img, file.name, e.target.dataset.mode !== 'import');
+img.src = event.target.result;
+};
+reader.readAsDataURL(file);
+DOM.fileInput.value = '';
+});
+DOM.pasteBtn.addEventListener('click', pasteFromClipboard);
+DOM.saveProjectBtn.addEventListener('click', saveProject);
+DOM.loadProjectBtn.addEventListener('click', () => DOM.projectInput.click());
+DOM.projectInput.addEventListener('change', (e) => {
+const file = e.target.files[0];
+if (!file) return;
+const reader = new FileReader();
+reader.onload = (event) => loadProject(event.target.result);
+reader.readAsText(file);
+DOM.projectInput.value = '';
+});
+DOM.flattenBtn.addEventListener('click', flattenImage);
+DOM.resizeWidthInput.addEventListener('input', () => {
+if (DOM.keepProportionsCheckbox.checked) {
+const newWidth = parseInt(DOM.resizeWidthInput.value, 10);
+if (!isNaN(newWidth) && newWidth > 0) {
+DOM.resizeHeightInput.value = Math.round(newWidth / state.currentAspectRatio);
+}
+}
+});
+DOM.resizeHeightInput.addEventListener('input', () => {
+if (DOM.keepProportionsCheckbox.checked) {
+const newHeight = parseInt(DOM.resizeHeightInput.value, 10);
+if (!isNaN(newHeight) && newHeight > 0) {
+DOM.resizeWidthInput.value = Math.round(newHeight * state.currentAspectRatio);
+}
+}
+});
+DOM.resizeBtn.addEventListener('click', () => {
+const newWidth = parseInt(DOM.resizeWidthInput.value, 10);
+const newHeight = parseInt(DOM.resizeHeightInput.value, 10);
+if (isNaN(newWidth) || isNaN(newHeight) || newWidth <= 0 || newHeight <= 0) {
+return alert(lang.invalidSize);
+}
+if (!confirm(lang.resizeConfirm)) return;
+state.currentAspectRatio = newWidth / newHeight;
+const flattenedCanvas = createFlattenedCanvas();
+const tempCanvas = document.createElement('canvas');
+tempCanvas.width = newWidth;
+tempCanvas.height = newHeight;
+const tempCtx = tempCanvas.getContext('2d');
+tempCtx.imageSmoothingQuality = 'high';
+tempCtx.drawImage(flattenedCanvas, 0, 0, state.logicalWidth, state.logicalHeight, 0, 0, newWidth, newHeight);
+state.logicalWidth = newWidth;
+state.logicalHeight = newHeight;
+const img = new Image();
+img.onload = () => {
+state.layers = [{
+type: 'image',
+name: lang.resizedImage,
+content: img,
+x: 0,
+y: 0,
+width: newWidth,
+height: newHeight,
+visible: true,
+opacity: 1.0,
+blendMode: 'source-over',
+adjustments: {
+...CONSTANTS.ADJUSTMENT_DEFAULTS
+},
+filterApplied: null
+}];
+setActiveLayer(0);
+fitToScreen();
+updateExportPreview();
+};
+img.src = tempCanvas.toDataURL();
+});
+DOM.canvasContainer.addEventListener('wheel', (e) => {
+e.preventDefault();
+const delta = e.deltaY > 0 ? -0.1 : 0.1;
+if (e.ctrlKey || e.metaKey) {
+doZoom(delta, e.offsetX, e.offsetY);
+} else {
+state.panX -= e.deltaX;
+state.panY -= e.deltaY;
+redrawCanvas();
+}
+}, {
+passive: false
+});
+DOM.zoomInBtn.addEventListener('click', () => doZoom(0.2));
+DOM.zoomOutBtn.addEventListener('click', () => doZoom(-0.2));
+DOM.fitToScreenBtn.addEventListener('click', fitToScreen);
+DOM.canvas.addEventListener('mousedown', handleMouseDown);
+DOM.canvas.addEventListener('mousemove', handleMouseMove);
+window.addEventListener('mouseup', handleMouseUp);
+document.addEventListener('keydown', (e) => {
+if (document.activeElement.tagName.match(/INPUT|SELECT/)) return;
+if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+e.preventDefault();
+pasteFromClipboard();
+return;
+}
+const toolMap = {
+v: CONSTANTS.TOOLS.MOVE,
+c: CONSTANTS.TOOLS.CROP,
+t: CONSTANTS.TOOLS.TEXT
+};
+if (toolMap[e.key.toLowerCase()]) switchTool(toolMap[e.key.toLowerCase()]);
+if (e.key === 'Delete' || e.key === 'Backspace') deleteActiveLayer();
+if (e.key === 'Enter' && state.currentTool === CONSTANTS.TOOLS.CROP && Math.abs(state.cropRect.w) > 0) applyCrop();
+});
+DOM.addTextBtn.addEventListener('click', () => {
+const text = DOM.textInput.value;
+if (!text) return;
+const color = DOM.textColorInput.value;
+const font = DOM.fontSelect.value;
+const fontSize = parseInt(DOM.fontSizeInput.value, 10);
+const shadow = DOM.textShadowCheckbox.checked;
+const tempCtx = document.createElement('canvas').getContext('2d');
+tempCtx.font = `${fontSize}px ${font}`;
+const metrics = tempCtx.measureText(text);
+const height = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+addLayer({
+type: 'text',
+name: `${lang.textLayer} "${text.substring(0, Math.min(text.length, 10))}..."`,
+content: text,
+x: 0,
+y: 0,
+width: metrics.width,
+height,
+color,
+font,
+fontSize,
+shadow,
+visible: true
+}, true);
+switchTool(CONSTANTS.TOOLS.MOVE);
+});
+DOM.applyCropBtn.addEventListener('click', applyCrop);
+DOM.layerUpBtn.addEventListener('click', () => moveLayer(1));
+DOM.layerDownBtn.addEventListener('click', () => moveLayer(-1));
+DOM.layerDuplicateBtn.addEventListener('click', duplicateActiveLayer);
+DOM.layerDeleteBtn.addEventListener('click', deleteActiveLayer);
+DOM.layerOpacitySlider.addEventListener('input', () => {
+const layer = state.layers[state.activeLayerIndex];
+if (layer) {
+layer.opacity = parseFloat(DOM.layerOpacitySlider.value);
+DOM.layerOpacityValue.textContent = `${Math.round(layer.opacity * 100)}%`;
+redrawCanvas();
+}
+});
+DOM.layerOpacitySlider.addEventListener('change', () => {
+if (state.layers[state.activeLayerIndex]) updateExportPreview();
+});
+DOM.layerBlendModeSelect.addEventListener('change', () => {
+const layer = state.layers[state.activeLayerIndex];
+if (layer) {
+layer.blendMode = DOM.layerBlendModeSelect.value;
+redrawCanvas();
+updateExportPreview();
+}
+});
+const adjustmentInputs = [{
+id: DOM.adjBrightness,
+key: 'brightness',
+display: DOM.brightnessValue
+}, {
+id: DOM.adjContrast,
+key: 'contrast',
+display: DOM.contrastValue
+}, {
+id: DOM.adjSaturation,
+key: 'saturation',
+display: DOM.saturationValue
+}, {
+id: DOM.adjHue,
+key: 'hue',
+display: DOM.hueValue
+}, {
+id: DOM.adjSepia,
+key: 'sepia',
+display: DOM.sepiaValue,
+suffix: '%'
+}, {
+id: DOM.adjGrayscale,
+key: 'grayscale',
+display: DOM.grayscaleValue,
+suffix: '%'
+}, {
+id: DOM.adjInvert,
+key: 'invert',
+display: DOM.invertValue,
+suffix: '%'
+},];
+adjustmentInputs.forEach(item => {
+item.id.addEventListener('input', () => {
+const layer = state.layers[state.activeLayerIndex];
+if (layer && layer.type === 'image') {
+layer.adjustments[item.key] = parseFloat(item.id.value);
+item.display.textContent = `${item.id.value}${item.suffix || ''}`;
+redrawCanvas();
+}
+});
+item.id.addEventListener('change', () => {
+if (state.layers[state.activeLayerIndex]) updateExportPreview();
+});
+});
+DOM.filterBlur.addEventListener('input', () => {
+const layer = state.layers[state.activeLayerIndex];
+if (layer && layer.type === 'image') {
+layer.adjustments.blur = parseFloat(DOM.filterBlur.value);
+DOM.blurValue.textContent = layer.adjustments.blur;
+redrawCanvas();
+}
+});
+DOM.filterBlur.addEventListener('change', () => {
+if (state.layers[state.activeLayerIndex]) updateExportPreview();
+});
+const applyPermanentFilter = (filterType) => {
+const layer = state.layers[state.activeLayerIndex];
+if (layer && layer.type === 'image') {
+const tempCanvas = document.createElement('canvas');
+tempCanvas.width = layer.width;
+tempCanvas.height = layer.height;
+const tempCtx = tempCanvas.getContext('2d', {
+willReadFrequently: true
+});
+tempCtx.drawImage(layer.content, 0, 0, layer.width, layer.height);
+const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+applyConvolutionFilter(imageData, filterType);
+tempCtx.putImageData(imageData, 0, 0);
+const newImg = new Image();
+newImg.onload = () => {
+layer.content = newImg;
+redrawCanvas();
+updateExportPreview();
+};
+newImg.src = tempCanvas.toDataURL();
+}
+};
+DOM.filterSharpenBtn.addEventListener('click', () => applyPermanentFilter('sharpen'));
+DOM.filterEmbossBtn.addEventListener('click', () => applyPermanentFilter('emboss'));
+DOM.exportFormatSelect.addEventListener('change', updateExportPreview);
+DOM.exportQualitySlider.addEventListener('input', updateExportPreview);
+DOM.exportBtn.addEventListener('click', () => {
+const link = document.createElement('a');
+const ext = DOM.exportFormatSelect.value.split('/')[1];
+link.download = `edited-image.${ext === 'jpeg' ? 'jpg' : ext}`;
+const flattenedCanvas = createFlattenedCanvas();
+link.href = flattenedCanvas.toDataURL(DOM.exportFormatSelect.value, parseFloat(DOM.exportQualitySlider.value));
+link.click();
+link.remove();
+});
+}
+function initDefaultBackground() {
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = state.logicalWidth;
+bgCanvas.height = state.logicalHeight;
+bgCanvas.getContext('2d').fillStyle = 'white';
+bgCanvas.getContext('2d').fillRect(0, 0, state.logicalWidth, state.logicalHeight);
+addLayer({
+type: 'image',
+name: lang.backgroundLayer,
+content: bgCanvas,
+x: 0,
+y: 0,
+width: state.logicalWidth,
+height: state.logicalHeight,
+visible: true,
+opacity: 1.0,
+blendMode: 'source-over',
+adjustments: {
+...CONSTANTS.ADJUSTMENT_DEFAULTS
+},
+filterApplied: null
+});
+}
+function init() {
+updateStaticUIText();
+DOM.resizeWidthInput.value = state.logicalWidth;
+DOM.resizeHeightInput.value = state.logicalHeight;
+initDefaultBackground();
+updateCanvasSize();
+fitToScreen();
+switchTool(CONSTANTS.TOOLS.MOVE);
+setupEventListeners();
+updateExportPreview();
+}
+window.addEventListener('resize', () => {
+updateCanvasSize();
+fitToScreen();
+});
+init();
+});
+</script>
+</body>
+</html>

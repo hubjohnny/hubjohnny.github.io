@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Image Upscaler Online</title>
+<meta name="description" content="This AI Image Upscaler enhances your images entirely within your web browser.">
+<meta name="robots" content="index, follow">
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@upscalerjs/esrgan-slim@latest/dist/umd/2x.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@upscalerjs/esrgan-slim@latest/dist/umd/4x.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@upscalerjs/default-model@latest/dist/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/upscaler@latest/dist/browser/umd/upscaler.min.js"></script>
+<style>
+:root {
+--bg-color: #1a1a1a;
+--card-color: #2a2a2a;
+--text-color: #e0e0e0;
+--text-muted: #888888;
+--primary-color: #0d6efd;
+--primary-hover: #0a58ca;
+--success-color: #198754;
+--success-hover: #157347;
+--font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+body {
+font-family: var(--font-family);
+display: grid;
+place-items: center;
+min-height: 90vh;
+background: var(--bg-color);
+color: var(--text-color);
+margin: 0;
+padding: 1rem;
+}
+.container {
+background: var(--card-color);
+padding: 2.5rem;
+border-radius: 12px;
+box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+text-align: left;
+width: 100%;
+max-width: 640px;
+border: 1px solid #333;
+}
+h2 {
+margin-top: 0;
+margin-bottom: 1rem;
+text-align: center;
+font-weight: 600;
+}
+.file-drop-area {
+display: block;
+border: 2px solid var(--text-muted);
+border-radius: 8px;
+padding: 2rem;
+text-align: center;
+cursor: pointer;
+transition: border-color 0.2s, background-color 0.2s;
+}
+.file-drop-area:hover,
+.file-drop-area.dragover {
+background: #333;
+border-color: var(--primary-color);
+}
+.file-drop-area p {
+margin: 0;
+font-size: 1rem;
+color: var(--text-muted);
+}
+.file-drop-area p strong {
+color: var(--primary-color);
+}
+#fileName {
+text-align: center;
+font-style: italic;
+color: var(--text-muted);
+margin-top: 0.5rem;
+height: 1.2em;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+input[type="file"] {
+display: none;
+}
+.options {
+margin-top: 1.5rem;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 1.5rem;
+align-items: center;
+}
+.control-group {
+display: flex;
+flex-direction: column;
+}
+.control-group label {
+font-size: 0.9rem;
+font-weight: 500;
+margin-bottom: 0.5rem;
+color: var(--text-muted);
+display: flex;
+align-items: center;
+}
+select,
+button {
+font-family: var(--font-family);
+font-size: 1rem;
+padding: 0.75rem;
+border-radius: 8px;
+border: 1px solid #444;
+background: #333;
+color: var(--text-color);
+}
+button.button-primary {
+grid-column: 1 / -1;
+margin-top: 1.5rem;
+background: var(--primary-color);
+color: #fff;
+border: none;
+cursor: pointer;
+font-weight: 600;
+transition: background 0.2s;
+}
+button.button-primary:hover {
+background: var(--primary-hover);
+}
+button.button-primary:disabled {
+background: #555;
+cursor: not-allowed;
+}
+a.button-success {
+display: none;
+grid-column: 1 / -1;
+margin-top: 1.5rem;
+background: var(--success-color);
+color: #fff;
+padding: 0.75rem;
+border-radius: 8px;
+text-decoration: none;
+font-weight: 600;
+text-align: center;
+transition: background 0.2s;
+}
+a.button-success:hover {
+background: var(--success-hover);
+}
+#status {
+margin-top: 1.5rem;
+font-size: 0.95rem;
+color: var(--text-muted);
+height: 2.5em;
+text-align: center;
+line-height: 1.25em;
+}
+.info-icon {
+position: relative;
+display: inline-block;
+width: 16px;
+height: 16px;
+background: var(--text-muted);
+color: var(--card-color);
+border-radius: 50%;
+text-align: center;
+font-size: 12px;
+line-height: 16px;
+font-weight: bold;
+cursor: help;
+margin-left: 8px;
+}
+.tooltip {
+display: none;
+position: absolute;
+bottom: 125%;
+left: 50%;
+transform: translateX(-50%);
+width: 240px;
+background: #333;
+color: var(--text-color);
+padding: 1rem;
+border-radius: 8px;
+font-size: 0.85rem;
+font-weight: normal;
+z-index: 10;
+border: 1px solid #444;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+line-height: 1.4;
+text-align: left;
+}
+.tooltip strong {
+color: var(--primary-color);
+}
+.info-icon:hover .tooltip {
+display: block;
+}
+p {
+text-align: center;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div class="container">
+<h2>Professional AI Upscaler</h2>
+<label for="uploader" class="file-drop-area" id="dropArea">
+<p><strong>Click to browse</strong> or drag and drop an image</p>
+</label>
+<p>The browser might freeze for a bit, but hold tight and the image will be processed.</p>
+<input type="file" id="uploader" accept="image/*">
+<p id="fileName"></p>
+<div class="options">
+<div class="control-group">
+<label for="modelSelect">
+Model Engine
+<span class="info-icon">?
+<div class="tooltip">
+<strong>Fast (ESRGAN-Slim):</strong>
+<br>
+Best for photos and general textures. Very fast. Supports 2x and 4x scaling.
+<br><br>
+<strong>Quality (RDN):</strong>
+<br>
+Better for digital art, text, and cartoons. Slower, but produces cleaner results with fewer artifacts.
+Only supports 2x.
+</div>
+</span>
+</label>
+<select id="modelSelect">
+<option value="fast" selected>Fast (ESRGAN-Slim)</option>
+<option value="quality">Quality (RDN)</option>
+</select>
+</div>
+<div class="control-group">
+<label for="scaleSelect">Scale Factor</label>
+<select id="scaleSelect">
+<option value="2">2x</option>
+<option value="4">4x</option>
+</select>
+</div>
+</div>
+<button class="button-primary" id="upscaleButton" disabled>Upscale Image</button>
+<a id="downloadLink" class="button-success">Download Upscaled Image</a>
+<div id="status"></div>
+</div>
+<script>
+window.onload = function () {
+let upscalerSlim2x, upscalerSlim4x, upscalerQuality2x, originalImage, originalFileName;
+const uploader = document.getElementById('uploader');
+const status = document.getElementById('status');
+const downloadLink = document.getElementById('downloadLink');
+const upscaleButton = document.getElementById('upscaleButton');
+const modelSelect = document.getElementById('modelSelect');
+const scaleSelect = document.getElementById('scaleSelect');
+const fileNameDisplay = document.getElementById('fileName');
+const dropArea = document.getElementById('dropArea');
+const scaleOption4x = scaleSelect.querySelector('option[value="4"]');
+try {
+status.textContent = 'Loading AI models...';
+upscalerSlim2x = new Upscaler({ model: window.ESRGANSlim2x });
+upscalerSlim4x = new Upscaler({ model: window.ESRGANSlim4x });
+upscalerQuality2x = new Upscaler({ model: window.DefaultUpscalerJSModel });
+status.textContent = 'Models loaded. Ready.';
+} catch (err) {
+status.textContent = 'Error loading models. Please refresh.';
+console.error(err);
+return;
+}
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+dropArea.addEventListener(eventName, preventDefaults, false);
+});
+function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+['dragenter', 'dragover'].forEach(eventName => {
+dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+});
+['dragleave', 'drop'].forEach(eventName => {
+dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+});
+dropArea.addEventListener('drop', handleDrop, false);
+function handleDrop(e) {
+handleFile(e.dataTransfer.files[0]);
+}
+uploader.addEventListener('change', (e) => {
+handleFile(e.target.files[0]);
+});
+modelSelect.addEventListener('change', updateScaleOptions);
+function updateScaleOptions() {
+if (modelSelect.value === 'quality') {
+scaleOption4x.style.display = 'none';
+if (scaleSelect.value === '4') {
+scaleSelect.value = '2';
+}
+} else {
+scaleOption4x.style.display = 'block';
+}
+}
+upscaleButton.addEventListener('click', processImage);
+function handleFile(file) {
+if (!file || !file.type.startsWith('image/')) {
+originalImage = null;
+upscaleButton.disabled = true;
+fileNameDisplay.textContent = 'Please select a valid image file.';
+return;
+}
+originalFileName = file.name.split('.').slice(0, -1).join('.');
+fileNameDisplay.textContent = file.name;
+const reader = new FileReader();
+reader.onload = (event) => {
+originalImage = new Image();
+originalImage.onload = () => {
+upscaleButton.disabled = false;
+status.textContent = 'Image loaded. Ready to upscale.';
+downloadLink.style.display = 'none';
+};
+originalImage.src = event.target.result;
+};
+reader.readAsDataURL(file);
+}
+async function processImage() {
+if (!originalImage) return;
+try {
+const scale = scaleSelect.value;
+const model = modelSelect.value;
+let upscaler;
+if (model === 'fast') {
+upscaler = (scale === '4') ? upscalerSlim4x : upscalerSlim2x;
+} else {
+upscaler = upscalerQuality2x;
+}
+upscaleButton.disabled = true;
+downloadLink.style.display = 'none';
+if (model === 'fast' && scale === '4') {
+status.innerHTML = '🧠 4x upscale starting...<br>This may freeze your browser for a moment.';
+} else {
+status.textContent = '🧠 AI is upscaling...';
+}
+const upscaledSrc = await upscaler.upscale(originalImage, {
+patchSize: 64,
+padding: 6
+});
+const newFileName = `${originalFileName}_${model}_${scale}x.png`;
+downloadLink.href = upscaledSrc;
+downloadLink.download = newFileName;
+downloadLink.style.display = 'block';
+status.textContent = '✅ Done!';
+upscaleButton.disabled = false;
+} catch (err) {
+status.textContent = 'Error: ' + err.message;
+console.error(err);
+upscaleButton.disabled = false;
+}
+}
+modelSelect.value = 'fast';
+updateScaleOptions();
+};
+</script>
+</body>
+</html>

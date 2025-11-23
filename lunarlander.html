@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lander Rescue</title>
+<meta name="description" content="Physics-based browser game where you pilot a lunar lander through 50 challenging levels.">
+<meta name="robots" content="index, follow">
+<style>
+body {
+margin: 0;
+overflow: hidden;
+background-color: #000;
+color: #0f0;
+font-family: Consolas, 'Courier New', monospace;
+display: flex;
+justify-content: center;
+align-items: center;
+height: 100vh;
+}
+canvas {
+display: block;
+background-color: #000010;
+}
+#ui-overlay {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+display: flex;
+justify-content: center;
+align-items: center;
+text-align: center;
+flex-direction: column;
+}
+.hidden {
+display: none !important;
+}
+#start-screen,
+#game-over-screen {
+background: rgba(0, 0, 0, 0.75);
+padding: 10px;
+border: 2px solid #0f0;
+box-shadow: 0 0 20px #0f0;
+}
+h1,
+h2 {
+font-size: 3em;
+margin-bottom: 10px;
+color: #0ff;
+text-shadow: 0 0 10px #0ff;
+}
+p {
+font-size: 1.1em;
+margin: 0 0 6px 0;
+}
+.blink {
+animation: blink-animation 1.5s steps(2, start) infinite;
+}
+@keyframes blink-animation {
+to {
+visibility: hidden;
+}
+}
+#high-scores {
+margin-top: 0;
+border-top: 1px solid #0f0;
+}
+#high-scores h2 {
+color: #ff0;
+}
+#score-list {
+list-style: none;
+padding: 0;
+font-size: 1.2em;
+}
+#score-list li {
+margin: 5px 0;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<canvas id="gameCanvas"></canvas>
+<div id="ui-overlay">
+<div id="start-screen">
+<h1>LANDER RESCUE</h1>
+<p>Use [ARROW KEYS] to control thrust and rotation.</p>
+<p>Land on [BLUE] pad to rescue people.</p>
+<p>Land on [YELLOW] pad to refuel.</p>
+<p>Land on [GREEN] pad to drop off people and advance.</p>
+<p>Avoid enemy fire! (50 levels to complete)</p>
+<p class="blink">Press [ENTER] to Start</p>
+<div id="high-scores">
+<h2>High Scores</h2>
+<ol id="score-list"></ol>
+</div>
+</div>
+<div id="game-over-screen" class="hidden">
+<h2 id="game-over-title">MISSION FAILED</h2>
+<p id="game-over-message">You crashed!</p>
+<p class="blink" id="game-over-prompt">Press [ENTER] to Try Again</p>
+</div>
+</div>
+</body>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiOverlay = document.getElementById('ui-overlay');
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const gameOverTitle = document.getElementById('game-over-title');
+const gameOverMessage = document.getElementById('game-over-message');
+const scoreList = document.getElementById('score-list');
+const HIGH_SCORES_KEY = 'lunarLanderHighScores';
+let gameState = 'start';
+let lander, terrain, stars;
+let level = 1;
+let score = 0;
+let lives = 3;
+let camera = { x: 0, y: 0 };
+let worldWidth;
+let entities = [];
+const GRAVITY = 0.003;
+const THRUST_POWER = 0.01;
+const ROTATION_SPEED = 0.01;
+const MAX_LANDING_VELOCITY = { x: 0.2, y: 0.2 };
+const FUEL_START = 2000;
+const LIVES_START = 3;
+const PEOPLE_PER_TRIP = 5;
+const audioManager = {
+audioCtx: null,
+thrustNode: null,
+init() { if (!this.audioCtx) { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } },
+startThrust() { if (!this.audioCtx || this.thrustNode) return; const noiseSource = this.audioCtx.createBufferSource(); const bufferSize = this.audioCtx.sampleRate * 2; const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate); const output = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; } noiseSource.buffer = buffer; noiseSource.loop = true; const filter = this.audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 800; filter.Q.value = 15; const gainNode = this.audioCtx.createGain(); gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.3, this.audioCtx.currentTime + 0.1); noiseSource.connect(filter).connect(gainNode).connect(this.audioCtx.destination); noiseSource.start(); this.thrustNode = { noiseSource, gainNode }; },
+stopThrust() { if (!this.thrustNode) return; this.thrustNode.gainNode.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.2); this.thrustNode.noiseSource.stop(this.audioCtx.currentTime + 0.2); this.thrustNode = null; },
+playExplosion() { if (!this.audioCtx) return; const noiseSource = this.audioCtx.createBufferSource(); const bufferSize = this.audioCtx.sampleRate; const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate); const output = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; } noiseSource.buffer = buffer; const gainNode = this.audioCtx.createGain(); gainNode.gain.setValueAtTime(0.5, this.audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 1.0); noiseSource.connect(gainNode).connect(this.audioCtx.destination); noiseSource.start(); },
+playLand() { if (!this.audioCtx) return; const osc = this.audioCtx.createOscillator(); const gain = this.audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(150, this.audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(50, this.audioCtx.currentTime + 0.2); gain.gain.setValueAtTime(0.4, this.audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.3); osc.connect(gain).connect(this.audioCtx.destination); osc.start(); osc.stop(this.audioCtx.currentTime + 0.3); },
+playPickup() { if (!this.audioCtx) return; const osc = this.audioCtx.createOscillator(); const gain = this.audioCtx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(400, this.audioCtx.currentTime); osc.frequency.linearRampToValueAtTime(800, this.audioCtx.currentTime + 0.1); gain.gain.setValueAtTime(0.2, this.audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.2); osc.connect(gain).connect(this.audioCtx.destination); osc.start(); osc.stop(this.audioCtx.currentTime + 0.2); },
+playDropoff() { if (!this.audioCtx) return; const osc = this.audioCtx.createOscillator(); const gain = this.audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(800, this.audioCtx.currentTime); osc.frequency.linearRampToValueAtTime(400, this.audioCtx.currentTime + 0.2); gain.gain.setValueAtTime(0.3, this.audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.3); osc.connect(gain).connect(this.audioCtx.destination); osc.start(); osc.stop(this.audioCtx.currentTime + 0.3); }
+};
+const keys = { ArrowUp: false, ArrowLeft: false, ArrowRight: false, };
+window.addEventListener('keydown', (e) => {
+if (audioManager.audioCtx && audioManager.audioCtx.state === 'suspended') {
+audioManager.audioCtx.resume();
+}
+if (e.code === 'Enter') {
+if (gameState === 'start' || gameState === 'gameOver' || gameState === 'levelComplete') {
+startGame(gameState === 'levelComplete' ? level + 1 : 1);
+}
+}
+if (keys.hasOwnProperty(e.code) && gameState === 'playing') {
+if (e.code === 'ArrowUp' && !keys.ArrowUp) {
+audioManager.startThrust();
+}
+keys[e.code] = true;
+}
+});
+window.addEventListener('keyup', (e) => {
+if (keys.hasOwnProperty(e.code)) {
+if (e.code === 'ArrowUp') {
+audioManager.stopThrust();
+}
+keys[e.code] = false;
+}
+});
+class Lander {
+constructor(x, y) {
+this.startX = x;
+this.startY = y;
+this.reset();
+this.width = 20;
+this.height = 20;
+}
+reset() {
+this.x = this.startX;
+this.y = this.startY;
+this.vx = 0.5;
+this.vy = 0;
+this.angle = 0;
+this.thrusting = false;
+this.crashed = false;
+this.landed = false;
+this.fuel = FUEL_START - (level - 1) * 50;
+if (this.fuel < 300) this.fuel = 300;
+this.people = 0;
+}
+applyThrust() {
+if (this.fuel > 0) {
+this.landed = false;
+this.vx += Math.sin(this.angle) * THRUST_POWER;
+this.vy -= Math.cos(this.angle) * THRUST_POWER;
+this.fuel--;
+this.thrusting = true;
+} else {
+this.thrusting = false;
+audioManager.stopThrust();
+}
+}
+rotate(direction) {
+this.angle += ROTATION_SPEED * direction;
+}
+update() {
+if (this.crashed || this.landed) return;
+this.vy += GRAVITY;
+this.x += this.vx;
+this.y += this.vy;
+}
+draw() {
+ctx.save();
+ctx.translate(this.x, this.y);
+ctx.rotate(this.angle);
+const w = this.width;
+const h = this.height;
+const bodyColor = this.crashed ? 'darkred' : (this.people > 0 ? '#ddd' : 'lightgrey');
+const finColor = this.crashed ? '#a00' : '#b0b0b0';
+const windowColor = this.crashed ? '#ff0000' : (this.people > 0 ? '#0f0' : '#00ffff');
+if (this.thrusting) {
+ctx.beginPath();
+const flameHeight = h * 0.9 + Math.random() * h * 0.4;
+const flameWidth = w * 0.8;
+ctx.moveTo(-flameWidth / 2, h / 2);
+ctx.lineTo(flameWidth / 2, h / 2);
+ctx.lineTo(0, h / 2 + flameHeight);
+ctx.closePath();
+ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+ctx.fill();
+ctx.beginPath();
+const innerFlameHeight = h * 0.6 + Math.random() * h * 0.3;
+const innerFlameWidth = w * 0.5;
+ctx.moveTo(-innerFlameWidth / 2, h / 2);
+ctx.lineTo(innerFlameWidth / 2, h / 2);
+ctx.lineTo(0, h / 2 + innerFlameHeight);
+ctx.closePath();
+ctx.fillStyle = 'rgba(255, 255, 0, 0.9)';
+ctx.fill();
+}
+ctx.beginPath();
+ctx.moveTo(-w / 2, h / 4);
+ctx.lineTo(-w, h / 2);
+ctx.lineTo(-w / 2, h / 2);
+ctx.closePath();
+ctx.fillStyle = finColor;
+ctx.fill();
+ctx.beginPath();
+ctx.moveTo(w / 2, h / 4);
+ctx.lineTo(w, h / 2);
+ctx.lineTo(w / 2, h / 2);
+ctx.closePath();
+ctx.fillStyle = finColor;
+ctx.fill();
+ctx.beginPath();
+ctx.rect(-w / 2, -h / 2, w, h);
+ctx.fillStyle = bodyColor;
+ctx.fill();
+ctx.strokeStyle = '#333';
+ctx.lineWidth = 2;
+ctx.stroke();
+ctx.beginPath();
+ctx.moveTo(-w / 2, -h / 2);
+ctx.lineTo(w / 2, -h / 2);
+ctx.lineTo(0, -h);
+ctx.closePath();
+ctx.fillStyle = bodyColor;
+ctx.fill();
+ctx.stroke();
+ctx.beginPath();
+ctx.arc(0, -h / 3, w / 4, 0, 2 * Math.PI);
+ctx.fillStyle = windowColor;
+ctx.fill();
+ctx.strokeStyle = '#333';
+ctx.lineWidth = 1.5;
+ctx.stroke();
+ctx.restore();
+}
+}
+class LandingPad {
+constructor(x, y, width, type) {
+this.x = x;
+this.y = y;
+this.width = width;
+this.type = type;
+this.color = {
+'rescue': '#00f',
+'dropoff': '#0f0',
+'fuel': '#ff0'
+}[type];
+}
+draw() {
+ctx.beginPath();
+ctx.moveTo(this.x, this.y);
+ctx.lineTo(this.x + this.width, this.y);
+ctx.strokeStyle = this.color;
+ctx.lineWidth = 4;
+ctx.stroke();
+}
+}
+class EnemyLauncher {
+constructor(x, y) {
+this.x = x;
+this.y = y;
+this.width = 30;
+this.height = 15;
+this.fireCooldown = 0;
+this.fireRate = 200 + Math.random() * 100;
+}
+update() {
+this.fireCooldown--;
+if (this.fireCooldown <= 0 && lander) {
+const dist = Math.abs(lander.x - this.x);
+if (dist < canvas.width / 1.5) {
+this.fire();
+this.fireCooldown = this.fireRate;
+}
+}
+}
+fire() {
+const spread = canvas.width * 0.1;
+const targetX = this.x + (Math.random() - 0.5) * spread;
+const targetY = 0;
+entities.push(new Projectile(this.x, this.y - this.height, targetX, targetY));
+}
+draw() {
+ctx.fillStyle = 'red';
+ctx.fillRect(this.x - this.width / 2, this.y - this.height, this.width, this.height);
+ctx.beginPath();
+ctx.arc(this.x, this.y - this.height, this.width / 3, Math.PI, 2 * Math.PI);
+ctx.fill();
+}
+}
+class Projectile {
+constructor(x, y, targetX, targetY) {
+this.x = x;
+this.y = y;
+const angle = Math.atan2(targetY - y, targetX - x);
+const speed = 2 + (level * 0.1);
+this.vx = Math.cos(angle) * speed;
+this.vy = Math.sin(angle) * speed;
+this.size = 3;
+this.life = 300;
+}
+update() {
+this.vy += GRAVITY * 0.5;
+this.x += this.vx;
+this.y += this.vy;
+this.life--;
+}
+draw() {
+ctx.fillStyle = 'orange';
+ctx.beginPath();
+ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
+ctx.fill();
+}
+}
+class Person {
+constructor(x, y, state) {
+this.x = x;
+this.y = y - 5;
+this.width = 3;
+this.height = 5;
+this.state = state;
+this.targetX = x;
+this.speed = 0.5;
+}
+update() {
+if (this.state === 'walkingToLander' && lander) {
+this.targetX = lander.x;
+if (Math.abs(this.x - this.targetX) < 5) {
+this.state = 'safe';
+lander.people++;
+audioManager.playPickup();
+} else if (this.x < this.targetX) {
+this.x += this.speed;
+} else {
+this.x -= this.speed;
+}
+} else if (this.state === 'walkingAway') {
+if (Math.abs(this.x - this.targetX) < 5) {
+this.state = 'safe';
+} else if (this.x < this.targetX) {
+this.x += this.speed;
+} else {
+this.x -= this.speed;
+}
+}
+}
+draw() {
+if (this.state === 'waiting' || this.state === 'walkingToLander' || this.state === 'walkingAway') {
+ctx.fillStyle = '#00ffff';
+ctx.fillRect(this.x, this.y, this.width, this.height);
+}
+}
+}
+function generateStars() {
+stars = [];
+for (let i = 0; i < 400; i++) {
+stars.push({
+x: Math.random() * worldWidth,
+y: Math.random() * canvas.height,
+size: Math.random() * 2 + 1,
+parallax: Math.random() * 0.5 + 0.1
+});
+}
+}
+function generateLevel(level) {
+entities = [];
+const worldWidthFactor = 3;
+worldWidth = canvas.width * worldWidthFactor;
+generateStars();
+const segments = 150 * worldWidthFactor;
+const roughness = 0.3 + (level * 0.01);
+const points = [];
+let y = canvas.height * (0.6 + Math.random() * 0.2);
+for (let i = 0; i <= segments; i++) {
+points.push({ x: (i / segments) * worldWidth, y: y });
+y += (Math.random() - 0.5) * canvas.height * roughness;
+if (y < canvas.height * 0.5) y = canvas.height * 0.5;
+if (y > canvas.height - 20) y = canvas.height - 20;
+}
+terrain = { points };
+const padWidthSegments = Math.max(20 - level, 12);
+const bufferSegments = 5;
+const padWidth = (padWidthSegments / segments) * worldWidth;
+const padIndices = [];
+padIndices.push(Math.floor(segments * 0.2) + Math.floor(Math.random() * 20 - 10));
+padIndices.push(Math.floor(segments * 0.5) + Math.floor(Math.random() * 20 - 10));
+padIndices.push(Math.floor(segments * 0.8) + Math.floor(Math.random() * 20 - 10));
+const padTypes = ['rescue', 'fuel', 'dropoff'];
+padIndices.forEach((startIndex, i) => {
+if (startIndex + padWidthSegments + (bufferSegments * 2) > segments) {
+startIndex = segments - (padWidthSegments + (bufferSegments * 2)) - 1;
+}
+if (startIndex < 0) startIndex = 0;
+const padY = points[startIndex].y;
+const padX = points[startIndex + bufferSegments].x;
+const padType = padTypes[i];
+for (let j = 0; j < padWidthSegments + (bufferSegments * 2); j++) {
+if (startIndex + j < points.length) {
+points[startIndex + j].y = padY;
+}
+}
+entities.push(new LandingPad(padX, padY, padWidth, padType));
+if (padType === 'rescue') {
+for (let p = 0; p < PEOPLE_PER_TRIP; p++) {
+const personX = padX + (padWidth / 2) + (Math.random() * 80 - 40);
+entities.push(new Person(personX, padY, 'waiting'));
+}
+}
+});
+const numEnemies = Math.floor(level * 0.5) + 1;
+const padBuffer = canvas.width / 4;
+const bomberFlatSegments = 3;
+const halfBomberWidth = Math.floor(bomberFlatSegments / 2);
+let tries = 0;
+for (let i = 0; i < numEnemies; i++) {
+if (tries > 500) break;
+tries++;
+const segRange = segments - bomberFlatSegments;
+const enemySeg = Math.floor(Math.random() * segRange) + halfBomberWidth;
+const enemyX = points[enemySeg].x;
+const enemyY = points[enemySeg].y;
+let tooCloseToPad = false;
+for (let j = -halfBomberWidth; j <= halfBomberWidth; j++) {
+const checkX = points[enemySeg + j].x;
+if (entities.some(e => e instanceof LandingPad &&
+checkX > (e.x - padBuffer) &&
+checkX < (e.x + e.width + padBuffer))) {
+tooCloseToPad = true;
+break;
+}
+}
+if (!tooCloseToPad) {
+for (let j = -halfBomberWidth; j <= halfBomberWidth; j++) {
+points[enemySeg + j].y = enemyY;
+}
+entities.push(new EnemyLauncher(enemyX, enemyY));
+tries = 0;
+} else {
+i--;
+}
+}
+}
+function drawTerrain() {
+ctx.beginPath();
+ctx.moveTo(0, canvas.height);
+ctx.lineTo(terrain.points[0].x, terrain.points[0].y);
+for (let i = 1; i < terrain.points.length; i++) {
+ctx.lineTo(terrain.points[i].x, terrain.points[i].y);
+}
+ctx.lineTo(worldWidth, canvas.height);
+ctx.closePath();
+ctx.fillStyle = '#808080';
+ctx.fill();
+}
+function drawStars() {
+ctx.save();
+ctx.fillStyle = 'white';
+stars.forEach(star => {
+const starX = (star.x - camera.x * star.parallax) % worldWidth;
+const drawX = (starX < 0) ? starX + worldWidth : starX;
+ctx.globalAlpha = star.parallax * 1.5;
+ctx.fillRect(drawX, star.y - camera.y * star.parallax, star.size, star.size);
+});
+ctx.restore();
+}
+function drawHUD() {
+ctx.fillStyle = '#fff';
+ctx.font = "16px Consolas, 'Courier New', monospace";
+ctx.textAlign = 'left';
+ctx.fillText(`Level: ${level}`, 10, 20);
+ctx.fillText(`Score: ${score}`, 10, 40);
+ctx.fillText(`Lives: ${lives}`, 10, 60);
+ctx.fillText(`People: ${lander.people}/${PEOPLE_PER_TRIP}`, 10, 80);
+const labelX = canvas.width - 220;
+const valueX = canvas.width - 10;
+ctx.textAlign = 'left';
+ctx.fillText('Fuel:', labelX, 20);
+ctx.textAlign = 'right';
+ctx.fillStyle = lander.fuel < 200 ? '#f00' : '#fff';
+ctx.fillText(Math.round(lander.fuel), valueX, 20);
+ctx.fillStyle = '#fff';
+ctx.textAlign = 'left';
+ctx.fillText('H-Speed:', labelX, 40);
+ctx.textAlign = 'right';
+ctx.fillStyle = Math.abs(lander.vx) > MAX_LANDING_VELOCITY.x ? '#f00' : '#fff';
+ctx.fillText(`${(lander.vx * 10).toFixed(2)} m/s`, valueX, 40);
+ctx.fillStyle = '#fff';
+ctx.textAlign = 'left';
+ctx.fillText('V-Speed:', labelX, 60);
+ctx.textAlign = 'right';
+ctx.fillStyle = Math.abs(lander.vy) > MAX_LANDING_VELOCITY.y ? '#f00' : '#fff';
+ctx.fillText(`${(lander.vy * 10).toFixed(2)} m/s`, valueX, 60);
+}
+function loadHighScores() {
+const scoresJSON = localStorage.getItem(HIGH_SCORES_KEY);
+return scoresJSON ? JSON.parse(scoresJSON) : [];
+}
+function saveHighScore(newScore) {
+if (newScore === 0) return;
+let scores = loadHighScores();
+scores.push(newScore);
+scores.sort((a, b) => b - a);
+scores = scores.slice(0, 3);
+localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(scores));
+}
+function displayHighScores() {
+const scores = loadHighScores();
+scoreList.innerHTML = scores.map(s => `<li>${s}</li>`).join('');
+}
+function getTerrainYAtX(x) {
+if (!terrain || !terrain.points) return canvas.height;
+if (x < 0 || x > worldWidth) return canvas.height;
+for (let i = 0; i < terrain.points.length - 1; i++) {
+const p1 = terrain.points[i];
+const p2 = terrain.points[i + 1];
+if (x >= p1.x && x <= p2.x) {
+return p1.y + (p2.y - p1.y) * ((x - p1.x) / (p2.x - p1.x));
+}
+}
+return canvas.height;
+}
+function checkCollisions() {
+if (!lander || lander.crashed) return;
+const leftFootX = lander.x - lander.width;
+const rightFootX = lander.x + lander.width;
+const terrainY_Left = getTerrainYAtX(leftFootX);
+const terrainY_Right = getTerrainYAtX(rightFootX);
+const terrainY_Center = getTerrainYAtX(lander.x);
+const collisionY = Math.min(terrainY_Left, terrainY_Right, terrainY_Center);
+const landerBottom = lander.y + lander.height / 2;
+if (landerBottom > collisionY) {
+handleLanding(collisionY, terrainY_Center);
+}
+if (lander.x < 0 || lander.x > worldWidth || lander.y < 0) {
+handleCrash("Lost in space!");
+}
+entities.forEach((entity, index) => {
+if (entity instanceof Projectile) {
+const dx = entity.x - lander.x;
+const dy = entity.y - lander.y;
+const dist = Math.sqrt(dx * dx + dy * dy);
+if (dist < lander.width / 2 + entity.size) {
+entities.splice(index, 1);
+handleCrash("Hit by enemy fire!");
+} else if (entity.life <= 0) {
+entities.splice(index, 1);
+}
+}
+});
+}
+function handleLanding(groundY, terrainY_Center) {
+lander.y = groundY - lander.height / 2;
+audioManager.stopThrust();
+const safeAngle = Math.abs(lander.angle) < 0.1;
+const safeVelocity = Math.abs(lander.vy) < MAX_LANDING_VELOCITY.x && Math.abs(lander.vy) < MAX_LANDING_VELOCITY.y;
+let padLandedOn = null;
+entities.forEach(e => {
+if (e instanceof LandingPad) {
+if (lander.x > e.x && lander.x < e.x + e.width) {
+if (Math.abs(terrainY_Center - e.y) < 1) {
+padLandedOn = e;
+}
+}
+}
+});
+if (padLandedOn) {
+const didHitPad = Math.abs(groundY - padLandedOn.y) < 1;
+if (didHitPad && safeAngle && safeVelocity) {
+lander.landed = true;
+lander.vx = 0;
+lander.vy = 0;
+switch (padLandedOn.type) {
+case 'rescue':
+entities.forEach(e => {
+if (e instanceof Person && e.state === 'waiting') {
+e.state = 'walkingToLander';
+}
+});
+break;
+case 'dropoff':
+if (lander.people > 0) {
+for (let i = 0; i < lander.people; i++) {
+const p = new Person(lander.x, groundY, 'walkingAway');
+p.targetX = lander.x + (Math.random() * 100 - 50);
+entities.push(p);
+}
+audioManager.playDropoff();
+const fuelBonus = Math.round(lander.fuel * 2);
+const landingBonus = 500 * lander.people;
+const levelBonus = level * 1000;
+score += fuelBonus + landingBonus + levelBonus;
+lander.people = 0;
+if (level === 50) {
+setTimeout(() => {
+gameState = 'gameOver';
+saveHighScore(score);
+showEndScreen(
+"CONGRATULATIONS!",
+`You've beaten the game! Final Score: ${score}`,
+"Press [ENTER] to Play Again"
+);
+}, 2000);
+} else {
+setTimeout(() => {
+gameState = 'levelComplete';
+showEndScreen(
+"MISSION SUCCESSFUL",
+`Level ${level} complete! Score: ${score}`,
+"Press [ENTER] for Next Level"
+);
+}, 2000);
+}
+} else {
+audioManager.playLand();
+}
+break;
+case 'fuel':
+lander.fuel = FUEL_START - (level - 1) * 50;
+if (lander.fuel < 300) lander.fuel = 300;
+audioManager.playPickup();
+break;
+}
+} else if (didHitPad) {
+handleCrash("Landed too fast on the pad!");
+} else {
+handleCrash("You crashed!");
+}
+} else {
+if (safeAngle && safeVelocity) {
+lander.landed = true;
+lander.vx = 0;
+lander.vy = 0;
+audioManager.playLand();
+} else {
+handleCrash("You crashed!");
+}
+}
+}
+function handleCrash(message) {
+if (lander.crashed) return;
+lander.crashed = true;
+audioManager.playExplosion();
+lives--;
+audioManager.stopThrust();
+keys.ArrowUp = false;
+if (lives <= 0) {
+gameState = 'gameOver';
+saveHighScore(score);
+showEndScreen("MISSION FAILED", message, "Press [ENTER] to Try Again");
+} else {
+setTimeout(() => {
+generateLevel(level);
+lander.reset();
+lander.crashed = false;
+lander.landed = false;
+}, 1500);
+}
+}
+function startGame(startLevel) {
+level = startLevel;
+if (level === 1) {
+score = 0;
+lives = LIVES_START;
+}
+audioManager.init();
+entities = [];
+generateLevel(level);
+lander = new Lander(100, 50);
+lander.vx = 0.2;
+gameState = 'playing';
+uiOverlay.classList.add('hidden');
+startScreen.classList.add('hidden');
+gameOverScreen.classList.add('hidden');
+}
+function showEndScreen(title, message, prompt) {
+displayHighScores();
+gameOverTitle.textContent = title;
+gameOverMessage.textContent = message;
+document.getElementById('game-over-prompt').textContent = prompt;
+gameOverScreen.classList.remove('hidden');
+uiOverlay.classList.remove('hidden');
+startScreen.classList.add('hidden');
+}
+function updateCamera() {
+camera.x = lander.x - canvas.width / 2;
+camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
+camera.y = 0;
+}
+function gameLoop() {
+if (gameState === 'playing') {
+lander.thrusting = false;
+if (keys.ArrowUp) lander.applyThrust();
+if (keys.ArrowLeft) lander.rotate(-1);
+if (keys.ArrowRight) lander.rotate(1);
+lander.update();
+entities.forEach(e => {
+if (typeof e.update === 'function') {
+e.update();
+}
+});
+checkCollisions();
+updateCamera();
+}
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+drawStars();
+if (gameState !== 'start') {
+ctx.save();
+ctx.translate(-camera.x, -camera.y);
+drawTerrain();
+entities.forEach(e => e.draw());
+if (lander) lander.draw();
+ctx.restore();
+if (gameState === 'playing') {
+drawHUD();
+}
+}
+requestAnimationFrame(gameLoop);
+}
+function resizeCanvas() {
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+if (gameState === 'start') {
+generateLevel(level);
+if (lander) lander.reset();
+}
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+displayHighScores();
+gameLoop();
+</script>
+</html>

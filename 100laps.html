@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>100 Laps</title>
+<meta name="description" content="A challenging, top-down arcade racing game where the primary objective is to survive and complete 100 laps.">
+<meta name="robots" content="index, follow">
+<style>
+body {
+margin: 0;
+overflow: hidden;
+background-color: #000000;
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: flex-start;
+min-height: 100vh;
+font-family: Arial, sans-serif;
+color: #ecf0f1;
+padding: 0px;
+gap: 20px;
+}
+#gameContainer {
+position: relative;
+}
+canvas {
+background-color: #333;
+display: block;
+cursor: default;
+border-radius: 0px 0px 8px 8px;
+}
+#uiPanel {
+width: 320px;
+padding: 15px;
+background: #222;
+border-radius: 0px 0px 8px 8px;
+box-shadow: 2px 2px 4px 2px rgba(0, 0, 0, 0.75);
+color: #ecf0f1;
+}
+#uiPanel h2 {
+font-size: 1.5em;
+margin-top: 0;
+margin-bottom: 10px;
+border-bottom: 1px solid #444;
+padding-bottom: 5px;
+}
+#statsContainer div {
+font-size: 1.1em;
+margin-bottom: 8px;
+}
+#highScoreList {
+padding-left: 25px;
+margin: 0;
+font-size: 0.95em;
+list-style-type: decimal;
+}
+#highScoreList li {
+margin-bottom: 6px;
+line-height: 1.3;
+}
+#highScoreList li:empty {
+list-style-type: none;
+padding-left: 0;
+}
+.game-controls {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+z-index: 10;
+background-color: rgba(0, 0, 0, 0.7);
+padding: 15px 30px;
+border-radius: 10px;
+box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+color: white;
+text-align: center;
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 10px;
+}
+.game-controls button,
+#messageBox button {
+background-color: #008cba;
+color: white;
+padding: 12px 25px;
+border: none;
+border-radius: 6px;
+cursor: pointer;
+font-size: 1.3em;
+transition: background-color 0.3s ease, transform 0.1s ease;
+}
+.game-controls button:hover,
+#messageBox button:hover {
+background-color: #007bb5;
+transform: scale(1.02);
+}
+.game-controls button:active,
+#messageBox button:active {
+transform: scale(0.98);
+}
+#messageBox {
+display: none;
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+background-color: rgba(0, 0, 0, 0.85);
+color: white;
+padding: 25px 40px;
+border-radius: 10px;
+text-align: center;
+z-index: 20;
+box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+flex-direction: column;
+align-items: center;
+gap: 20px;
+}
+#messageBox p {
+margin: 0;
+font-size: 1.8em;
+font-weight: bold;
+}
+#messageBox.win p {
+color: #4CAF50;
+}
+#messageBox.lose p {
+color: #F44336;
+}
+h2 {
+font-size: 2.2rem;
+margin-top: 2px;
+margin-bottom: 10px;
+text-shadow: 0 0 5px Black;
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="uiPanel">
+<h2>Stats</h2>
+<div id="statsContainer">
+<div id="statsLap">Lap: 0/100</div>
+<div id="statsSpeed">Speed: 0</div>
+<div id="statsLife">Life: 100%</div>
+<div id="statsTime">Time: 00:00.0</div>
+<div id="statsCrashes">Crashes: 0</div>
+</div>
+<h2 style="margin-top: 20px;">High Scores</h2>
+<ol id="highScoreList">
+<li>Loading...</li>
+</ol>
+</div>
+<div id="gameContainer">
+<canvas id="racingCanvas"></canvas>
+<div id="messageBox"></div>
+<div class="game-controls">
+<button id="startGameButton">Start Game</button>
+<p id="controls-text">WASD or Arrow Keys</p>
+</div>
+</div>
+<script>
+const BASE_WIDTH = 500;
+const BASE_HEIGHT = 600;
+const carWidth = 20;
+const carCollisionWidth = 30;
+const carHeight = 40;
+const carCollisionHeight = 45;
+const roadWidth = 400;
+const lapTarget = 100;
+const numAICars = 12;
+const maxSpeed = 400;
+const accelerationRate = 120;
+const decelerationRate = 150;
+const playerTurnSpeed = 240;
+const collisionDamage = 5;
+const policeSpeedThreshold = 350;
+const HIGH_SCORES_KEY = 'racingGameHighScores';
+class AudioManager {
+constructor() {
+this.audioCtx = null;
+this.engineSound = null;
+this.sirenSound = null;
+}
+init() {
+if (!this.audioCtx) {
+try {
+this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+} catch (e) {
+console.error("Browser does not support the Web Audio API.");
+}
+}
+}
+startEngine() {
+if (!this.audioCtx || this.engineSound) return;
+this.engineSound = this.audioCtx.createOscillator();
+const gainNode = this.audioCtx.createGain();
+this.engineSound.connect(gainNode);
+gainNode.connect(this.audioCtx.destination);
+this.engineSound.type = 'triangle';
+this.engineSound.frequency.setValueAtTime(35, this.audioCtx.currentTime);
+gainNode.gain.setValueAtTime(0.2, this.audioCtx.currentTime);
+this.engineSound.start();
+}
+updateEngineSound(speed) {
+if (!this.engineSound) return;
+const minPitch = 35;
+const maxPitch = 70;
+const pitch = minPitch + (speed / maxSpeed) * (maxPitch - minPitch);
+this.engineSound.frequency.setTargetAtTime(pitch, this.audioCtx.currentTime, 0.05);
+}
+stopEngine() {
+if (this.engineSound) {
+this.engineSound.stop();
+this.engineSound = null;
+}
+}
+startSiren() {
+if (!this.audioCtx || this.sirenSound) return;
+const sirenNode = {
+osc: this.audioCtx.createOscillator(),
+gain: this.audioCtx.createGain(),
+panner: this.audioCtx.createStereoPanner(),
+interval: null,
+};
+sirenNode.osc.connect(sirenNode.gain);
+sirenNode.gain.connect(sirenNode.panner);
+sirenNode.panner.connect(this.audioCtx.destination);
+sirenNode.osc.type = 'square';
+sirenNode.gain.gain.setValueAtTime(0.04, this.audioCtx.currentTime);
+sirenNode.osc.frequency.value = 1000;
+sirenNode.osc.start();
+let highTone = true;
+sirenNode.interval = setInterval(() => {
+const freq = highTone ? 700 : 1000;
+sirenNode.osc.frequency.setTargetAtTime(freq, this.audioCtx.currentTime, 0.05);
+sirenNode.panner.pan.setTargetAtTime(highTone ? -0.8 : 0.8, this.audioCtx.currentTime, 0.1);
+highTone = !highTone;
+}, 350);
+this.sirenSound = sirenNode;
+}
+stopSiren() {
+if (this.sirenSound) {
+clearInterval(this.sirenSound.interval);
+this.sirenSound.osc.stop();
+this.sirenSound = null;
+}
+}
+playCrashSound() {
+if (!this.audioCtx) return;
+const duration = 0.5;
+const buffer = this.audioCtx.createBuffer(1, this.audioCtx.sampleRate * duration, this.audioCtx.sampleRate);
+const data = buffer.getChannelData(0);
+for (let i = 0; i < data.length; i++) {
+data[i] = Math.random() * 2 - 1;
+}
+const noiseSource = this.audioCtx.createBufferSource();
+noiseSource.buffer = buffer;
+const gainNode = this.audioCtx.createGain();
+gainNode.gain.setValueAtTime(0.4, this.audioCtx.currentTime);
+gainNode.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + duration - 0.1);
+noiseSource.connect(gainNode);
+gainNode.connect(this.audioCtx.destination);
+noiseSource.start();
+}
+}
+class Particle {
+constructor(x, y, color, vx, vy, lifetime) {
+this.x = x;
+this.y = y;
+this.vx = vx;
+this.vy = vy;
+this.color = color;
+this.lifetime = lifetime;
+this.maxLifetime = lifetime;
+this.radius = Math.random() * 2 + 1;
+}
+update() {
+this.x += this.vx * deltaTime;
+this.y += this.vy * deltaTime;
+this.lifetime -= 1;
+this.vx *= 0.95;
+this.vy *= 0.95;
+}
+draw() {
+ctx.globalAlpha = this.lifetime / this.maxLifetime;
+ctx.beginPath();
+ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+ctx.fillStyle = this.color;
+ctx.fill();
+ctx.closePath();
+ctx.globalAlpha = 1.0;
+}
+}
+const canvas = document.getElementById('racingCanvas');
+const ctx = canvas.getContext('2d');
+const startGameButton = document.getElementById('startGameButton');
+const gameControlsDiv = document.querySelector('.game-controls');
+const messageBox = document.getElementById('messageBox');
+const statsLapEl = document.getElementById('statsLap');
+const statsSpeedEl = document.getElementById('statsSpeed');
+const statsLifeEl = document.getElementById('statsLife');
+const statsTimeEl = document.getElementById('statsTime');
+const statsCrashesEl = document.getElementById('statsCrashes');
+const highScoreListEl = document.getElementById('highScoreList');
+const audioManager = new AudioManager();
+const laneWidth = roadWidth / 4;
+const particleColors = ['#FF4500', '#FFA500', '#808080', '#696969'];
+const minSpeed = 0;
+const wallHitCooldown = 500;
+let scale = 1;
+let gameRunning = false;
+let animationFrameId;
+let playerCarX, playerCarY, playerLife, playerCurrentSpeed, playerLap;
+let lastWallHitTime, finishLineY, finishLinePassed, lastTime = 0, deltaTime = 0;
+let roadOffset = 0, lightBlinkTimer = 0;
+const lightBlinkInterval = 0.15;
+const aiCars = [];
+let policeCar = null;
+let policeCooldownActive = false;
+const particles = [];
+const keysPressed = {};
+let elapsedTime = 0;
+let playerCrashes = 0;
+document.addEventListener('keydown', (e) => {
+const key = e.key.toLowerCase();
+keysPressed[key] = true;
+if (gameRunning && ['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright'].includes(key)) {
+e.preventDefault();
+}
+});
+document.addEventListener('keyup', (e) => {
+keysPressed[e.key.toLowerCase()] = false;
+});
+function getLaneFromX(x) {
+const roadLeftEdge = (BASE_WIDTH - roadWidth) / 2;
+return Math.max(0, Math.min(3, Math.floor((x - roadLeftEdge) / laneWidth)));
+}
+function getLaneCenterX(laneIndex) {
+const roadLeftEdge = (BASE_WIDTH - roadWidth) / 2;
+return roadLeftEdge + laneIndex * laneWidth + (laneWidth / 2);
+}
+function formatTime(seconds) {
+const min = Math.floor(seconds / 60);
+const sec = Math.floor(seconds % 60);
+const ms = Math.floor((seconds - Math.floor(seconds)) * 10);
+return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.${ms}`;
+}
+function updateUI() {
+statsLapEl.textContent = `Lap: ${playerLap}/${lapTarget}`;
+statsSpeedEl.textContent = `Speed: ${Math.round(playerCurrentSpeed)}`;
+statsLifeEl.textContent = `Life: ${playerLife}%`;
+statsTimeEl.textContent = `Time: ${formatTime(elapsedTime)}`;
+statsCrashesEl.textContent = `Crashes: ${playerCrashes}`;
+if (playerLife > 50) {
+statsLifeEl.style.color = '#4CAF50';
+} else if (playerLife > 20) {
+statsLifeEl.style.color = '#FFA500';
+} else {
+statsLifeEl.style.color = '#F44336';
+}
+}
+function displayHighScores() {
+const scores = JSON.parse(localStorage.getItem(HIGH_SCORES_KEY)) || [];
+highScoreListEl.innerHTML = '';
+if (scores.length === 0) {
+highScoreListEl.innerHTML = '<li>No scores yet.</li>';
+return;
+}
+scores.forEach(score => {
+const li = document.createElement('li');
+li.textContent = `Laps: ${score.laps} | ${formatTime(score.time)} | ${score.crashes} crashes (${score.status})`;
+highScoreListEl.appendChild(li);
+});
+}
+function saveHighScore(status) {
+const scores = JSON.parse(localStorage.getItem(HIGH_SCORES_KEY)) || [];
+const newScore = {
+laps: playerLap,
+time: elapsedTime,
+crashes: playerCrashes,
+status: status
+};
+scores.push(newScore);
+scores.sort((a, b) => {
+if (a.laps !== b.laps) {
+return b.laps - a.laps;
+}
+if (a.time !== b.time) {
+return a.time - b.time;
+}
+return a.crashes - b.crashes;
+});
+const top10Scores = scores.slice(0, 10);
+localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(top10Scores));
+displayHighScores();
+}
+function drawRect(x, y, width, height, color) {
+ctx.fillStyle = color;
+ctx.fillRect(x, y, width, height);
+}
+function drawCar(x, y, width, height, color) {
+drawRect(x, y, width, height, color);
+ctx.fillStyle = 'gray';
+ctx.fillRect(x - 2, y + 5, 4, 10);
+ctx.fillRect(x + width - 2, y + 5, 4, 10);
+ctx.fillRect(x - 2, y + height - 15, 4, 10);
+ctx.fillRect(x + width - 2, y + height - 15, 4, 10);
+}
+function drawCarWithLights(x, y, width, height, bodyColor, lightOn = false) {
+drawCar(x, y, width, height, bodyColor);
+if (lightOn) {
+const lightSize = 5;
+const isRedOn = Math.floor(lightBlinkTimer / lightBlinkInterval) % 2 === 0;
+ctx.fillStyle = isRedOn ? 'red' : 'darkred';
+ctx.beginPath();
+ctx.arc(x + width / 2 - 8, y + 5, lightSize, 0, Math.PI * 2);
+ctx.fill();
+ctx.fillStyle = isRedOn ? 'darkblue' : 'blue';
+ctx.beginPath();
+ctx.arc(x + width / 2 + 8, y + 5, lightSize, 0, Math.PI * 2);
+ctx.fill();
+}
+}
+function createExplosion(x, y, numParticles = 10) {
+for (let i = 0; i < numParticles; i++) {
+const angle = Math.random() * Math.PI * 2;
+const speed = Math.random() * 50 + 20;
+const vx = Math.cos(angle) * speed;
+const vy = Math.sin(angle) * speed;
+const color = particleColors[Math.floor(Math.random() * particleColors.length)];
+const lifetime = Math.random() * 30 + 30;
+particles.push(new Particle(x, y, color, vx, vy, lifetime));
+}
+}
+function initializeGame() {
+playerCarX = BASE_WIDTH / 2 - carWidth / 2;
+playerCarY = BASE_HEIGHT * 0.6;
+playerLap = 0;
+playerLife = 100;
+lastWallHitTime = 0;
+playerCurrentSpeed = minSpeed;
+roadOffset = 0;
+finishLineY = -100;
+finishLinePassed = false;
+aiCars.length = 0;
+particles.length = 0;
+policeCar = null;
+lightBlinkTimer = 0;
+policeCooldownActive = false;
+elapsedTime = 0;
+playerCrashes = 0;
+const aiColors = ['#0077b6', '#00b4d8', '#90e0ef', '#6a0dad', '#e0aaff', '#e63946', '#f1faee', '#a8dadc', '#457b9d', '#1d3557'];
+const roadLeftEdge = (BASE_WIDTH - roadWidth) / 2;
+const roadRightEdge = roadLeftEdge + roadWidth;
+const carTireWidth = 2;
+const safeRoadLeft = roadLeftEdge + carTireWidth;
+const safeRoadRight = roadRightEdge - carWidth - carTireWidth;
+const safeRoadWidth = safeRoadRight - safeRoadLeft;
+const edgeZoneWidth = 20;
+for (let i = 0; i < numAICars; i++) {
+const aiType = (i < 3) ? 'edge' : 'wander';
+let startX;
+if (aiType === 'edge') {
+if (Math.random() < 0.5) {
+startX = safeRoadLeft + Math.random() * edgeZoneWidth;
+} else {
+startX = safeRoadRight - Math.random() * edgeZoneWidth;
+}
+} else {
+startX = safeRoadLeft + edgeZoneWidth + Math.random() * (safeRoadWidth - (edgeZoneWidth * 2));
+}
+aiCars.push({
+x: startX,
+y: Math.random() * BASE_HEIGHT * 2 - BASE_HEIGHT * 3,
+color: aiColors[i % aiColors.length],
+speedMultiplier: 0.9 + Math.random() * 0.2,
+targetX: startX,
+aiType: aiType
+});
+}
+for (const key in keysPressed) {
+if (keysPressed.hasOwnProperty(key)) {
+keysPressed[key] = false;
+}
+}
+}
+function updatePoliceCar() {
+if (!gameRunning || !policeCar) return;
+const policeLane = getLaneFromX(policeCar.x);
+const playerLane = getLaneFromX(playerCarX);
+const visionDistance = 150;
+let obstacleInLane = false;
+for (const car of aiCars) {
+if (getLaneFromX(car.x) === policeLane && car.y < policeCar.y && car.y > policeCar.y - visionDistance) {
+obstacleInLane = true;
+break;
+}
+}
+let targetLane = policeLane;
+if (obstacleInLane) {
+const rightLane = policeLane + 1;
+const leftLane = policeLane - 1;
+let rightLaneClear = rightLane <= 3;
+let leftLaneClear = leftLane >= 0;
+for (const car of aiCars) {
+const carLane = getLaneFromX(car.x);
+if (car.y < policeCar.y && car.y > policeCar.y - visionDistance) {
+if (carLane === rightLane) rightLaneClear = false;
+if (carLane === leftLane) leftLaneClear = false;
+}
+}
+if (rightLaneClear) targetLane = rightLane;
+else if (leftLaneClear) targetLane = leftLane;
+} else if (policeLane !== playerLane) {
+targetLane = playerLane;
+}
+policeCar.targetX = getLaneCenterX(targetLane) - policeCar.width / 2;
+const horizontalSpeed = 150;
+if (policeCar.x < policeCar.targetX) {
+policeCar.x = Math.min(policeCar.x + horizontalSpeed * deltaTime, policeCar.targetX);
+} else if (policeCar.x > policeCar.targetX) {
+policeCar.x = Math.max(policeCar.x - horizontalSpeed * deltaTime, policeCar.targetX);
+}
+const distanceToPlayer = policeCar.y - playerCarY;
+const followDistance = 80;
+let policeCurrentSpeed;
+if (policeCar.mode === 'approaching' && distanceToPlayer <= followDistance) {
+policeCar.mode = 'following';
+}
+if (policeCar.mode === 'approaching') {
+policeCurrentSpeed = maxSpeed * 1.2;
+} else {
+policeCurrentSpeed = 280;
+if (obstacleInLane) policeCurrentSpeed *= 0.9;
+}
+const relativeSpeed = policeCurrentSpeed - playerCurrentSpeed;
+policeCar.y -= relativeSpeed * deltaTime;
+lightBlinkTimer += deltaTime;
+if (policeCar.y < -policeCar.height * 2 || policeCar.y > BASE_HEIGHT + policeCar.height) {
+audioManager.stopSiren();
+policeCar = null;
+policeCooldownActive = true;
+return;
+}
+const policeHitbox = { left: policeCar.x, right: policeCar.x + carWidth, top: policeCar.y, bottom: policeCar.y + carHeight };
+const playerHitbox = { left: playerCarX, right: playerCarX + carWidth, top: playerCarY, bottom: playerCarY + carHeight };
+if (playerHitbox.left < policeHitbox.right && playerHitbox.right > policeHitbox.left && playerHitbox.top < policeHitbox.bottom && playerHitbox.bottom > policeHitbox.top) {
+stopGame("You were caught by the police!");
+}
+}
+function movePlayerCar() {
+if (!gameRunning) return;
+if (keysPressed['a'] || keysPressed['arrowleft']) {
+playerCarX -= playerTurnSpeed * deltaTime;
+}
+if (keysPressed['d'] || keysPressed['arrowright']) {
+playerCarX += playerTurnSpeed * deltaTime;
+}
+if (keysPressed['w'] || keysPressed['arrowup']) {
+playerCurrentSpeed += accelerationRate * deltaTime;
+} else if (keysPressed['s'] || keysPressed['arrowdown']) {
+playerCurrentSpeed -= decelerationRate * deltaTime;
+}
+playerCurrentSpeed = Math.max(minSpeed, Math.min(playerCurrentSpeed, maxSpeed));
+if (playerCurrentSpeed < policeSpeedThreshold) {
+policeCooldownActive = false;
+}
+if (playerCurrentSpeed > policeSpeedThreshold && policeCar === null && gameRunning && !policeCooldownActive) {
+const lane = Math.floor(Math.random() * 4);
+policeCar = {
+x: getLaneCenterX(lane) - carWidth / 2,
+y: BASE_HEIGHT,
+width: carWidth,
+height: carHeight,
+targetX: playerCarX,
+mode: 'approaching'
+};
+audioManager.startSiren();
+}
+}
+function moveAICars() {
+if (!gameRunning) return;
+const roadLeftEdge = (BASE_WIDTH - roadWidth) / 2;
+const roadRightEdge = roadLeftEdge + roadWidth;
+const carTireWidth = 2;
+const safeRoadLeft = roadLeftEdge + carTireWidth;
+const safeRoadRight = roadRightEdge - carWidth - carTireWidth;
+const safeRoadWidth = safeRoadRight - safeRoadLeft;
+const edgeZoneWidth = 20;
+for (const car of aiCars) {
+car.y += car.speedMultiplier * playerCurrentSpeed * deltaTime;
+if (Math.random() < 0.01) {
+if (car.aiType === 'edge') {
+if (Math.random() < 0.5) {
+car.targetX = safeRoadLeft + Math.random() * edgeZoneWidth;
+} else {
+car.targetX = safeRoadRight - Math.random() * edgeZoneWidth;
+}
+} else {
+car.targetX = safeRoadLeft + edgeZoneWidth + Math.random() * (safeRoadWidth - (edgeZoneWidth * 2));
+}
+}
+const horizontalSpeed = 50;
+if (car.x < car.targetX) {
+car.x = Math.min(car.x + horizontalSpeed * deltaTime, car.targetX);
+} else if (car.x > car.targetX) {
+car.x = Math.max(car.x - horizontalSpeed * deltaTime, car.targetX);
+}
+if (car.y > BASE_HEIGHT) {
+car.y = -carHeight - Math.random() * BASE_HEIGHT * 0.5;
+let newX;
+if (car.aiType === 'edge') {
+if (Math.random() < 0.5) {
+newX = safeRoadLeft + Math.random() * edgeZoneWidth;
+} else {
+newX = safeRoadRight - Math.random() * edgeZoneWidth;
+}
+} else {
+newX = safeRoadLeft + edgeZoneWidth + Math.random() * (safeRoadWidth - (edgeZoneWidth * 2));
+}
+car.x = newX;
+car.targetX = newX;
+}
+}
+}
+function updateCarCollisions() {
+const allCars = [...aiCars];
+if (policeCar) allCars.push(policeCar);
+for (let i = 0; i < allCars.length; i++) {
+for (let j = i + 1; j < allCars.length; j++) {
+const carA = allCars[i];
+const carB = allCars[j];
+const dx = (carA.x + carWidth / 2) - (carB.x + carWidth / 2);
+const dy = (carA.y + carHeight / 2) - (carB.y + carHeight / 2);
+if (Math.abs(dx) < carCollisionWidth && Math.abs(dy) < carCollisionHeight) {
+const overlapX = carCollisionWidth - Math.abs(dx);
+const overlapY = carCollisionHeight - Math.abs(dy);
+const separationBuffer = 0.1;
+if (overlapX < overlapY) {
+const separation = (overlapX / 2) + separationBuffer;
+if (dx > 0) {
+carA.x += separation; carB.x -= separation;
+} else {
+carA.x -= separation; carB.x += separation;
+}
+} else {
+const separation = (overlapY / 2) + separationBuffer;
+if (dy > 0) {
+carA.y += separation; carB.y -= separation;
+} else {
+carA.y -= separation; carB.y += separation;
+}
+}
+}
+}
+}
+}
+function checkCollisions() {
+if (!gameRunning) return;
+for (const aiCar of aiCars) {
+if (playerCarX < aiCar.x + carWidth && playerCarX + carWidth > aiCar.x &&
+playerCarY < aiCar.y + carHeight && playerCarY + carHeight > aiCar.y) {
+playerLife -= collisionDamage;
+playerCrashes++;
+createExplosion(playerCarX + carWidth / 2, playerCarY + carHeight / 2);
+playerCurrentSpeed *= 0.9;
+audioManager.playCrashSound();
+if (playerLife <= 0) {
+stopGame("You crashed too many times!");
+return;
+}
+if (playerCarX < aiCar.x) { aiCar.x += 10; } else { aiCar.x -= 10; }
+}
+}
+const roadLeftEdge = (BASE_WIDTH - roadWidth) / 2;
+const roadRightEdge = (BASE_WIDTH + roadWidth) / 2;
+const currentTime = performance.now();
+if (playerCarX < roadLeftEdge || playerCarX + carWidth > roadRightEdge) {
+if (currentTime - lastWallHitTime > wallHitCooldown) {
+playerLife -= collisionDamage;
+playerCrashes++;
+lastWallHitTime = currentTime;
+playerCurrentSpeed *= 0.9;
+audioManager.playCrashSound();
+if (playerCarX < roadLeftEdge) {
+createExplosion(roadLeftEdge, playerCarY + carHeight / 2);
+} else {
+createExplosion(roadRightEdge, playerCarY + carHeight / 2);
+}
+if (playerLife <= 0) {
+stopGame("You crashed into the wall!");
+return;
+}
+}
+playerCarX = Math.max(roadLeftEdge, Math.min(playerCarX, roadRightEdge - carWidth));
+}
+}
+function checkLaps() {
+if (!gameRunning) return;
+const prevFinishLineY = finishLineY;
+finishLineY += playerCurrentSpeed * deltaTime;
+if (prevFinishLineY < playerCarY + carHeight && finishLineY >= playerCarY + carHeight) {
+if (!finishLinePassed) {
+playerLap++;
+finishLinePassed = true;
+}
+} else if (finishLineY >= BASE_HEIGHT + 100) {
+finishLineY = -100 - Math.random() * 200;
+finishLinePassed = false;
+}
+if (playerLap >= lapTarget) {
+stopGame("You won! You completed 100 laps!");
+}
+}
+function drawEverything() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+ctx.save();
+ctx.scale(scale, scale);
+drawRect(0, 0, BASE_WIDTH, BASE_HEIGHT, 'darkgreen');
+const roadX = (BASE_WIDTH - roadWidth) / 2;
+drawRect(roadX, 0, roadWidth, BASE_HEIGHT, '#333');
+roadOffset = (roadOffset + playerCurrentSpeed * deltaTime) % 100;
+ctx.strokeStyle = 'white';
+ctx.lineWidth = 5;
+const numLines = Math.ceil(BASE_HEIGHT / 50);
+for (let i = 0; i < numLines; i++) {
+const lineY = (i * 100 + roadOffset) % (BASE_HEIGHT + 100) - 100;
+ctx.setLineDash([10, 30]);
+for (let j = 1; j < 4; j++) {
+const laneDividerX = roadX + j * laneWidth;
+ctx.beginPath();
+ctx.moveTo(laneDividerX, lineY);
+ctx.lineTo(laneDividerX, lineY + 50);
+ctx.stroke();
+}
+}
+ctx.setLineDash([]);
+ctx.strokeStyle = 'red';
+ctx.lineWidth = 10;
+ctx.beginPath();
+ctx.moveTo(roadX, finishLineY);
+ctx.lineTo(roadX + roadWidth, finishLineY);
+ctx.stroke();
+drawCar(playerCarX, playerCarY, carWidth, carHeight, 'yellow');
+for (const aiCar of aiCars) {
+drawCar(aiCar.x, aiCar.y, carWidth, carHeight, aiCar.color);
+}
+if (policeCar) {
+drawCarWithLights(policeCar.x, policeCar.y, policeCar.width, policeCar.height, "#3366CC", true);
+}
+for (let i = particles.length - 1; i >= 0; i--) {
+const p = particles[i];
+p.update();
+p.draw();
+if (p.lifetime <= 0) particles.splice(i, 1);
+}
+ctx.restore();
+}
+function resizeCanvas() {
+const displayWidth = window.innerWidth;
+const displayHeight = window.innerHeight;
+const availableWidth = displayWidth - 220 - 40;
+const widthRatio = availableWidth / BASE_WIDTH;
+const heightRatio = (displayHeight - 40) / BASE_HEIGHT;
+scale = Math.min(widthRatio, heightRatio);
+canvas.width = BASE_WIDTH * scale;
+canvas.height = BASE_HEIGHT * scale;
+}
+function gameLoop(currentTime) {
+if (!gameRunning) {
+lastTime = currentTime;
+return;
+}
+deltaTime = Math.min(0.05, (currentTime - lastTime) / 1000);
+lastTime = currentTime;
+elapsedTime += deltaTime;
+audioManager.updateEngineSound(playerCurrentSpeed);
+movePlayerCar();
+moveAICars();
+updatePoliceCar();
+updateCarCollisions();
+checkCollisions();
+checkLaps();
+updateUI();
+drawEverything();
+animationFrameId = requestAnimationFrame(gameLoop);
+}
+function startGame() {
+if (gameRunning) return;
+audioManager.init();
+audioManager.startEngine();
+gameRunning = true;
+gameControlsDiv.style.display = 'none';
+messageBox.style.display = 'none';
+initializeGame();
+lastTime = performance.now();
+drawEverything();
+requestAnimationFrame(gameLoop);
+}
+function stopGame(message) {
+if (!gameRunning) return;
+let status = 'Crashed';
+if (message.toLowerCase().includes('won')) {
+status = 'Finished';
+} else if (message.toLowerCase().includes('police')) {
+status = 'Caught';
+}
+saveHighScore(status);
+gameRunning = false;
+cancelAnimationFrame(animationFrameId);
+audioManager.stopEngine();
+audioManager.stopSiren();
+gameControlsDiv.style.display = 'none';
+const isWin = message.toLowerCase().includes('won');
+messageBox.innerHTML = `<p>${message}</p><button id="restartButton">Play Again</button>`;
+messageBox.className = isWin ? 'win' : 'lose';
+messageBox.style.display = 'flex';
+document.getElementById('restartButton').addEventListener('click', startGame);
+}
+startGameButton.addEventListener('click', startGame);
+window.addEventListener('resize', () => {
+resizeCanvas();
+if (!gameRunning) {
+drawEverything();
+}
+});
+resizeCanvas();
+initializeGame();
+updateUI();
+displayHighScores();
+drawEverything();
+</script>
+</body>
+</html>

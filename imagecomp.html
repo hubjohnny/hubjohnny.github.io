@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Compression Tool</title>
+<meta name="description" content="Generates two highly optimized versions of your file: a WebP image (at 25% quality) and a JPEG image (at 30% quality).">
+<meta name="robots" content="index, follow">
+<style>
+:root {
+--background-color: #1a1b1e;
+--surface-color: #2a2b2e;
+--primary-color: #007bff;
+--text-color: #f0f1f2;
+--text-muted-color: #aaa;
+--border-color: #444;
+--success-color: #28a745;
+}
+body {
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+background-color: var(--background-color);
+color: var(--text-color);
+margin: 0;
+padding: 2rem;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+text-align: center;
+min-height: 80vh;
+gap: 2rem;
+}
+.container {
+width: 100%;
+max-width: 800px;
+}
+.upload-box {
+background-color: var(--surface-color);
+border: 2px dashed var(--border-color);
+border-radius: 8px;
+padding: 4rem 2rem;
+cursor: pointer;
+transition: background-color 0.2s, border-color 0.2s;
+}
+.upload-box.dragover {
+border-color: var(--primary-color);
+background-color: #333;
+}
+.upload-box h2 {
+margin: 0 0 0.5rem 0;
+pointer-events: none;
+}
+.upload-box p {
+margin: 0;
+color: var(--text-muted-color);
+pointer-events: none;
+}
+#file-input {
+display: none;
+}
+.hidden {
+display: none !important;
+}
+.results-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 1.5rem;
+width: 100%;
+}
+.result-card {
+background-color: var(--surface-color);
+padding: 1.5rem;
+border-radius: 8px;
+}
+.result-card h3 {
+margin-top: 0;
+border-bottom: 1px solid var(--border-color);
+padding-bottom: 0.8rem;
+margin-bottom: 1rem;
+}
+.stats {
+margin-bottom: 1.5rem;
+}
+.stats .arrow {
+color: var(--primary-color);
+}
+.stats strong {
+color: var(--success-color);
+}
+.download-button {
+display: inline-block;
+background-color: var(--success-color);
+color: white;
+padding: 0.8rem 1.5rem;
+border-radius: 4px;
+text-decoration: none;
+font-weight: bold;
+transition: background-color 0.2s;
+}
+.download-button:hover {
+background-color: #218838;
+}
+@media (max-width: 600px) {
+.results-grid {
+grid-template-columns: 1fr;
+}
+}
+.sticky-link {
+position: fixed;
+bottom: 15px;
+left: 15px;
+z-index: 19;
+background: #512DA8;
+border: 3px solid #311B92;
+color: #EDE7F6;
+font-family: sans-serif;
+font-size: 1.2rem;
+padding: 6px 6px;
+border-radius: 8px;
+text-decoration: none;
+text-shadow: 0 0 5px rgba(0,0,0,0.7);
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+animation: subtle-glow 2s infinite ease-in-out;
+transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.sticky-link:hover {
+transform: scale(1.05);
+background-color: #7E57C2;
+}
+@keyframes subtle-glow {
+0%, 100% {
+box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
+}
+50% {
+box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
+}
+}
+</style>
+</head>
+<body>
+<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
+<div id="container" class="container">
+<div id="upload-box" class="upload-box">
+<h2>Upload or Paste an Image</h2>
+<p>Click here to choose a file, or simply paste (Ctrl+V) an image.</p>
+</div>
+<input type="file" id="file-input" accept="image/png, image/jpeg, image/webp">
+<div id="results-grid" class="results-grid hidden">
+<div class="result-card">
+<h3>Result (WebP)</h3>
+<p id="stats-webp" class="stats">Calculating...</p>
+<a href="#" id="download-webp" class="download-button" download>Download .webp</a>
+</div>
+<div class="result-card">
+<h3>Result (JPEG)</h3>
+<p id="stats-jpeg" class="stats">Calculating...</p>
+<a href="#" id="download-jpeg" class="download-button" download>Download .jpeg</a>
+</div>
+</div>
+</div>
+<script>
+const WEBP_QUALITY = 0.25;
+const JPEG_QUALITY = 0.30;
+const fileInput = document.getElementById('file-input');
+const uploadBox = document.getElementById('upload-box');
+const resultsGrid = document.getElementById('results-grid');
+const downloadWebp = document.getElementById('download-webp');
+const downloadJpeg = document.getElementById('download-jpeg');
+const statsWebp = document.getElementById('stats-webp');
+const statsJpeg = document.getElementById('stats-jpeg');
+function formatBytes(bytes) {
+if (bytes === 0) return '0 Bytes';
+const k = 1024;
+const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+const i = Math.floor(Math.log(bytes) / Math.log(k));
+return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+function dataURLtoBlob(dataurl) {
+const arr = dataurl.split(',');
+const mime = arr[0].match(/:(.*?);/)[1];
+const bstr = atob(arr[1]);
+let n = bstr.length;
+const u8arr = new Uint8Array(n);
+while (n--) {
+u8arr[n] = bstr.charCodeAt(n);
+}
+return new Blob([u8arr], { type: mime });
+}
+function processImage(fileOrBlob) {
+if (!fileOrBlob) return;
+const objectURL = URL.createObjectURL(fileOrBlob);
+const image = new Image();
+image.onload = () => {
+const { naturalWidth: width, naturalHeight: height } = image;
+const originalSize = fileOrBlob.size;
+const timestamp = Date.now();
+const baseFilename = fileOrBlob.name ? fileOrBlob.name.substring(0, fileOrBlob.name.lastIndexOf('.')) : 'image';
+const uniqueFilename = `${baseFilename}-${timestamp}`;
+const canvas = document.createElement('canvas');
+canvas.width = width;
+canvas.height = height;
+const ctx = canvas.getContext('2d');
+ctx.drawImage(image, 0, 0, width, height);
+const webpDataURL = canvas.toDataURL('image/webp', WEBP_QUALITY);
+const webpSize = dataURLtoBlob(webpDataURL).size;
+downloadWebp.href = webpDataURL;
+downloadWebp.download = `${uniqueFilename}.webp`;
+statsWebp.innerHTML = `<strong>${width}x${height}</strong><br>${formatBytes(originalSize)} <span class="arrow">&rarr;</span> <strong>${formatBytes(webpSize)}</strong>`;
+ctx.fillStyle = '#FFFFFF';
+ctx.fillRect(0, 0, width, height);
+ctx.drawImage(image, 0, 0, width, height);
+const jpegDataURL = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+const jpegSize = dataURLtoBlob(jpegDataURL).size;
+downloadJpeg.href = jpegDataURL;
+downloadJpeg.download = `${uniqueFilename}.jpeg`;
+statsJpeg.innerHTML = `<strong>${width}x${height}</strong><br>${formatBytes(originalSize)} <span class="arrow">&rarr;</span> <strong>${formatBytes(jpegSize)}</strong>`;
+URL.revokeObjectURL(objectURL);
+resultsGrid.classList.remove('hidden');
+uploadBox.classList.add('hidden');
+};
+image.onerror = () => {
+alert("Could not load the image file. It may be corrupt.");
+URL.revokeObjectURL(objectURL);
+};
+image.src = objectURL;
+}
+uploadBox.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => processImage(e.target.files[0]));
+uploadBox.addEventListener('dragover', (e) => {
+e.preventDefault();
+uploadBox.classList.add('dragover');
+});
+uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('dragover'));
+uploadBox.addEventListener('drop', (e) => {
+e.preventDefault();
+uploadBox.classList.remove('dragover');
+if (e.dataTransfer.files.length > 0) {
+processImage(e.dataTransfer.files[0]);
+}
+});
+window.addEventListener('paste', e => {
+const items = e.clipboardData?.items;
+if (!items) return;
+for (const item of items) {
+if (item.type.includes('image')) {
+processImage(item.getAsFile());
+break;
+}
+}
+});
+</script>
+</body>
+</html>
