@@ -289,6 +289,17 @@ player.jumpKeyHeld = false;
 }
 }
 function update(deltaTime) {
+if (backgroundElements && backgroundElements.buildings) {
+backgroundElements.buildings.forEach(b => {
+b.x -= (gameSpeed * 0.15) * deltaTime;
+if (b.x + b.width < 0) {
+b.x = canvas.width;
+const buildingHeight = (Math.random() * 150 + 50) * scale;
+b.height = buildingHeight;
+b.y = canvas.height - (50 * scale) - buildingHeight;
+}
+});
+}
 if (gameState !== 'playing' || !deltaTime) return;
 const GRAVITY_PPS = 1800 * scale;
 const JUMP_BOOST_FORCE_PPS = -2000 * scale;
@@ -307,6 +318,14 @@ player.y += player.velocityY * deltaTime;
 player.trail.unshift({ x: player.x, y: player.y });
 if (player.trail.length > 10) player.trail.pop();
 ground.forEach(segment => segment.x -= gameSpeed * deltaTime);
+backgroundElements.buildings.forEach(b => {
+b.x -= (gameSpeed * 0.15) * deltaTime;
+if (b.x + b.width < 0) {
+b.x = canvas.width;
+b.height = (Math.random() * 150 + 50) * scale;
+b.y = canvas.height - (50 * scale) - b.height;
+}
+});
 drones.forEach(drone => drone.x -= (gameSpeed + DRONE_EXTRA_SPEED_PPS) * deltaTime);
 if (ground.length > 0 && ground[0].x + ground[0].width < 0) {
 const lastGround = ground[ground.length - 1];
