@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit</title>
+<style>
+:root{--b:#000;--t:#39FF14;--f:'Courier New',monospace}
+body{margin:0;overflow:hidden;background:var(--b)}
+#e{width:100vw;height:100vh;box-sizing:border-box;background:0;color:var(--t);border:0;outline:0;resize:none;font:16px var(--f);padding:15px;white-space:pre;caret-color:#00BFFF}
+#t{position:fixed;bottom:20px;right:20px;background:#111;color:var(--t);border:1px solid var(--t);padding:8px 12px;font:13px var(--f);pointer-events:none;opacity:0;transition:opacity .5s;z-index:9;box-shadow:0 0 10px #39ff1433}
+</style>
+</head>
+<body>
+<textarea id="e" spellcheck="false"></textarea><div id="t"></div>
+<script>
+const E={h:null,n:'Untitled',d:!1,v:1,e:null,tm:null,
+init(){
+this.e=document.getElementById('e');
+this.e.oninput=()=>{if(!this.d)this.dirty(!0)};
+this.e.onkeydown=this.tab.bind(this);
+document.onkeydown=this.key.bind(this);
+window.onbeforeunload=e=>{if(this.d){e.preventDefault();e.returnValue=''}};
+this.e.focus();
+},
+dirty(s){this.d=s;document.title=`${s?'*':''}${this.n}`},
+async open(){
+if(this.d&&!confirm("Unsaved changes. Continue?"))return;
+if(!window.showOpenFilePicker)return alert("No API support");
+try{[this.h]=await showOpenFilePicker();const f=await this.h.getFile();this.e.value=await f.text();this.n=f.name;this.v=1;this.dirty(!1)}
+catch(e){if(e.name!=='AbortError')alert(e.message)}
+},
+save(){
+const n=this.n==='Untitled'?'Untitled.txt':this.n,i=n.lastIndexOf('.'),b=i<0?n:n.slice(0,i),x=i<0?'':n.slice(i);
+const a=document.createElement('a'),bl=new Blob([this.e.value],{type:'text/plain'});
+a.href=URL.createObjectURL(bl);a.download=`${b}-v${String(this.v++).padStart(3,'0')}${x}`;
+a.click();URL.revokeObjectURL(a.href);this.dirty(!1);
+},
+clean(){
+let t=this.e.value,c=0,l=0,w=0;
+const re=/("[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|`[^`\\]*(?:\\.[^`\\]*)*`)|(\/\*[\s\S]*?\*\/|\/\/.*|)/g;
+t=t.replace(re,(m,s,cm)=>{
+if(s)return s;
+if(cm){c++;return""}
+return m;
+});
+const lines=[];
+t.split('\n').forEach(x=>{
+const tr=x.trim();
+if(!tr)l++; else {
+if(x!==tr)w++;
+lines.push(tr);
+}
+});
+this.e.value=lines.join('\n');
+if((c+l+w>0)&&!this.d)this.dirty(!0);
+this.toast(`Cleaned: ${c} cmts, ${l} lines, ${w} spaces`);
+},
+toast(m){const el=document.getElementById('t');el.innerText=m;el.style.opacity=1;if(this.tm)clearTimeout(this.tm);this.tm=setTimeout(()=>el.style.opacity=0,4000)},
+key(e){
+if(!e.metaKey&&!e.ctrlKey)return;
+const k=e.key.toLowerCase();
+if(['o','s','b'].includes(k)){e.preventDefault();if(k==='o')this.open();if(k==='s')this.save();if(k==='b')this.clean()}
+},
+tab(e){
+if(e.key!=='Tab')return;e.preventDefault();const el=this.e,t='  ';
+if(!e.shiftKey&&el.selectionStart===el.selectionEnd){el.setRangeText(t,el.selectionStart,el.selectionStart,'end');if(!this.d)this.dirty(!0);return}
+const s=el.value.lastIndexOf('\n',el.selectionStart-1)+1,x=el.value.indexOf('\n',el.selectionEnd-1),end=x===-1?el.value.length:x;
+const l=el.value.substring(s,end).split('\n');
+let ch=!1,nT=l.map(r=>{
+if(e.shiftKey){if(r.startsWith(t)){ch=!0;return r.substring(t.length)}else if(r.startsWith(' ')){ch=!0;return r.substring(1)}return r}
+else{ch=!0;return t+r}
+}).join('\n');
+if(ch){el.setRangeText(nT,s,end,'select');if(!this.d)this.dirty(!0)}
+}};
+window.onload=()=>E.init();
+</script>
+</body>
+</html>
