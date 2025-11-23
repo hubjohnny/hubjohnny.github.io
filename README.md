@@ -1,0 +1,1 @@
+Copyright © 2025 Johnny Heggelund. All rights reserved. The browser games, tools, and underlying source code on this website are protected by copyright law. You may not copy, modify, distribute, reverse engineer, or embed these applications on third-party websites without prior written consent. Violators will be subject to legal action.
