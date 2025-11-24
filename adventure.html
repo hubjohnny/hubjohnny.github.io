@@ -3,38 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Adventure RPG</title>
-<meta name="description" content="This is a 2D survival adventure RPG where the ultimate goal is to fight your way through 20 levels.">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://chromebooker.com/adventure.html">
-<script src="/stats/tracker.js" defer></script>
+<title>Adventure</title>
 <style>
-
-/*
- * ==========================================================================
- * COPYRIGHT © 2025 Johnny Heggelund (chromebooker.com)
- * ==========================================================================
- * All rights reserved.
- *
- * The browser games, tools, and underlying source code on this website are
- * protected by copyright law. You may not copy, modify, distribute, reverse
- * engineer, or embed these applications on third-party websites without
- * prior written consent.
- *
- * Violators will be subject to legal action.
- * ==========================================================================
- */
-
-@font-face {
-font-family: 'NotoEmoji';
-src: url('NotoColorEmoji-Regular.ttf') format('truetype');
-}
 body,
 html {
 margin: 0;
 padding: 0;
 overflow: hidden;
-font-family: sans-serif, 'NotoEmoji';
+font-family: sans-serif;
 background-color: #1a1a1a;
 display: flex;
 flex-direction: column;
@@ -564,44 +540,9 @@ background: #7E57C2;
 scrollbar-width: thin;
 scrollbar-color: #512DA8 #2a2135;
 }
-
-.sticky-link {
-position: fixed;
-bottom: 15px;
-left: 15px;
-z-index: 19;
-background: #512DA8;
-border: 3px solid #311B92;
-color: #EDE7F6;
-font-family: sans-serif;
-font-size: 1.2rem;
-padding: 6px 6px;
-border-radius: 8px;
-text-decoration: none;
-text-shadow: 0 0 5px rgba(0,0,0,0.7);
-box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-animation: subtle-glow 2s infinite ease-in-out;
-transition: transform 0.2s ease, background-color 0.2s ease;
-}
-.sticky-link:hover {
-transform: scale(1.05);
-background-color: #7E57C2;
-}
-@keyframes subtle-glow {
-0%, 100% {
-box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
-}
-50% {
-box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
-}
-}
-
 </style>
 </head>
 <body>
-
-<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
-
 <div id="game-container">
 <div id="rain-container"></div>
 <div id="lightning-flash"></div>
@@ -700,7 +641,6 @@ osc.connect(gain).connect(dest);
 osc.start(ctx.currentTime);
 osc.stop(ctx.currentTime + 0.1);
 },
-
 'wind_ambiance': (ctx, dest) => {
 const t = ctx.currentTime;
 const bufferSize = 5 * ctx.sampleRate;
@@ -754,7 +694,6 @@ lfoVolume,
 noiseNode
 };
 },
-
 'bird_chirp_1': (ctx, dest) => {
 const t = ctx.currentTime;
 const gain = ctx.createGain();
@@ -777,8 +716,6 @@ osc2.start(t);
 osc1.stop(t + 0.08);
 osc2.stop(t + 0.08);
 },
-
-
 'bird_chirp_2': (ctx, dest) => {
 const t = ctx.currentTime;
 const osc = ctx.createOscillator();
@@ -795,8 +732,6 @@ osc.connect(gain).connect(dest);
 osc.start(t);
 osc.stop(t + 0.12);
 },
-
-
 'bird_chirp_3': (ctx, dest) => {
 const t = ctx.currentTime;
 const totalDuration = 0.5;
@@ -821,8 +756,6 @@ osc.start(t);
 lfo.stop(t + totalDuration);
 osc.stop(t + totalDuration);
 },
-
-
 'player_attack_unarmed': (ctx, dest) => {
 const t = ctx.currentTime;
 const osc = ctx.createOscillator();

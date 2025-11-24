@@ -3,28 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BabeLinux Terminal Emulator</title>
-<meta name="description" content="BabeLinux is an interactive, browser-based terminal simulation that mimics a desktop operating system.">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://chromebooker.com/babelinux.html">
-<script src="/stats/tracker.js" defer></script>
+<title>BabeLinux</title>
 <style>
-
-/*
- * ==========================================================================
- * COPYRIGHT © 2025 Johnny Heggelund (chromebooker.com)
- * ==========================================================================
- * All rights reserved.
- *
- * The browser games, tools, and underlying source code on this website are
- * protected by copyright law. You may not copy, modify, distribute, reverse
- * engineer, or embed these applications on third-party websites without
- * prior written consent.
- *
- * Violators will be subject to legal action.
- * ==========================================================================
- */
-
 :root {
 --terminal-color: #33FF33;
 }
@@ -249,7 +229,6 @@ commandNotFound: "Command not found:",
 secretResponse: "Oh, you found my secret command..."
 };
 const introText = `AVAILABLE COMMANDS:                            GAMES:
-
 play             - Play a local media file     sokoban  - Opens a game of Sokoban
 pause            - Pause playback (audio)      snake    - Opens a game of Snake
 stop             - Stop playback (audio)       tetris   - Opens a game of Tetris
@@ -261,9 +240,7 @@ nano [filename]  - Open a simple text editor
 pic              - Simple image editor
 say [text]       - Make the terminal speak
 help             - Show this help message
-
 TAB COMMANDS:
-
 Alt + T          - New tab
 Alt + X          - Close active tab
 `;
@@ -1027,7 +1004,6 @@ const welcomeHTML = `<h1>BabeLinux 6.9</h1><div class="prompt-line"><span>${text
 ................::.........,,........;*?%?###########S#?,;??**?%S#%*++;;;;;+***+;,.........,::,.......,;;;......................................
 ...............,;...................,;?*S%###########?+;:?#%???%#SSS?+;;;;;;;;;;...........:::........,;+,......................................
 </pre>
-<p>&copy; 2025 Chromebooker.com</p>
 `;
 firstTab.terminalElement.innerHTML = welcomeHTML;
 firstTab.isProcessing = false;

@@ -3,28 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Image Editor Online</title>
-<meta name="description" content="This online image editor is a powerful, layer-based tool for all your editing needs.">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://chromebooker.com/imaged.html">
-<script src="/stats/tracker.js" defer></script>
+<title>Image Editor</title>
 <style>
-
-/*
- * ==========================================================================
- * COPYRIGHT © 2025 Johnny Heggelund (chromebooker.com)
- * ==========================================================================
- * All rights reserved.
- *
- * The browser games, tools, and underlying source code on this website are
- * protected by copyright law. You may not copy, modify, distribute, reverse
- * engineer, or embed these applications on third-party websites without
- * prior written consent.
- *
- * Violators will be subject to legal action.
- * ==========================================================================
- */
-
 :root {
 --bg-color: #1e1e1e;
 --primary-color: #2d2d2d;
@@ -305,44 +285,9 @@ h1 {
 font-size: 1.4rem;
 margin: 0;
 }
-
-.sticky-link {
-position: fixed;
-bottom: 15px;
-left: 15px;
-z-index: 19;
-background: #512DA8;
-border: 3px solid #311B92;
-color: #EDE7F6;
-font-family: sans-serif;
-font-size: 1.2rem;
-padding: 6px 6px;
-border-radius: 8px;
-text-decoration: none;
-text-shadow: 0 0 5px rgba(0,0,0,0.7);
-box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-animation: subtle-glow 2s infinite ease-in-out;
-transition: transform 0.2s ease, background-color 0.2s ease;
-}
-.sticky-link:hover {
-transform: scale(1.05);
-background-color: #7E57C2;
-}
-@keyframes subtle-glow {
-0%, 100% {
-box-shadow: 0 0 12px rgba(237, 231, 246, 0.6);
-}
-50% {
-box-shadow: 0 0 18px rgba(237, 231, 246, 0.9);
-}
-}
-
 </style>
 </head>
 <body>
-
-<a href="index.html" target="_blank" rel="noopener noreferrer" class="sticky-link">🕹️</a>
-
 <input type="file" id="file-input" accept="image/*" style="display: none;">
 <input type="file" id="project-input" accept=".json" style="display: none;">
 <div class="options-bar">
