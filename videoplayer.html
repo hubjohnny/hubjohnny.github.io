@@ -3,8 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video Player</title>
+<title>Video Player Online</title>
+<meta name="description" content="Advanced controls, including subtitle size and offset adjustment, SDH (descriptive audio) filtering and much more!">
+<meta name="robots" content="index, follow">
+
+<script src="/stats/tracker.js" defer></script>
 <style>
+
+/*
+ * ==========================================================================
+ * COPYRIGHT © 2025 Johnny Heggelund (chromebooker.com)
+ * ==========================================================================
+ * All rights reserved.
+ *
+ * The browser games, tools, and underlying source code on this website are
+ * protected by copyright law. You may not copy, modify, distribute, reverse
+ * engineer, or embed these applications on third-party websites without
+ * prior written consent.
+ *
+ * Violators will be subject to legal action.
+ * ==========================================================================
+ */
+
 :root {
 --subtitle-font-size: 2.5vh;
 }
@@ -274,6 +294,7 @@ title="Volume Booster">
 <div id="toast-notification"></div>
 <div id="shortcuts-modal" class="modal-overlay">
 <div class="modal-box">
+<p style="margin: 0 0 16px 0;">&copy; 2025 Chromebooker.com</p>
 <ul id="shortcuts-list">
 <li>Play / Pause <span>Space</span></li>
 <li>Frame Step Back/Fwd <span>,</span><span>.</span></li>
@@ -809,6 +830,7 @@ break;
 });
 updateStaticUIText();
 updateSubtitleSize();
+showShortcuts();
 </script>
 </body>
 </html>
