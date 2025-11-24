@@ -6,7 +6,25 @@
 <title>Code Editor for HTML, CSS & JavaScript</title>
 <meta name="description" content="Minimalist Code Editor designed for building Single-File Web Apps using HTML, CSS, and JavaScript.">
 <meta name="robots" content="index, follow">
+
+<script src="/stats/tracker.js" defer></script>
 <style>
+
+/*
+ * ==========================================================================
+ * COPYRIGHT © 2025 Johnny Heggelund (chromebooker.com)
+ * ==========================================================================
+ * All rights reserved.
+ *
+ * The browser games, tools, and underlying source code on this website are
+ * protected by copyright law. You may not copy, modify, distribute, reverse
+ * engineer, or embed these applications on third-party websites without
+ * prior written consent.
+ *
+ * Violators will be subject to legal action.
+ * ==========================================================================
+ */
+
 :root {
 --bg-color: #0d1117;
 --text-color: #c9d1d9;
@@ -52,8 +70,8 @@ transition: width 0.2s ease, padding 0.2s ease;
 }
 .line-numbers-hidden #line-numbers {
 width: 0;
-min-width: 0;
-border: none;
+min-width: 0;   /* Force it to allow shrinking to 0 */
+border: none;   /* Hide the vertical border line */
 padding: 15px 0;
 overflow: hidden;
 }
@@ -273,7 +291,7 @@ debouncedUpdateLineNumbers: null,
 lang: {
 title: "Coder",
 untitled: "Untitled",
-mainTitle: "Coder 1.0 (c) 2025 Johnny Heggelund",
+mainTitle: "Minimalist Code Editor designed for building Single-File Web Apps using HTML, CSS, and JavaScript. (c) 2025 Chromebooker.com",
 helpTitle: "Shortcuts",
 helpOpenFile: "Open File",
 helpSaveFile: "Save File",

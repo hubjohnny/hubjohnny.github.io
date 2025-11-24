@@ -3,1019 +3,341 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BabeLinux Terminal Emulator</title>
-<meta name="description" content="BabeLinux is an interactive, browser-based terminal simulation that mimics a desktop operating system.">
+<title>Free Online Browser Games & Tools for your PC</title>
+<meta name="description" content="Dive into a world of entertainment on your PC! Play games and explore a suite of tools directly in your browser – no downloads needed.">
 <meta name="robots" content="index, follow">
+<script src="/stats/tracker.js" defer></script>
 <style>
-:root {
---terminal-color: #33FF33;
-}
-html,
 body {
+background-color: #121212;
+color: #c9d1d9;
+font-family: sans-serif;
 margin: 0;
-padding: 0;
-background-color: #000;
-color: var(--terminal-color);
-font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-font-size: 16px;
-overflow: hidden;
-width: 100%;
-height: 100%;
 }
-body {
-display: flex;
-align-items: center;
-justify-content: center;
-width: 100vw;
-height: 100vh;
+div {
+max-width: 800px;
+margin-left: auto;
+margin-right: auto;
+margin-bottom: 60px;
+padding: 0 1rem;
 }
-#terminal-frame {
-width: 100%;
-height: 99.8%;
-box-sizing: border-box;
-border: 1px solid var(--terminal-color);
-display: flex;
-flex-direction: column;
+h1 {
+color: cornflowerBlue;
 }
-#tabs-container {
-display: flex;
-background-color: #0a0a0a;
-border-bottom: 1px solid var(--terminal-color);
-flex-shrink: 0;
+h3 {
+margin: 30px 0 8px 0;
 }
-.tab {
-padding: 8px 15px;
-cursor: pointer;
-border-right: 1px solid var(--terminal-color);
-position: relative;
-display: flex;
-align-items: center;
-gap: 8px;
+p {
+margin: 4px 0 0 0;
+color: #c9d1d9;
 }
-.tab:hover {
-background-color: #1a1a1a;
+a {
+color: cornflowerBlue;
+text-decoration: none;
 }
-.tab.active {
-background-color: #111;
-color: #55FF55;
-font-weight: bold;
+a:hover {
+text-decoration: underline;
 }
-.tab-close {
-font-weight: normal;
-padding: 0 4px;
-border-radius: 3px;
-}
-.tab-close:hover {
-background-color: #FF3333;
-color: #000;
-}
-.new-tab-button {
-padding: 8px 15px;
-cursor: pointer;
-font-weight: bold;
-}
-.new-tab-button:hover {
-background-color: var(--terminal-color);
-color: #000;
-}
-#terminal-windows-container {
-flex-grow: 1;
-position: relative;
-overflow: hidden;
-}
-.terminal {
-padding: 15px;
-white-space: pre-wrap;
-word-wrap: break-word;
-height: 100%;
-width: 100%;
-box-sizing: border-box;
-overflow-y: auto;
-cursor: text;
-outline: none;
-position: absolute;
-top: 0;
-left: 0;
-}
-.terminal-image {
-max-width: 95%;
-margin-top: 10px;
-margin-bottom: 10px;
-border: 2px solid var(--terminal-color);
-}
-.prompt-line {
-display: flex;
-white-space: pre;
-}
-.cursor {
-background-color: currentColor;
-display: inline-block;
-width: 9.6px;
-height: 19px;
-animation: blink 1s step-end infinite;
-margin-left: 1px;
-}
-@keyframes blink {
-50% {
-background-color: transparent;
-}
-}
-#file-list {
-display: grid;
-grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-gap: 5px 15px;
-padding-left: 20px;
-}
-.folder {
-color: #00aaff;
-font-weight: bold;
-}
-.terminal-video {
-max-width: 80%;
-max-height: 70%;
-display: block;
-margin: 15px 0;
-border: 2px solid var(--terminal-color);
-outline: none;
-}
-#tab-group {
-display: flex;
-flex-grow: 1;
-}
-#nano-editor {
-display: none;
-position: fixed;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-background-color: #000;
-z-index: 100;
-flex-direction: column;
-font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-}
-#nano-textarea {
-flex-grow: 1;
-background-color: #000;
-color: var(--terminal-color);
+hr {
 border: none;
-outline: none;
-padding: 10px;
-font-size: 16px;
-resize: none;
-}
-#nano-footer {
-flex-shrink: 0;
-padding: 2px 5px;
-text-align: center;
-background-color: #0a0a0a;
-}
-.nano-command {
-background-color: #0a0a0a;
-color: var(--terminal-color);
-padding: 2px 5px;
-margin: 0 10px;
-display: inline-block;
-}
-.terminal.theme-amber {
-color: #FFBF00;
-}
-.terminal.theme-sky {
-color: #87CEEB;
-}
-.terminal.theme-rose {
-color: #FFC0CB;
+background-color: #333;
+height: 1px;
 }
 </style>
 </head>
 <body>
-<div id="terminal-frame">
-<div id="tabs-container">
-<div id="tab-group"></div>
-</div>
-<div id="terminal-windows-container"></div>
-</div>
-<div id="nano-editor">
-<textarea id="nano-textarea"></textarea>
-<div id="nano-footer">
-<span class="nano-command">^R Read File</span>
-<span class="nano-command">^O Save</span>
-<span class="nano-command">^X Exit</span>
-</div>
-</div>
-<input type="file" id="nano-file-input" style="display: none;" accept=".txt, text/plain">
-<input type="file" id="pic-file-input" style="display: none;" accept="image/*">
-<input type="file" id="media-file-input" style="display: none;" accept="audio/*,video/*">
-<audio id="audio-player"></audio>
-<script>
-const config = {
-maxTabs: 5,
-hostname: 'babelinux',
-defaultUsername: 'guest',
-defaultColor: '#33FF33',
-asciiWidth: 80,
-apps: {
-'adventure': 'adventure.html',
-'snake': 'snakemono.html',
-'sokobaned': 'sokobaned.html',
-'tetris': 'tetrismono.html'
-}
-};
-const text = {
-welcome: "Welcome! What's your name?",
-bootingOS: "Starting BabeLinux OS...",
-authenticating: "Authenticating user... OK\n",
-systemCheck: "System check... OK\n",
-connecting: "Connecting to network... OK\n",
-helpHint: "For a list of available commands, type 'help'.\n",
-commandNotFound: "Command not found:",
-secretResponse: "Oh, you found my secret command..."
-};
-const introText = `AVAILABLE COMMANDS:                            GAMES:
+<div>
 
-play             - Play a local media file     adventure
-pause            - Pause playback (audio)      snakemono
-stop             - Stop playback (audio)       sokobaned
-clear, cls       - Clear the screen            tetrismono
-date             - Show date and time
-history          - Show command history
-theme [color]    - Change color theme
-nano [filename]  - Open a simple text editor
-pic              - Simple image editor
-say [text]       - Make the terminal speak
-help             - Show this help message
+<h1>Free Online Browser Games & Tools for your PC</h1>
+<strong>Follow me on:</strong>
+<a href="https://www.facebook.com/morepcfun/" target="_blank" rel="noopener noreferrer">Facebook</a> |
+<a href="https://www.youtube.com/@aiterranova" target="_blank" rel="noopener noreferrer">YouTube</a> |
+morepcfun@gmail.com
+<hr>
+<p style="font-size: 0.9rem; color: #808080;">Copyright © 2025 Johnny Heggelund (chromebooker.com). All rights reserved. The browser games, tools,
+and underlying source code on this website are protected by copyright law. You may not copy, modify,
+distribute, reverse engineer, or embed these applications on third-party websites without prior written
+consent. Violators will be subject to legal action.</p>
+<hr>
 
-TAB COMMANDS:
+<p><strong>Latest updates:</strong> In my <a href="adventure.html" target="_blank" rel="noopener noreferrer">Adventure Game</a>, I've
+lowered the volume of the rain sound effects in The Underworld and swapped the shelter graphics from a grand castle to a cozy hut.
+I've also made some tweaks to my <a href="coder.html" target="_blank" rel="noopener noreferrer">Code Editor</a>. The line numbers
+are more visible now, with a vertical line separating them from the code. There's also a bit more space between the code and the line numbers.</p>
 
-Alt + T          - New tab
-Alt + X          - Close active tab
-`;
-const state = {
-tabs: [],
-activeTabId: null,
-nextTabId: 1,
-audioCtx: null,
-username: '',
-awaitingUsername: true,
-isNanoMode: false,
-nanoFilename: '',
-currentAudioTabId: null
-};
-const terminalFrame = document.getElementById('terminal-frame');
-const tabsContainer = document.getElementById('tabs-container');
-const terminalWindowsContainer = document.getElementById('terminal-windows-container');
-const audioPlayer = document.getElementById('audio-player');
-const nanoEditor = document.getElementById('nano-editor');
-const nanoTextarea = document.getElementById('nano-textarea');
-const nanoFileInput = document.getElementById('nano-file-input');
-const picFileInput = document.getElementById('pic-file-input');
-const mediaFileInput = document.getElementById('media-file-input');
-const delay = ms => new Promise(res => setTimeout(res, ms));
-function getActiveTab() {
-return state.tabs.find(t => t.id === state.activeTabId);
-}
-function appendToTerminal(tab, htmlContent) {
-if (tab && tab.terminalElement) {
-tab.terminalElement.insertAdjacentHTML('beforeend', htmlContent);
-tab.terminalElement.scrollTop = tab.terminalElement.scrollHeight;
-}
-}
-function createPrompt(tab, subPrompt = '') {
-if (!tab) return;
-const oldCursor = tab.terminalElement.querySelector('.cursor');
-if (oldCursor) oldCursor.remove();
-let promptText;
-if (subPrompt) {
-promptText = subPrompt;
-} else if (tab.isPicMode) {
-promptText = 'pic>';
-} else {
-promptText = `${state.username}@${config.hostname}:~$`;
-}
-const promptHTML = `<div class="prompt-line"><span>${promptText} </span><span class="active-command-text"></span><span class="cursor"></span></div>`;
-appendToTerminal(tab, promptHTML);
-tab.currentCommand = '';
-}
-function refocusTerminal(tab) {
-if (!tab) return;
-requestAnimationFrame(() => {
-tab.terminalElement.focus();
-tab.terminalElement.scrollTop = tab.terminalElement.scrollHeight;
-});
-}
-function initAudio() {
-if (!state.audioCtx) {
-try {
-state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-} catch (e) { console.error("Web Audio API is not supported in this browser."); }
-}
-}
-function playSound(type, freq, gainVal, duration) {
-if (!state.audioCtx) return;
-const oscillator = state.audioCtx.createOscillator();
-const gainNode = state.audioCtx.createGain();
-oscillator.connect(gainNode);
-gainNode.connect(state.audioCtx.destination);
-oscillator.type = type;
-oscillator.frequency.setValueAtTime(freq, state.audioCtx.currentTime);
-gainNode.gain.setValueAtTime(gainVal, state.audioCtx.currentTime);
-gainNode.gain.exponentialRampToValueAtTime(0.00001, state.audioCtx.currentTime + duration);
-oscillator.start(state.audioCtx.currentTime);
-oscillator.stop(state.audioCtx.currentTime + duration);
-}
-function playKeySound() { playSound('sine', 600 + Math.random() * 200, 0.2, 0.08); }
-function playReturnSound() { playSound('square', 440, 0.1, 0.05); }
-function playClearSound() {
-if (!state.audioCtx) return;
-const sampleRate = state.audioCtx.sampleRate;
-const buffer = state.audioCtx.createBuffer(1, sampleRate, sampleRate);
-const output = buffer.getChannelData(0);
-for (let i = 0; i < sampleRate; i++) { output[i] = Math.random() * 2 - 1; }
-const noise = state.audioCtx.createBufferSource();
-noise.buffer = buffer;
-const gainNode = state.audioCtx.createGain();
-gainNode.gain.setValueAtTime(0.2, state.audioCtx.currentTime);
-gainNode.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.15);
-noise.connect(gainNode);
-gainNode.connect(state.audioCtx.destination);
-noise.start();
-noise.stop(state.audioCtx.currentTime + 0.15);
-}
-function switchTab(tabId) {
-if (state.isNanoMode || state.activeTabId === tabId) return;
-state.activeTabId = tabId;
-state.tabs.forEach(tab => {
-const isActive = tab.id === tabId;
-tab.tabElement.classList.toggle('active', isActive);
-tab.terminalElement.style.display = isActive ? 'block' : 'none';
-if (isActive) { refocusTerminal(tab); }
-});
-}
-function updateNewTabButton() {
-let newTabButton = tabsContainer.querySelector('.new-tab-button');
-if (state.tabs.length < config.maxTabs) {
-if (!newTabButton) {
-newTabButton = document.createElement('div');
-newTabButton.className = 'new-tab-button';
-newTabButton.textContent = '+';
-newTabButton.onclick = createNewTab;
-tabsContainer.appendChild(newTabButton);
-}
-} else {
-if (newTabButton) newTabButton.remove();
-}
-}
-function closeTab(tabId) {
-if (state.tabs.length <= 1) return;
-const tabIndex = state.tabs.findIndex(t => t.id === tabId);
-if (tabIndex === -1) return;
-const tabToClose = state.tabs[tabIndex];
-if (tabToClose.videoElement) {
-URL.revokeObjectURL(tabToClose.videoElement.src);
-tabToClose.videoElement.remove();
-}
-if (tabToClose.id === state.currentAudioTabId) {
-audioPlayer.pause();
-URL.revokeObjectURL(audioPlayer.src);
-audioPlayer.removeAttribute('src');
-state.currentAudioTabId = null;
-}
-tabToClose.tabElement.remove();
-tabToClose.terminalElement.remove();
-state.tabs.splice(tabIndex, 1);
-updateNewTabButton();
-if (state.activeTabId === tabId) {
-const newActiveIndex = Math.max(0, tabIndex - 1);
-switchTab(state.tabs[newActiveIndex].id);
-}
-}
-function createNewTab() {
-if (state.tabs.length >= config.maxTabs) return;
-const tabId = `tab-${state.nextTabId++}`;
-const tabEl = document.createElement('div');
-tabEl.className = 'tab';
-tabEl.dataset.tabId = tabId;
-tabEl.innerHTML = `<span>Terminal ${state.tabs.length + 1}</span>`;
-if (state.tabs.length > 0) {
-const closeButton = document.createElement('span');
-closeButton.className = 'tab-close';
-closeButton.textContent = 'x';
-closeButton.onclick = (e) => { e.stopPropagation(); closeTab(tabId); };
-tabEl.appendChild(closeButton);
-}
-tabEl.onclick = () => switchTab(tabId);
-const terminalEl = document.createElement('div');
-terminalEl.className = 'terminal';
-terminalEl.id = tabId;
-terminalEl.tabIndex = -1;
-const newTab = {
-id: tabId, tabElement: tabEl, terminalElement: terminalEl,
-commandHistory: [], historyIndex: -1, currentCommand: '',
-isProcessing: false, videoElement: null, isPicMode: false,
-picOriginalImageData: null, picActiveImageData: null, picNextAction: null
-};
-state.tabs.push(newTab);
-document.getElementById('tab-group').appendChild(tabEl);
-terminalWindowsContainer.appendChild(terminalEl);
-updateNewTabButton();
-switchTab(tabId);
-if (state.tabs.length > 1) {
-newTab.isProcessing = true;
-createPrompt(newTab);
-newTab.isProcessing = false;
-refocusTerminal(newTab);
-}
-}
-function startNano(filename) {
-state.isNanoMode = true;
-state.nanoFilename = filename || 'untitled.txt';
-nanoTextarea.value = '';
-nanoEditor.style.display = 'flex';
-nanoTextarea.focus();
-}
-function closeNano() {
-state.isNanoMode = false;
-nanoTextarea.value = '';
-state.nanoFilename = '';
-nanoEditor.style.display = 'none';
-const activeTab = getActiveTab();
-if (activeTab) {
-refocusTerminal(activeTab);
-createPrompt(activeTab);
-}
-}
-function saveNanoFile() {
-const content = nanoTextarea.value;
-const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = state.nanoFilename;
-document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-URL.revokeObjectURL(url);
-}
-function readNanoFile() {
-nanoFileInput.onchange = (e) => {
-const file = e.target.files[0];
-if (!file) return;
-const reader = new FileReader();
-reader.onload = (event) => {
-nanoTextarea.value += event.target.result;
-nanoTextarea.focus();
-};
-reader.readAsText(file);
-e.target.value = '';
-};
-nanoFileInput.click();
-}
-function startPicMode(tab) {
-let fileSelected = false;
-const handleCancel = () => {
-setTimeout(() => {
-if (!fileSelected) {
-createPrompt(tab);
-refocusTerminal(tab);
-}
-}, 200);
-};
-window.addEventListener('focus', handleCancel, { once: true });
-picFileInput.onchange = (e) => {
-fileSelected = true;
-window.removeEventListener('focus', handleCancel);
-const file = e.target.files[0];
-if (!file) {
-createPrompt(tab);
-return;
-}
-const reader = new FileReader();
-reader.onload = (event) => {
-tab.picOriginalImageData = event.target.result;
-tab.picActiveImageData = event.target.result;
-tab.isPicMode = true;
-showImageAndMenu(tab, tab.picActiveImageData);
-};
-reader.readAsDataURL(file);
-e.target.value = '';
-};
-picFileInput.value = '';
-picFileInput.click();
-}
-function showImageAndMenu(tab, imageData) {
-const image = document.createElement('img');
-image.src = imageData;
-image.className = 'terminal-image';
-image.onload = () => { tab.terminalElement.scrollTop = tab.terminalElement.scrollHeight; };
-const menu = document.createElement('span');
-menu.textContent = "\n[1] Compress  [2] Resize  [3] Grayscale  [4] Sepia  |  [save] Save  [reset] Reset  [exit] Exit\n";
-tab.terminalElement.appendChild(image);
-tab.terminalElement.appendChild(menu);
-createPrompt(tab);
-}
-async function applyCanvasFilter(imageData, filter, value) {
-return new Promise(resolve => {
-const image = new Image();
-image.onload = () => {
-const canvas = document.createElement('canvas');
-let quality = 0.92;
-if (filter === 'resize') {
-const aspectRatio = image.height / image.width;
-canvas.width = parseInt(value, 10);
-canvas.height = canvas.width * aspectRatio;
-} else {
-canvas.width = image.width;
-canvas.height = image.height;
-}
-const ctx = canvas.getContext('2d');
-ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-if (filter === 'grayscale' || filter === 'sepia') {
-const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-const data = pixelData.data;
-for (let i = 0; i < data.length; i += 4) {
-const r = data[i], g = data[i + 1], b = data[i + 2];
-if (filter === 'grayscale') {
-const avg = (r + g + b) / 3;
-data[i] = data[i + 1] = data[i + 2] = avg;
-} else if (filter === 'sepia') {
-data[i] = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
-data[i + 1] = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
-data[i + 2] = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
-}
-}
-ctx.putImageData(pixelData, 0, 0);
-} else if (filter === 'compress') {
-quality = parseInt(value, 10) / 100;
-}
-resolve(canvas.toDataURL('image/jpeg', quality));
-};
-image.src = imageData;
-});
-}
-async function handlePicSubCommand(input, tab) {
-const command = input.toLowerCase();
-if (command === 'exit' || command === 'quit') {
-await handlePicCommand('exit', tab);
-return;
-}
-const lastPromptLine = tab.terminalElement.querySelector('.prompt-line:last-child');
-if (lastPromptLine) {
-const promptText = lastPromptLine.querySelector('span:first-child').textContent;
-lastPromptLine.innerHTML = `<span>${promptText}</span><span>${input}</span>`;
-}
-const action = tab.picNextAction;
-tab.picNextAction = null;
-switch (action) {
-case 'compress':
-tab.picActiveImageData = await applyCanvasFilter(tab.picActiveImageData, 'compress', input);
-break;
-case 'resize':
-tab.picActiveImageData = await applyCanvasFilter(tab.picActiveImageData, 'resize', input);
-break;
-}
-showImageAndMenu(tab, tab.picActiveImageData);
-}
-async function handlePicCommand(command, tab) {
-const lastPromptLine = tab.terminalElement.querySelector('.prompt-line:last-child');
-if (lastPromptLine) {
-lastPromptLine.innerHTML = `<span>pic> </span><span>${command}</span>`;
-}
-switch (command.toLowerCase()) {
-case '1':
-tab.picNextAction = 'compress';
-createPrompt(tab, "Quality (1-100): ");
-return;
-case '2':
-tab.picNextAction = 'resize';
-createPrompt(tab, "New width (pixels): ");
-return;
-case '3':
-tab.picActiveImageData = await applyCanvasFilter(tab.picActiveImageData, 'grayscale');
-showImageAndMenu(tab, tab.picActiveImageData);
-return;
-case '4':
-tab.picActiveImageData = await applyCanvasFilter(tab.picActiveImageData, 'sepia');
-showImageAndMenu(tab, tab.picActiveImageData);
-return;
-case 'reset':
-tab.picActiveImageData = tab.picOriginalImageData;
-showImageAndMenu(tab, tab.picActiveImageData);
-return;
-case 'save':
-appendToTerminal(tab, "<span>Saving image...</span>");
-const a = document.createElement('a');
-a.href = tab.picActiveImageData;
-a.download = 'edited-image.jpg';
-a.click();
-break;
-case 'exit':
-case 'quit':
-tab.isPicMode = false;
-tab.picOriginalImageData = null;
-tab.picActiveImageData = null;
-tab.picNextAction = null;
-appendToTerminal(tab, "<span>Leaving image editor...</span>");
-break;
-default:
-appendToTerminal(tab, "<span>Unknown pic command.</span>");
-break;
-}
-createPrompt(tab);
-}
-function startPlayMode(tab) {
-let fileSelected = false;
-const handleCancel = () => {
-setTimeout(() => {
-if (!fileSelected) {
-createPrompt(tab);
-refocusTerminal(tab);
-}
-}, 200);
-};
-window.addEventListener('focus', handleCancel, { once: true });
-mediaFileInput.onchange = (e) => {
-fileSelected = true;
-window.removeEventListener('focus', handleCancel);
-const file = e.target.files[0];
-if (!file) {
-createPrompt(tab);
-return;
-}
-if (state.currentAudioTabId && state.currentAudioTabId !== tab.id) { }
-state.currentAudioTabId = tab.id;
-if (audioPlayer.src) URL.revokeObjectURL(audioPlayer.src);
-if (file.type.startsWith('audio/')) {
-audioPlayer.src = URL.createObjectURL(file);
-audioPlayer.play();
-appendToTerminal(tab, `<span>Playing ${file.name}. Use 'pause' or 'stop'.</span>`);
-} else if (file.type.startsWith('video/')) {
-if (tab.videoElement) {
-URL.revokeObjectURL(tab.videoElement.src);
-tab.videoElement.remove();
-}
-appendToTerminal(tab, `<span>Now playing: ${file.name}</span>`);
-const videoEl = document.createElement('video');
-videoEl.className = 'terminal-video';
-videoEl.src = URL.createObjectURL(file);
-videoEl.controls = true;
-videoEl.autoplay = true;
-videoEl.addEventListener('pause', () => refocusTerminal(tab));
-videoEl.addEventListener('play', () => refocusTerminal(tab));
-videoEl.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) refocusTerminal(tab); });
-videoEl.onended = () => {
-URL.revokeObjectURL(videoEl.src);
-videoEl.remove();
-tab.videoElement = null;
-refocusTerminal(tab);
-};
-tab.terminalElement.appendChild(videoEl);
-tab.videoElement = videoEl;
-} else {
-appendToTerminal(tab, `<span>Error: File type of '${file.name}' is not supported.</span>`);
-}
-e.target.value = '';
-createPrompt(tab);
-refocusTerminal(tab);
-};
-mediaFileInput.value = '';
-mediaFileInput.click();
-}
-const commandHandlers = {
-'help': (tab) => {
-appendToTerminal(tab, `<pre>${introText}</pre>`);
-},
-'ls': (tab) => {
-appendToTerminal(tab, `<pre>${introText}</pre>`);
-},
-'cls': (tab) => {
-playClearSound();
-if (tab.videoElement) {
-tab.videoElement.pause();
-URL.revokeObjectURL(tab.videoElement.src);
-tab.videoElement.remove();
-tab.videoElement = null;
-}
-tab.terminalElement.innerHTML = '';
-},
-'clear': (tab) => commandHandlers.cls(tab),
-'date': (tab) => {
-appendToTerminal(tab, `<span>${new Date().toLocaleString('en-US')}</span>`);
-},
-'history': (tab) => {
-const historyHTML = tab.commandHistory.map((item, i) => ` ${i + 1} ${item}`).join('\n');
-appendToTerminal(tab, `<pre>${historyHTML}</pre>`);
-},
-'theme': (tab, arg) => {
-const availableThemes = ['amber', 'sky', 'rose'];
-tab.terminalElement.classList.remove(...availableThemes.map(t => `theme-${t}`));
-if (arg === 'reset') {
-appendToTerminal(tab, "<span>Color theme reset.</span>");
-} else if (availableThemes.includes(arg)) {
-tab.terminalElement.classList.add(`theme-${arg}`);
-appendToTerminal(tab, `<span>Theme changed to ${arg}.</span>`);
-} else {
-appendToTerminal(tab, `<span>Usage: theme [color] or 'reset'. Available: ${availableThemes.join(', ')}</span>`);
-}
-},
-'nano': (tab, arg) => startNano(arg),
-'pic': (tab) => startPicMode(tab),
-'say': (tab, arg) => {
-if (!arg) { appendToTerminal(tab, "<span>Usage: say [text]</span>"); }
-else if ('speechSynthesis' in window) {
-const utterance = new SpeechSynthesisUtterance(arg);
-window.speechSynthesis.speak(utterance);
-} else { appendToTerminal(tab, "<span>Error: Text-to-speech not supported.</span>"); }
-},
-'play': (tab) => {
-if (state.currentAudioTabId === tab.id && audioPlayer.src && audioPlayer.paused) {
-audioPlayer.play();
-appendToTerminal(tab, "<span>Resuming audio...</span>");
-createPrompt(tab);
-} else {
-startPlayMode(tab);
-}
-},
-'pause': (tab) => {
-if (state.currentAudioTabId !== tab.id) { appendToTerminal(tab, "<span>Error: This tab does not control the audio.</span>"); }
-else if (!audioPlayer.paused && audioPlayer.src) { audioPlayer.pause(); appendToTerminal(tab, "<span>Audio paused.</span>"); }
-else { appendToTerminal(tab, "<span>No audio is playing.</span>"); }
-createPrompt(tab);
-},
-'stop': (tab) => {
-if (state.currentAudioTabId !== tab.id) { appendToTerminal(tab, "<span>Error: This tab does not control the audio.</span>"); }
-else if (audioPlayer.src) {
-audioPlayer.pause();
-audioPlayer.currentTime = 0;
-URL.revokeObjectURL(audioPlayer.src);
-audioPlayer.removeAttribute('src');
-state.currentAudioTabId = null;
-appendToTerminal(tab, "<span>Audio stopped.</span>");
-} else { appendToTerminal(tab, "<span>No audio is playing.</span>"); }
-createPrompt(tab);
-},
-'secret': (tab) => {
-appendToTerminal(tab, `<span>${text.secretResponse}</span>`);
-}
-};
-const commandList = [...Object.keys(commandHandlers), ...Object.keys(config.apps)];
-async function handleCommand(tab, commandStr) {
-const lastPromptLine = tab.terminalElement.querySelector('.prompt-line:last-child');
-if (lastPromptLine) {
-lastPromptLine.outerHTML = `<div class="prompt-line"><span>${state.username}@${config.hostname}:~$ </span><span>${commandStr}</span></div>`;
-}
-const [cmd, ...args] = commandStr.trim().split(' ').filter(Boolean);
-if (!cmd) {
-createPrompt(tab);
-return;
-}
-const handler = commandHandlers[cmd.toLowerCase()];
-const joinedArgs = args.join(' ');
-if (['nano', 'pic', 'play'].includes(cmd.toLowerCase())) {
-if (handler) handler(tab, joinedArgs);
-return;
-}
-if (handler) {
-handler(tab, joinedArgs);
-} else if (config.apps[cmd.toLowerCase()]) {
-appendToTerminal(tab, `<span>Opening '${cmd}'...</span>`);
-window.open(config.apps[cmd.toLowerCase()], '_blank');
-} else {
-appendToTerminal(tab, `<span>${text.commandNotFound} ${cmd}</span>`);
-}
-createPrompt(tab);
-}
-document.body.addEventListener('keydown', async (e) => {
-const tab = getActiveTab();
-if (state.isNanoMode) return;
-if (e.altKey) {
-if (e.key.toLowerCase() === 't' || e.key.toLowerCase() === 'x') { e.preventDefault(); }
-if (e.key.toLowerCase() === 't') createNewTab();
-else if (e.key.toLowerCase() === 'x' && state.activeTabId) closeTab(state.activeTabId);
-return;
-}
-if (state.awaitingUsername) {
-e.preventDefault();
-const usernamePromptText = document.getElementById('username-prompt-text');
-if (e.key === 'Enter') {
-playReturnSound();
-state.username = state.username.trim() || config.defaultUsername;
-state.awaitingUsername = false;
-initAudio();
-await startBootSequence();
-} else if (e.key === 'Backspace') {
-state.username = state.username.slice(0, -1);
-if (usernamePromptText) usernamePromptText.textContent = state.username;
-} else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-state.username += e.key;
-if (usernamePromptText) usernamePromptText.textContent = state.username;
-}
-return;
-}
-if (!tab || tab.isProcessing) return;
-if (document.activeElement === tab.terminalElement) {
-e.preventDefault();
-const commandTextEl = tab.terminalElement.querySelector('.prompt-line:last-child .active-command-text');
-if (!commandTextEl) return;
-tab.currentCommand = commandTextEl.textContent;
-if (e.key === 'Enter') {
-playReturnSound();
-const commandToProcess = tab.currentCommand;
-if (commandToProcess.trim() && !tab.isPicMode && !tab.picNextAction) {
-tab.commandHistory.push(commandToProcess);
-}
-tab.historyIndex = tab.commandHistory.length;
-tab.isProcessing = true;
-if (tab.isPicMode) {
-if (tab.picNextAction) { await handlePicSubCommand(commandToProcess, tab); }
-else { await handlePicCommand(commandToProcess, tab); }
-} else {
-await handleCommand(tab, commandToProcess);
-}
-tab.isProcessing = false;
-} else if (e.key === 'Backspace') {
-tab.currentCommand = tab.currentCommand.slice(0, -1);
-commandTextEl.textContent = tab.currentCommand;
-playKeySound();
-} else if (e.key === 'ArrowUp' && !tab.isPicMode) {
-if (tab.historyIndex > 0) {
-tab.historyIndex--;
-tab.currentCommand = tab.commandHistory[tab.historyIndex];
-commandTextEl.textContent = tab.currentCommand;
-}
-} else if (e.key === 'ArrowDown' && !tab.isPicMode) {
-if (tab.historyIndex < tab.commandHistory.length) {
-tab.historyIndex++;
-tab.currentCommand = tab.historyIndex < tab.commandHistory.length ? tab.commandHistory[tab.historyIndex] : '';
-commandTextEl.textContent = tab.currentCommand;
-}
-} else if (e.key === 'Tab') {
-const fragment = tab.currentCommand.split(' ').pop().toLowerCase();
-const matches = commandList.filter(cmd => cmd.startsWith(fragment));
-if (matches.length === 1) {
-tab.currentCommand = tab.currentCommand.substring(0, tab.currentCommand.lastIndexOf(fragment)) + matches[0] + ' ';
-commandTextEl.textContent = tab.currentCommand;
-} else if (matches.length > 1) {
-const suggestionsHTML = `<pre>\n${matches.join('   ')}</pre>`;
-commandTextEl.parentElement.insertAdjacentHTML('beforebegin', suggestionsHTML);
-tab.terminalElement.scrollTop = tab.terminalElement.scrollHeight;
-}
-} else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-tab.currentCommand += e.key;
-commandTextEl.textContent = tab.currentCommand;
-playKeySound();
-}
-}
-});
-nanoTextarea.addEventListener('keydown', (e) => {
-if (!state.isNanoMode) return;
-if (e.ctrlKey) {
-const key = e.key.toLowerCase();
-if (['x', 'o', 'r'].includes(key)) {
-e.preventDefault();
-if (key === 'x') closeNano();
-else if (key === 'o') saveNanoFile();
-else if (key === 'r') readNanoFile();
-}
-}
-});
-document.body.addEventListener('click', (e) => {
-const tab = getActiveTab();
-if (terminalFrame.contains(e.target) && !tabsContainer.contains(e.target) && tab) {
-if (e.target.tagName.toLowerCase() !== 'video') {
-refocusTerminal(tab);
-}
-}
-});
-async function typeText(tab, text, delayMs) {
-for (let i = 0; i < text.length; i++) {
-const char = text.charAt(i);
-if (char !== '\n') playKeySound();
-appendToTerminal(tab, `<span>${char === '\n' ? '<br>' : char}</span>`);
-await delay(delayMs);
-}
-}
-async function startBootSequence() {
-const tab = getActiveTab();
-tab.isProcessing = true;
-tab.terminalElement.innerHTML = '';
-const bootSequence = [
-{ text: text.bootingOS, delay: 50 },
-{ text: text.authenticating, delay: 40 },
-{ text: text.systemCheck, delay: 30 },
-{ text: text.connecting, delay: 40 },
-{ text: `\n${text.helpHint}\n`, delay: 15 },
-];
-for (const line of bootSequence) {
-await typeText(tab, line.text, line.delay);
-}
-tab.isProcessing = false;
-createPrompt(tab);
-refocusTerminal(tab);
-}
-function init() {
-createNewTab();
-const firstTab = getActiveTab();
-const welcomeHTML = `<h1>BabeLinux 6.9</h1><div class="prompt-line"><span>${text.welcome} </span><span id="username-prompt-text"></span><span class="cursor"></span></div>
-<pre style="font-family: 'Courier New', 'Consolas', monospace; font-size: 0.25rem; line-height: 0.80; white-space: pre; margin: 0;">
-.............................................+*;+?+;%%%%?%%%%+;**%?++%%%%%%%%S*%?%*;**%S*++??+;?**++**++:;:::,;?%*;*??;.........................
-............................................,++:*?+;%%%%?%%%%;;+*%*+;%%%%%%%%S+%?%+;+*%S?+;??+;?**++**:+*;+*?;:*%*;*?*;.........................
-............................................,+;:**;+%%%??%%%?;;;*%++;%%%%%%%%%+%*?;;+?SS?+;?*;;?*++++*;;??*?S*,+?*;*?++.........................
-............................................,;::*+;+%%%?%%%%?:;;+%;+;?%%%%%%%?+%+*:;+?SS?;:?*:;?*+;++*;;:%%??*,;?*;*?++.........................
-............................................:;:;*+:*%%%?%%%%*:;:+%;;:?%%%%%%%*+?*+;++?SS?;:?+:;*++;;+*;;,;?***,,**;*?;+.........................
-...........................................,;+:;*;:*%%%?%%%%*:;:+%:;:*%%%%%%%+++*;;++%SS*;;?;:;*++;;++;;,,*++;..+*;+?;+.........................
-..........................................,:++,++;:?%%%?%%%?+:;:;%,;:*?%%%%%?++;*:;;*%SS*:;*:::*++;;++;;,,+;;:..:+;+*;;.........................
-..........................................,,*;.++:,?%%%?%%%?+:;:;?,;:+*%%%%%*++:*:;;+%SS+:+*::;++;;;+++;,,:,,....;:*+;:.........................
-...........................................:*,,++:,?%%%?%%??;;;:;?:;;;+%%%%%*;;;;:;;?SSS+:++,:;++;;;;:;:.;;:.....,:+;+,.........................
-...........................................:+.,+;:,?%%%?%%?*;;;:;*:;;;;?%%%%+;,;:;;*%##S+;*+::;;*;::,::,.?;:.....,,+:;..........................
-...........................................;;.,+;:;?%%%?%%?*;;;;;*:;;:;?%%%?+;,;:++*S##%++*;::;;*:,,::,..*,......,,;:;..........................
-...........................................;,.:;+*+?%%%?%%?+;++;;+;;;;:*%%%?+:,+;++?SSS?++*:;;;;*,,;;...:*,......,,:::..........................
-...........................................;,.,+?%+?%%%?%??+:;;::;;;+;:*%%%*+::++*+?%?*;;++:+;+;+,+?:.,,,?+:.....,:,;,..........................
-..........................................,:,+%%%*;?%%%*%??+;+?++*++++;*%%%*+,;++*;;,....,,.:;;;::%*,,,::%;:...,.,,:;,..........................
-..........................................::*%*++;;?%%%*%??+;*%+****+++*?%?+;:+++:.......,.,.:;+,*S;,,:::S;;,..,,.,:,...........................
-..........................................:;%?++;;;*?%%*%%?;;*S*????**+*?%?+;:+;,........,.,.;:;;S*,,;;::%;;,..,,.,,:,..........................
-.........................................,:+S?+;;;:*?%%*%%*;:;+;+++%*?+*?%*+:+*;;,.........,.+::+S+::;:,;%;;,,..,..,::..........................
-.........................................::+S%*+;::+?%?*%?*:,....,,+?%**?%*+;+%**++:.......,,+::?%;:;;:,*?+:,,..,,..,:,.........................
-........................................,,,+S%*++;:+?%?+%?*:,,......*S????*++?%%%S?;,.....,,:;::%?;;;;:,?*+,,,..,,,.,::.........................
-........................................,,,+S%*+++;;*%?+%??;,:,,....;S?%??*;*%?S#%:,,,,,,,::+;:;S*;;;;:,?;;,,,...,,,,::,........................
-.......................................,,,.*S%?*++;;*%?;%?*+,;?+....;S%%??*+?S%##S:,,,,,,,:;+;:;%;;+;:,:+;;.,,...,:,,::,........................
-......................................,:,.,*S%?**++:*%?;%?*+:**:,.,,:SS%??**%SS##S+;,::::++*+*:;%::;;:,;;+;.,,...,:::::,........................
-......................................,:;.,*S%?**+;:+%?;?%*+;++,,,,,:%#S%?*?S#####%*+;;;+??*+?,:*,,::,,?+:;,,....,::::,.........................
-.....................................,,:*,,?S%?**++;+%*;?%?+;+?::,,,;?#S%??S######S%%???%S%**?,,+,,::,;+::;,,....,,,,...........................
-....................................,,::*.,?%??***+;;%*;?%?*+;%*;::;+?#S%?S#######S?*???*%?*?+..:..,::?*;++,,...................................
-....................................,.;;:..*?*****++:?*;*%?*;;?S??+??S##%?S#####SSSS%???%%*??:,....,,*?*,++,......,,............................
-...................................,.,::..:::::;**++:?*;*%?*+:+SS%SS%?##%%#####SSSSS%%%%%?**?:;.....;%?;.;+,....:,,,............................
-...................................,.:,.,+++++;::;;+:*+;?%%++:,?S%++*SS#S######SSS%%%%%%%*??+*:...,+??+,,;+.....,.,.............................
-..................................,..:..:::::;;+;::+:*+;??%++;,+%SSS%SSS#######SSSSS%%%%?%*?;*,,..,***:,,,,.....,...............................
-.................................,,..,,:::::::,:;;:::++;??%++;,+*%%%%%SSS#######SSSSSSSS%?***;:;....,,,,,.......................................
-.................................,..,,,:::::,,,,,::,,;;;?*%+;;::?%%%%SSS#########SSSSSSS%+*+?:;;:....:;:.......,................................
-................................,,..,,;;::::,,,..,::,;;;?*%+:;:,*SSSSSSS###SSSS###SSSSS%*++?*:;;;,..,:::.......,,...............................
-................................,...,;+++;:,,,.....:;::;?+?+,::.:%SSSS####%?%%%S#####SS*;++?;:;;:,,.:;;:,....,,,,,..............................
-...............................,,...,:::;++:,,.....,+::;?+*+,,:,.:?S######?*???%####S%*;;+??:;;;:,,,;;;:,....,,,:,..............................
-...............................,,..,,,...,;+;,.....,+::;?+*+:.:,..,;*S####SSSSSS###S%+;;+*%*:;+:,,,,+;+:,....,::::,.............................
-...............................,..,,,......:;:,.....+,:;?+++:.,,...,++*%##########S?++++;?%;:+;:,,,:+;+;,....,::::,.............................
-...............................,..,,,.......:;:.....+,:+?;;+:..,..+%%*+;+%S#####S%*++++;+%?:;*;,,,.;+;+;,.....:::,,.............................
-...............................,,,,,....,,...:;,....+,:+?;;+,...,?##S?*;,:*%S#S?*+++++;;*%*:**:.,,,+++;;,.....::,...............................
-...............................,,,,,,,,,,:,..,;,....+.:*?;:;,...:S###%*;:;****+**+++++;+?%;:?;,.,,:+;*;;,.....,,................................
-...............................,,,,,,:::::,...;:...,;.,?*;,;,.....,+#S?;:+********+++;;+??:+?:..,.;*+*;;,.....,,................................
-..............................,,,,,,::::::,...::...:;.,%+:,:,.......:%*::*********++;;+*%+:?+:..,.;++*;:,......,................................
-.............................,,,,,,,,::::,....::...:,.:%+:,:,,,......;*,;*********+++++*?;;?:,..,,++**;:........................................
-.............................,,,,,,,,,:,,.....::...:.,+%;:,:,...,..,:,;,;*********+++;;**:*?,...,:++?+;,,....,..................................
-............................,,,,,,,,,,,,......::...:..*?:,,,..,,.,:::,:,;*********++:,;*+:?+.....:++?;:;:...:,..................................
-...........................,,,,,,,,,,,.......,;,...,..?+:,,,,,.,:;,:;:;,:********+;,.,+*;+?:.....;+*?;:*:.,:;,..................................
-..........................,,,,,,,,,,,........,:......,%;:,,,.,:;;;:;S*+,,+******+;,.:+**;*?,,...,;+?*:++::;+:...................................
-..........................,,,,,,,,,..................;?::.,,:;;+++;,?*+:.;***+;:;::,:++*:?+:,...:++?+:*;::;;,...................................
-.........................,,,,,,,,,...................**::::;++***++:+**;,;++;:,,;;,,:;++;?:,....:;+?;+*;::;:....................................
-....................,...,,,,,,,,,.................;**%:;***??****??;:?%;;:,,..:+*+,:;++;;?,....,::**;*;::;::....................................
-...................,,..,,,,,,,,................,;?S#%?:+%??%???????+,?%;+*:.,;+*SS;:;++:+*.....,,:*+++:::;;,....................................
-..................,,...,,,,,,,................;%####%;:?S%SS%%?????+,??;*?:,+?*S#?:,:+;:+;.....,.:*;;;:::;::....................................
-..................,,..,,,,,,,...............,?#####S?,*##SSS%%?????;:**+;;,+S?S?:,:;;+;:+:.....;.;*;:::,;+,:....................................
-.................,,,,,,,,,,............,...;S######%:;#####S%%?????;:*:,.,;**%+,:;;+;;;:+,....:,,++:::,:+:,:....................................
-.................,,,,,,,,,............,...+####S##S*:#####SS%%????*;;;,..:***:,+**+*+;::+,...,,.,+;,::,:+,,:....................................
-................,,,,,,,,,.....,......,...*####S###?;######SS%%????+;:+;.,++;,;*??****;:,;,..,,.,,;:,:,,;;.,:....................................
-................,,,,,,,,....,,......,...+###SS###%+S######SS%%????;::*;,;;:,+*????***;:,;,..,.,,,;:,:,,+,..:....................................
-................,,,,,,,....,,......,...+###S#####?S#######SS%%???*:,:::,:,:+???????**+;,:,..,::,,:,:,,,+...,....................................
-...............,,,,,,,...,,,......,..,+S##S#####SS#######SS%%???*;,::::::+*?%%%%%%?***+,,,.,,::,,,,,.,::...,....................................
-...............,,,,,...,,,..........,;%##S##############SSS%%???+::;;::;+*?%%%SSS%%?*?+,,,.,,::.,:,,..:,........................................
-...............,,,...,,,,..........,:*SS%S#############SSS%%???*;++*+,:+*?%SSSSSSSS?*%+:,,.:,:,.:;,..,:,........................................
-...............,....,,,............:+%S%S#############SSS%%%??*++?*;,,+*%S########S??%+;,,.,,:,.:;,.,,:,........................................
-...............,..................,+*%%%SS###########SSS%%%??*+;+;;,.;*%##########S%%%*+:,.,,:,.:;,,,,,....,....................................
-.................................,;*?%?%SSSS######SSSSS%%%???*+;::,.,*%###########SSS%?**:.,.,,,:;,,,:,....,....................................
-................................,,+*?%?%%SSSSSSSSSSSSS%%%???+++:,:..;%####@@########S%%??+,,...,,;,,,,....,,....................................
-...............................,,;*+???%%%SSSSSSSSSS%%%????+:;++:..,?S####@@@#######S%%%%?:...,.,:,::,...,.,....................................
-..............................,:,+*:*???%%%%%%S%%%%%%%???*+:,;**,..+S####@@@@#######S%SS%%;...,.:,,:::,.,:.,,...................................
-.............................,:,:*;:*????%%%%%%%%%%%????*+::::*+..:%###@@@@@@@######SSSS%?*....,:,,::::,:,.,,...................................
-.........................,...;,,;+:,*?????????%%???????*+::::,:,,.*S###@@@@@#########SSS%%%,.,.,:::::::::...:...................................
-........................,...::,:;::,;????????????????**+::::,..,,:%####@@@@@@########SSS%%%:...::::::::::...:...................................
-.......................,...:+:,:;:,.,*?????????????***+::::,....:*S###@@@@@@@########SSS%%?+..,:::::::::,,..:...................................
-.....................,,....+;,,:::...;%???????????****+:,,.....,+?S##@@@@@@@@########SSS%%?*..,:::::::::..,,:...................................
-....................:,....;+:,,:,,..,,?%????????????*+*,.....,,;*?#####@@@@@#########SSS%%??..,,::,,:::,...,:...................................
-...................::....,*::.,,,.,,..:%%???????????++;....,:::+*%###################SSS%%??..,,:,,,::,.....:...................................
-..................;;,....++:,.,,,,:....;%%????***??*::,...::::;+*?S##################SSS%%??...,,,,,::......;...................................
-.................;+:....:*::...,,:,.....;%%%%??**+++,.,:.,:,,:++**%#################SSSS%%??...,,.,,,,.....,;...................................
-................:*;.....++,:..,::,.......;?%%%%%??*;..;;,.,..:;++*?%S###############SSS%%???.......,,......,;...................................
-...............,?+.....:*;,,..:;,........:;+?SS%%%?*,,:;,...,+++**?%SS#############SS%S%%???.......,.......,+...................................
-...............+?:.....++::,.,;:,........;;;;;*%%%%?:..,....:*??????%SSS##########SS%%%%???*.......,.......,+...................................
-..............,?+.....,*;::..::,........,;;;;;;;;;;;,..,::.,;*??????%%SSSS######SSSS%%%????+...............:;...................................
-..............;?:.....;*;,:,::,.........:;;;;;;;;;;;...,;:,;+;+??????%%%SSSSSSSSSSS%%%%???%:......,.....,..;;...................................
-..............+*......+*;.,,:,..........:+?+;;;;;;;;,...:,,:+?*+*?????%%%%SSSSSS%%%%??????%.............,..+:...................................
-..............*+......*+;;,:,..,,.......;?#S%*;;;;;;,..,::,:;+??????????%%%%%%%%%%???????%*......,......,..*:...................................
-..............+;.....:*;++,,..,,,......,+%###S?+++++;,;+;:.,:;+????????????%%%%%???*?????%:.....,......,,.,?,...................................
-..............::.....;*+++,..::,......:;*#####S%**????%%*,,;;;;+*?????????????????***???%*.....,,......,,.:?....................................
-...............,.....;;;;+,.,:,.......+;?#######%*???%S#%:+S*;;;;*?????**??????******????:.....,,......,,.;*....................................
-.....................:,::;;,:,........*;*########S?????%?,*#S?+++;+*???**************???;.....,,,......:,.*+....................................
-....................,,..:;;:,.........*++#########S%????*,*##S*+++;;*???************??%+......:,,......:..?:....................................
-...................,:...,:;:..........**+###########%???+,+S##S*+++;;*????*********???+,.....,:,,......:.:*.....................................
-..................,:.....,::,........,*%+S###########S%?;,+?%##S*+++;;+?%????***???%?;,.....,::,.......:.*;.....................................
-.................,:.......,::........:+S*%#############%:,*???S#S?+++;;;+???????%%*;,.......:::,......,;,*,.....................................
-................::.........,,........;*?%?###########S#?,;??**?%S#%*++;;;;;+***+;,.........,::,.......,;;;......................................
-...............,;...................,;?*S%###########?+;:?#%???%#SSS?+;;;;;;;;;;...........:::........,;+,......................................
-</pre>
-`;
-firstTab.terminalElement.innerHTML = welcomeHTML;
-firstTab.isProcessing = false;
-refocusTerminal(firstTab);
-}
-init();
-</script>
+<hr>
+<h2>Games Online</h2>
+
+<h3>🚔 <a href="100laps.html" target="_blank" rel="noopener noreferrer">100 Laps Arcade Racing Game</a></h3>
+<p>A challenging, top-down arcade racing game where the primary objective is to survive and complete 100 laps.
+To play, use the WASD or Arrow Keys to accelerate, brake, and steer your vehicle down a busy four-lane road,
+dodging numerous AI cars. Colliding with other cars or the side walls will decrease your "Life" percentage,
+and the game ends if your life drops to zero. A unique mechanic is the police: driving at a high speed (over 350)
+will attract a police car that spawns to chase you. If this police car catches you, your run is over. The game
+tracks your laps, time, and crash count, saving your best results to a local high-score list.</p>
+
+<h3>🔑 <a href="adventure.html" target="_blank" rel="noopener noreferrer">Adventure RPG Survival Game</a></h3>
+<p>This is a 2D survival adventure RPG where the ultimate goal is to fight your way through 20 levels, find the key,
+unlock the door, and defeat the final boss to rescue a captive Unicorn. Use the WASD or Arrow keys to move and the
+mouse to interact. Click on resources like trees and rocks to gather them, which costs health but provides materials
+for crafting. You can craft items using hotkeys like 'B' for a shelter, 'C' for a crossbow, and 'V' or 'H' for stone
+weapons. Combat is initiated by clicking on monsters for melee attacks or right-clicking to shoot a ranged weapon.
+Be wary of the day/night cycle; monsters grow stronger at night, and ghosts will appear to steal your items if you're
+caught outside a shelter. You can interact with NPCs using the 'E' key, switch weapons with the number keys, and save
+your progress at any time using the save icon.</p>
+
+<h3>💮 <a href="ameliax.html" target="_blank" rel="noopener noreferrer">Amelia X Endless Runner Game</a></h3>
+<p>Endless runner game where you control a character escaping a corrupt data network after stealing a data core.
+The objective is to survive as long as possible to achieve a high score. You control the character using the Spacebar
+or Up Arrow to jump, and the height of the jump is determined by how long you hold the key. You must avoid two main threats:
+falling into gaps in the terrain and colliding with magenta antivirus drones, which drain 5% of your power per hit. The game
+ends if you fall into the void or your power level drops to zero, at which point your score is recorded and your top three
+high scores are saved.</p>
+
+<h3>🎱 <a href="billiards.html" target="_blank" rel="noopener noreferrer">Billiards / 8-Ball Pool Game</a></h3>
+<p>This online billiards game is a simulation where your objective is to be the first player to pocket all of your assigned
+balls (either solids or stripes) and then legally pocket the 8-ball to win. To play, you use your mouse to drag on the table,
+which both aims your shot and sets the power; the farther you drag, the harder the shot will be. The game assists you by
+showing a white dashed line for the cue ball's path and a yellow line for the object ball's predicted direction. You release
+the mouse button to take the shot. The table is open until the first ball is pocketed, which assigns that ball's group
+(solids or stripes) to the player who made the shot, and your turn continues as long as you legally pocket your own balls.</p>
+
+<h3>💸 <a href="blackjack.html" target="_blank" rel="noopener noreferrer">Blackjack Card Game</a></h3>
+<p>You start with 1,000 chips, and your objective is to reach the goal of 100,000 chips. To play, you begin a round by
+selecting a bet amount (10, 50, 100, 200, or 500 chips) from the available buttons. The goal of Blackjack is to get a hand
+value closer to 21 than the dealer without going over. You and the dealer will both be dealt two cards, but one of the
+dealer's cards will remain hidden. On your turn, you can Hit to take another card or Stand to keep your current hand and
+end your turn. If your hand's value exceeds 21, you bust and immediately lose your bet. After you stand, the dealer reveals
+their hidden card and must continue to hit until their hand totals 17 or more. You win if your score is higher than the
+dealer's or if the dealer busts; a normal win pays 2:1 (doubling your bet), and a "Blackjack" (a 21 on the first two cards)
+pays 2.5:1. The game ends if you run out of chips or if you successfully reach the 100,000 chip goal.</p>
+
+<h3>🚘 <a href="championship.html" target="_blank" rel="noopener noreferrer">Championship Racing Game</a></h3>
+<p>In this online game, your goal is to compete in a 10-race championship against 9 AI opponents and get the highest score.
+You control your car using W to accelerate, S to brake or reverse, and A/D to steer. The key mechanic is drifting, which you
+can do by holding the Spacebar while turning to charge up your boost meter. When the meter is full, press Shift to use a
+powerful speed boost. On the track, you can pick up lightning bolts for an instant boost and must avoid oil slicks that make
+you spin out. Be careful, as driving on the grass will slow you down. You can also press P to pause the game.</p>
+
+<h3>🏠 <a href="citybuilder.html" target="_blank" rel="noopener noreferrer">City Builder Simulation Game</a></h3>
+<p>In this city-building simulation, your main objective is to grow a thriving metropolis to a population of 400,000 residents
+while avoiding bankruptcy. To play, you select construction tools to click and build zones like houses, stores, and industry
+directly onto the map. You must also build essential infrastructure, such as roads and power plants, but your main economic
+choice lies in balancing high-profit, polluting industrial zones against clean, population-driven stores. Manage your city's
+economy by setting the tax rate, and invest in services like police, fire stations, and schools, which now provide active
+happiness bonuses to boost your city's growth, not just protection. You'll need to strategically manage challenges: fight
+pollution by building parks that actively clean the air, and create smart road networks that allow lightly usedroads to
+repair themselves over time. All this, while surviving random disasters such as fires, recessions, or even King Kong.</p>
+
+<h3>🚀 <a href="lunarlander.html" target="_blank" rel="noopener noreferrer">Lander Rescue Retro Arcade Game</a></h3>
+<p>Physics-based browser game where you pilot a lunar lander through 50 challenging levels. The objective is to use
+the Arrow Keys for rotation and thrust to safely navigate hazardous terrain while avoiding enemy fire. Your mission
+involves a multi-step rescue operation: land on the blue pads to pick up stranded people, visit yellow pads to refuel
+your ship, and finally, land on the green pads to drop off your passengers, score points, and advance to the next
+level. Success depends on careful fuel management and executing gentle landings within safe velocity limits to
+avoid crashing.</p>
+
+<h3>🟢 <a href="ludo.html" target="_blank" rel="noopener noreferrer">Ludo Board Game vs AIs</a></h3>
+<p>4-player Ludo game where you take control of the Green player, while the Blue, Red, and Yellow players are all
+controlled by an AI. To play, click the "Roll the dice" button to start your turn. The game will automatically calculate
+all possible moves and highlight your movable pawns with a glowing animation; you then click on the glowing pawn you wish
+to move. The game follows standard Ludo rules, including requiring a 6 to move out of the home yard, knocking opponent
+pawns back to start on landing, and winning by getting all four pawns into the final home stretch. For a demonstration,
+you can also click the Autopilot button, which will have the AI take over the Green player's turns as well, allowing you
+to watch a full AI-vs-AI simulation.</p>
+
+<h3>⛳ <a href="minigolf.html" target="_blank" rel="noopener noreferrer">Mini Golf</a></h3>
+<p>This is a 10-hole mini-golf game where you compete against an AI opponent to finish the course with the fewest total
+strokes. You control the cyan ball, while the AI controls the yellow one. To take your turn, click and drag from your ball
+to aim and set the power, and then release the mouse to shoot. You must navigate around obstacles and a wandering turtle.
+Be careful, as hitting the turtle causes you to forfeit the hole with a penalty. The player with the lowest total score
+after 10 holes wins the game.</p>
+
+<h3>💩 <a href="shithead.html" target="_blank" rel="noopener noreferrer">Shithead Card Game</a></h3>
+<p>Welcome to the Shithead card game, where your objective is to be the first player to get rid of all your cards;
+the last player left with cards is the Shithead. To play, you must place a card of equal or higher value than the top
+card on the pile, following a card order from 3 (lowest) to Ace (highest). If you cannot make a legal move, you must
+pick up the entire pile. Watch for special cards: a '2' can be played on anything and resets the pile, allowing the
+next player to play any card, and a '10', also playable on anything, burns the pile, removing it from the game and
+granting you an extra turn. Four of a kind played in a row also burns the pile and gives you another turn. You must play
+all cards from your hand first, then your face-up cards, and finally your blind face-down cards to win the game.</p>
+
+<h3>🐍 <a href="snakemono.html" target="_blank" rel="noopener noreferrer">Snake Mono Retro Arcade Game</a></h3>
+<p>Welcome to Monochrome Snake. To begin, click the Start Game button. Your objective is to control the snake using either
+the [WASD] keys or the [Arrow] keys to move up, down, left, or right. Guide the snake to eat the food blocks that appear
+on the board, which will increase your score, your snake's length, and the game's speed. The game ends if you collide with
+the edges of the game board or run into your own snake's tail. You can press [P] to pause the game at any time, and if you
+get a 'Game Over', press [Enter] to restart and try for a new high score.</p>
+
+<h3>🐍 <a href="snakeneon.html" target="_blank" rel="noopener noreferrer">Snake Neon Arcade Game</a></h3>
+<p>In this neon-themed snake game, you control the snake using the Arrow Keys or W, A, S, D to move around the board.
+The primary goal is to eat food to grow longer and earn points. Different food items provide different benefits: Apples
+grant 10 points and add 1 length, Cherries give 50 points and add 3 length, and Grapes award 100 points and a temporary
+speed boost without adding length. As your score increases, you will level up, which makes the snake move faster and adds
+new obstacles to the play area. The game ends if you collide with the walls, an obstacle, or your own tail.</p>
+
+<h3>💲 <a href="sokobaned.html" target="_blank" rel="noopener noreferrer">Sokoban Level Editor</a></h3>
+<p>This online application is a Sokoban level editor and player that allows you to test and play levels directly in your
+browser. To use it, you can either select from a collection of pre-loaded level files using the File and Level dropdown
+menus, upload your own .txt or .sok level files using the Load Level File(s) button, or paste/type a level's text directly
+into the editor area. Once a level is loaded in the editor, click the Play Game button to open the game in a modal window.
+You can then use your keyboard's arrow keys to move the player and push boxes, with the objective of placing all boxes on
+the goal locations. You can reset the level using the Reset button or close the game (using the 'X' button or 'Esc' key)
+to return to the editor.</p>
+
+<h3>💲 <a href="sokoban.html" target="_blank" rel="noopener noreferrer">Sokoban Puzzle Game</a></h3>
+<p>Sokoban is a top-down puzzle game where you control a character (@), the "warehouse keeper," inside a maze-like
+level. The goal is to push all the boxes ($) onto designated target squares (.). The rules are simple but create
+a deep challenge: you can only push boxes (never pull them), and you can only push one box at aime. You can't push
+a box if there's a wall (#) or another box directly behind it. The game is all about spatial reasoning and planning,
+as you must figure out the correct sequence of moves to get every box to its destination without getting any of them
+stuck in a corner or against a wall where you can no longer move them.</p>
+
+<h3>🟩 <a href="tetrismono.html" target="_blank" rel="noopener noreferrer">Tetris Mono Retro Block Puzzle Game</a></h3>
+<p>Welcome to Monochrome Tetris, a retro-styled version of the classic puzzle game where your goal is to arrange falling
+blocks (Tetrominos) into complete horizontal lines. When you fill a line, it clears from the screen, and you earn points.
+The game's level increases for every ten lines you clear, which also causes the pieces to fall faster. The game ends if
+the blocks stack up and reach the top of the playing field. To play, use the [WASD] or [Arrow] keys to move the pieces
+left and right, and press [W] or [Arrow Up] to rotate them. You can press [S] or [Arrow Down] to make a piece fall faster
+(soft drop), or press the [Space] bar to make it instantly drop to the bottom (hard drop). You can also press [P] to pause
+the game at any time.</p>
+
+<h3>🟧 <a href="tetrisneon.html" target="_blank" rel="noopener noreferrer">Tetris Neon Block Puzzle Game</a></h3>
+<p>Welcome to Tetris Neon, a classic puzzle game with a vibrant, glowing aesthetic. The objective is to maneuver falling
+blocks, known as tetrominoes, by moving them left and right and rotating them to create solid horizontal lines at the bottom
+of the screen. When you complete a line, it disappears, and you earn points. As you reach new score milestones, you'll also
+unlock fun emoji rewards that pop up in the side panel. You control the game using your keyboard: use the Left and Right
+arrow keys to move pieces, the Up arrow to rotate them, and the Down arrow to speed up their descent. Pressing the Spacebar
+will instantly Hard Drop the piece to the bottom, and you can press 'P' to pause the game. As your score increases, the game
+level rises, causing the pieces to fall faster. The game ends if the blocks stack up and reach the top of the playing field,
+so aim to clear as many lines as possible to boost your score and collect new emojis.</p>
+
+<h3>🙋 <a href="uno.html" target="_blank" rel="noopener noreferrer">Uno Card Game</a></h3>
+<p>Welcome to this online UNO game, where you compete against two AI opponents, whose hands are visible on the left and
+right sides of the screen. The goal is to be the first player to get rid of all the cards in your hand, which is displayed
+at the bottom. On your turn, you can play a card by clicking on it, but it must match the color, number, or symbol of the
+card currently on top of the central discard pile. If you cannot make a move, you must click the draw deck to pick up a
+new card; if that new card is playable, it will be played automatically. Watch out for special action cards like Skips,
+Reverses, and Wilds that can change the flow of the game!</p>
+
+<h3>🎲 <a href="yatzy.html" target="_blank" rel="noopener noreferrer">Yatzy Dice Game</a></h3>
+<p>Welcome to this online Yatzy dice game, where your objective is to score the most points by rolling five dice to make
+specific combinations. On each turn, you can roll the dice up to three times. After your first and second rolls, you can
+click on any dice to hold them, which keeps them from changing on your next roll. After you are done rolling, you must
+choose an available category on the scoreboard (like Fours, Full House, or Large Straight) to record your score for that
+turn. You will play against AI opponents and can choose between Free Choice mode (picking any category) or Forced Order
+mode (filling categories sequentially).</p>
+
+<hr>
+<h2>Tools Online</h2>
+
+<h3>💄 <a href="babelinux.html" target="_blank" rel="noopener noreferrer">BabeLinux Retro Terminal Emulator</a></h3>
+<p>BabeLinux is an interactive, browser-based terminal simulation that mimics a desktop operating system. Upon loading,
+the application will prompt you for a username and then run a short boot sequence before presenting you with a command prompt.
+You can interact with the app by typing commands; a full list is available by typing help. The interface supports a
+multi-tab environment, allowing you to open new tabs with Alt + T and close them with Alt + X. Key functionalities include
+nano for a simple text editor, pic for a basic image editor with filters, and play to load and run local audio or video files.
+The app also includes utilities to change the color theme, view command history, and launch games like snake or tetris.</p>
+
+<h3>🧲 <a href="base64.html" target="_blank" rel="noopener noreferrer">Base64 Generator</a></h3>
+<p>Base64 Generator that works for both images and audio files, organized into two separate tabs. To use it, select either
+the Image or Audio tab and then upload a file by clicking the button or by dragging and dropping it onto the main preview area.
+If you upload an image, you can use the toolbar controls to apply various adjustments, such as cropping, resizing, changing
+the JPEG quality, or reducing the number of colors. The app will then generate the Base64 code for the processed image,
+which you can download as a text file, or you can download the final image as a JPEG. If you upload an audio file, the tool
+will display its Base64 code, which you can then copy to your clipboard. You also have the options to compress the audio
+by lowering its sample rate or to play the audio back directly from its Base64 source.</p>
+
+<h3>🖥️ <a href="coder.html" target="_blank" rel="noopener noreferrer">Code Editor for HTML, CSS & JavaScript</a></h3>
+<p>This project is a self-contained, single-file application that runs entirely in the browser, providing a
+lightweight code editor for HTML, CSS, and JavaScript. It leverages the modern File System Access API,
+allowing you to directly open files from your computer (Ctrl+O), save your work (Ctrl+S), and create new files
+(Alt+N). The editor includes essential features like smart indentation with Tab, automatic bracket and quote
+pairing, and a search-and-replace dialog (Alt+F). It also offers several utilities, such as a live preview in
+a new tab (Alt+P), a tool to check for trailing whitespace (Alt+W), and quick navigation to style, script, or
+body tags (Ctrl+Shift+1/2/3). All available keyboard shortcuts are listed in the built-in help modal, which
+you can toggle by pressing Alt+H.</p>
+
+<h3>😀 <a href="emojis.html" target="_blank" rel="noopener noreferrer">Emoji Finder & Copier</a></h3>
+<p>This Emoji ➔ Favicon Code Generator application provides a searchable list of all available emojis. You can use the
+search bar to filter the grid by emoji name or associated keywords. The app offers two functions: left-clicking an emoji
+copies the native emoji character directly to your clipboard, while right-clicking an emoji generates and copies the
+complete HTML link code needed to use that emoji as a website's favicon. The favicon code is created by dynamically
+drawing the emoji onto a canvas, converting it to a PNG data URL, and embedding it within the link tag.</p>
+
+<h3>⬆️ <a href="imageupscale.html" target="_blank" rel="noopener noreferrer">Image AI Upscaler</a></h3>
+<p>This AI Image Upscaler enhances your images entirely within your web browser, meaning your files are never uploaded
+to a server. To begin, simply drag and drop an image file onto the designated area or click to browse and select one.
+After your image loads, choose your settings: select the Fast (ESRGAN-Slim) model for photos (offering 2x or 4x scaling)
+or the Quality (RDN) model for clearer results on digital art and text (which only supports 2x). Click the Upscale Image
+button and wait for the AI to process the file; your browser may pause briefly. Once complete, a download button will
+appear, allowing you to save your new high-resolution image.</p>
+
+<h3>🧊 <a href="imagecomp.html" target="_blank" rel="noopener noreferrer">Image Compression Tool</a></h3>
+<p>Simple image compression tool. To get started, you can click the upload area to select a PNG, JPEG, or WebP file,
+drag and drop an image directly onto the page, or simply paste an image from your clipboard (e.g., using Ctrl+V).
+The app processes everything locally in your browser, so your images are never uploaded to a server. It instantly
+generates two highly optimized versions of your file: a WebP image (at 25% quality) and a JPEG image (at 30% quality).
+If your original image has transparency (like a PNG), the JPEG version will be given a white background. You will then
+see the results comparing the original file size to the new compressed sizes, with download buttons available for both
+the WebP and JPEG files.</p>
+
+<h3>🏜️ <a href="imaged.html" target="_blank" rel="noopener noreferrer">Image Editor</a></h3>
+<p>This online image editor is a powerful, layer-based tool for all your editing needs. To start, you can open an image
+from your computer, paste one from your clipboard, or import images as new layers. The main toolbar on the left lets you
+switch between essential tools like Move (to position and resize elements), Crop (to trim the entire canvas), and Text
+(to add text layers). The right-hand panel is your central hub for managing Layers - here you can reorder, duplicate,
+delete, and adjust the opacity and blend mode of each layer. When you select an image layer, context-aware Adjustments
+(like brightness, contrast, and saturation) and Filters (like blur and sharpen) panels will appear, allowing for
+non-destructive edits. When you are finished, use the Export panel at the bottom right to preview, select a format
+(PNG, JPEG, or WEBP), and save the final flattened image to your device, or use the Save Project button in the top
+bar to save your layered work as a .json file to continue editing later.</p>
+
+<h3>🅰️ <a href="image2ascii.html" target="_blank" rel="noopener noreferrer">Image to ASCII Generator</a></h3>
+<p>This online tool converts your images into text-based ASCII art. To start, either click the Upload an Image button to
+select a file or simply drag and drop an image file anywhere onto the page. The app will instantly process the image and
+display the ASCII art in the output area below. You can customize the result using the ASCII Width slider to change the
+level of detail and resolution. Additionally, you can use the toggle switch to alternate between a full-color version that
+uses the original image's palette and a classic monochrome (green on black) style. When you're finished, you can click
+Copy ASCII Art to copy the plain text to your clipboard or Export as HTML to download a self-contained, resizable file
+of your artwork.</p>
+
+<h3>🔒 <a href="secretnote.html" target="_blank" rel="noopener noreferrer">Secret Note Strong Encryption</a></h3>
+<p>This is a secure, private note-taking application that runs entirely in your web browser. You can type directly on the
+page and paste both text and images into the editor. When you paste an image, the app converts it into Base64 text-based code,
+allowing it to be embedded directly within the note's content. To save, click Save Encrypted Note; you will be prompted for a
+password, which the app uses to strongly encrypt the entire note (including your text and the embedded image code) using
+AES-GCM before downloading it to your computer as an .encrypted.txt file. To open a saved note, click Open Encrypted Note,
+select the file, and provide the same password to decrypt and display all your content. All encryption and decryption
+happen locally on your device, so your password and plain-text data are never sent over the internet.</p>
+
+<h3>🎶 <a href="soundtracker.html" target="_blank" rel="noopener noreferrer">Soundtracker Retro Music Maker</a></h3>
+<p>This application is a Tracker, a type of music sequencer where music is organized on a grid and flows from top to bottom.
+To create a song, you can either press Play for simple playback or Record to start live recording. During recording, the
+track loops, and you can use your computer's letter keys (like Z, S, X or Q, W, E) to enter notes as if playing a piano;
+these notes are automatically Quantized, or placed onto the nearest row in the grid. You can also navigate the grid manually
+using the Arrow Keys, use the number keys (1-9 and 0) to assign a different instrument to a cell, and press Delete or
+Backspace to clear an entry. The side panels and controls allow you to select from a list of built-in instruments, change
+the master octave, adjust the BPM, and control the volume of each track using the sliders at the top of the grid. Once you are
+finished, you can use the Save / Load panel to export your song as JSON data or as a self-playing, standalone HTML file.</p>
+
+<h3>👾 <a href="sprited.html" target="_blank" rel="noopener noreferrer">Sprite Editor</a></h3>
+<p>This online sprite editor allows you to create and edit pixel art directly in your browser. To begin, either set your
+canvas dimensions in the Canvas panel and click Resize, or upload an existing file using the Load button. You can draw
+on the main grid by selecting a tool from the Tools section such as the Pencil (P) to draw, Eraser (E) to remove pixels,
+or Picker (I) to select an existing color and then choosing a color from the palette below the canvas. Use the Zoom slider
+to magnify your work, and when you are finished, use the Export panel to choose a format (PNG/GIF), set a scale factor,
+and download your creation.</p>
+
+<h3>🍿 <a href="videoplayer.html" target="_blank" rel="noopener noreferrer">Video Player</a></h3>
+<p>This is a standalone, browser-based video player contained in a single HTML file. To use it, open the file
+in your web browser and load a video (MP4, WebM) and an optional subtitle file (.srt) by clicking the "Open files"
+button, dragging and dropping the files onto the page, or pasting a video file from your clipboard. The player
+automatically saves your progress in each video and resumes from where you left off. It features extensive keyboard
+shortcuts for advanced controls, including subtitle size and offset adjustment, SDH (descriptive audio) filtering,
+frame-by-frame stepping, a volume booster, and a video looping tool that can also record and download the selected
+loop as a new file. A full list of shortcuts is available by clicking the '?' button in the player controls.</p>
+
+</div>
 </body>
 </html>
