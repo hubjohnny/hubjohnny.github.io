@@ -255,7 +255,7 @@ data[i] = Math.random() * 2 - 1;
 const noiseSource = this.audioCtx.createBufferSource();
 noiseSource.buffer = buffer;
 const gainNode = this.audioCtx.createGain();
-gainNode.gain.setValueAtTime(0.4, this.audioCtx.currentTime);
+gainNode.gain.setValueAtTime(0.05, this.audioCtx.currentTime);
 gainNode.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + duration - 0.1);
 noiseSource.connect(gainNode);
 gainNode.connect(this.audioCtx.destination);
@@ -587,7 +587,7 @@ const safeRoadRight = roadRightEdge - carWidth - carTireWidth;
 const safeRoadWidth = safeRoadRight - safeRoadLeft;
 const edgeZoneWidth = 20;
 for (const car of aiCars) {
-car.y += car.speedMultiplier * playerCurrentSpeed * deltaTime;
+car.y += (playerCurrentSpeed * 0.6) * deltaTime;
 if (Math.random() < 0.01) {
 if (car.aiType === 'edge') {
 if (Math.random() < 0.5) {
