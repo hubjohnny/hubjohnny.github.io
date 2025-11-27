@@ -283,6 +283,7 @@ title="Volume Booster">
 <li>Seek Forward 5s <span>→</span></li>
 <li>Seek Backward 5s <span>←</span></li>
 <li>Loop Control <span>L</span></li>
+<li>Loop Entire Video <span>Shift + L</span></li>
 <li>Record Loop <span>R</span></li>
 <li>Sub Offset -100ms <span>1</span></li>
 <li>Sub Offset +100ms <span>2</span></li>
@@ -306,7 +307,9 @@ resumingFrom: (time) => `Resuming from ${time}`,
 recordingStarted: "🔴 Recording loop...",
 recordingFinished: "✅ Recording finished. Download will start.",
 noLoopToRecord: "❌ Set a loop with 'L' key first!",
-frameCaptured: (time) => `📸 Frame captured at ${time}`
+frameCaptured: (time) => `📸 Frame captured at ${time}`,
+videoLoopEnabled: "🔁 Video loop enabled (Entire video)",
+videoLoopDisabled: "✅ Video loop disabled"
 };
 const videoPlayer = document.getElementById('video-player');
 const fileUpload = document.getElementById('file-upload');
@@ -544,6 +547,14 @@ loopEnd = null;
 showToast(lang.loopRemoved);
 }
 updateLoopMarkers();
+}
+function toggleVideoLoop() {
+videoPlayer.loop = !videoPlayer.loop;
+if (videoPlayer.loop) {
+showToast(lang.videoLoopEnabled);
+} else {
+showToast(lang.videoLoopDisabled);
+}
 }
 function handleRecordingKey() {
 if (loopStart === null || loopEnd === null) {
@@ -788,7 +799,11 @@ case 'arrowleft':
 videoPlayer.currentTime -= 5;
 break;
 case 'l':
+if (e.shiftKey) {
+toggleVideoLoop();
+} else {
 handleLoopKey();
+}
 break;
 case 'r':
 handleRecordingKey();
