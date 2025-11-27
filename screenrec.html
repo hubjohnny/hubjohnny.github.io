@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chromebook Screen Recorder</title>
+<style>
+body {
+margin: 0;
+background-color: #1a1a1a;
+color: white;
+font-family: system-ui, -apple-system, sans-serif;
+height: 100vh;
+display: flex;
+flex-direction: column;
+overflow: hidden;
+}
+
+/* Monitor window using 100% available space */
+#video-container {
+flex-grow: 1;
+width: 100%;
+height: 100%;
+position: relative;
+display: flex;
+justify-content: center;
+align-items: center;
+background: #000;
+}
+
+video {
+width: 100%;
+height: 100%;
+object-fit: contain; /* Ensures the whole screen is visible */
+}
+
+/* Controls overlay */
+.controls {
+position: absolute;
+bottom: 30px;
+z-index: 10;
+background: rgba(0, 0, 0, 0.7);
+padding: 15px 25px;
+border-radius: 50px;
+display: flex;
+gap: 15px;
+backdrop-filter: blur(5px);
+}
+
+button {
+padding: 12px 24px;
+border: none;
+border-radius: 25px;
+font-size: 16px;
+font-weight: 600;
+cursor: pointer;
+transition: transform 0.2s, background 0.2s;
+}
+
+button:active {
+transform: scale(0.95);
+}
+
+#btn-start {
+background-color: #2ecc71; /* Green */
+color: #fff;
+}
+
+#btn-stop {
+background-color: #e74c3c; /* Red */
+color: #fff;
+display: none;
+}
+
+/* Countdown Overlay */
+#countdown-overlay {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: rgba(0,0,0,0.8);
+display: none;
+justify-content: center;
+align-items: center;
+z-index: 20;
+flex-direction: column;
+}
+
+#countdown-text {
+font-size: 150px;
+font-weight: bold;
+color: #fff;
+}
+
+.status-text {
+font-size: 24px;
+margin-top: 20px;
+color: #ddd;
+}
+
+.recording-indicator {
+position: absolute;
+top: 20px;
+right: 20px;
+width: 20px;
+height: 20px;
+background-color: red;
+border-radius: 50%;
+display: none;
+box-shadow: 0 0 10px red;
+animation: pulse 1.5s infinite;
+z-index: 15;
+}
+
+@keyframes pulse {
+0% { opacity: 1; }
+50% { opacity: 0.5; }
+100% { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<div id="video-container">
+<video id="preview" autoplay muted></video>
+<div id="countdown-overlay">
+<div id="countdown-text">10</div>
+<div class="status-text">Get Ready...</div>
+</div>
+<div class="recording-indicator" id="rec-dot"></div>
+
+<div class="controls">
+<button id="btn-start">Start Recording</button>
+<button id="btn-stop">Stop & Save</button>
+</div>
+</div>
+
+<script>
+const preview = document.getElementById('preview');
+const startBtn = document.getElementById('btn-start');
+const stopBtn = document.getElementById('btn-stop');
+const countdownOverlay = document.getElementById('countdown-overlay');
+const countdownText = document.getElementById('countdown-text');
+const recDot = document.getElementById('rec-dot');
+
+let mediaRecorder;
+let recordedChunks = [];
+let stream;
+
+// CONFIGURATION
+const displayMediaOptions = {
+video: {
+// --- QUALITY SETTINGS ---
+// 1080p (Full HD)
+width: { ideal: 1920 },
+height: { ideal: 1080 },
+frameRate: { ideal: 30 }, // Use 60 for smoother motion (gaming), 30 for general use
+
+// ALTERNATIVES (Uncomment to use):
+// 720p (HD): width: { ideal: 1280 }, height: { ideal: 720 }
+// 4K (UHD):  width: { ideal: 3840 }, height: { ideal: 2160 }
+
+// --- CURSOR VISIBILITY ---
+// "never" hides the mouse cursor in the recording
+// "always" shows it always
+// "motion" shows it only when moving
+cursor: "never" 
+},
+audio: {
+// --- AUDIO SETTINGS ---
+// Echo cancellation OFF for purer system audio
+echoCancellation: false,
+noiseSuppression: false,
+autoGainControl: false,
+
+// NOTE for Chromebooks: 
+// When the screen selection popup appears, you MUST ensure
+// the "Share system audio" checkbox is ticked in the Chrome UI.
+}
+};
+
+startBtn.addEventListener('click', async () => {
+try {
+// 1. Get the screen stream
+stream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+
+// Show stream in the monitor window
+preview.srcObject = stream;
+
+// 2. Start Countdown Logic
+startCountdown();
+
+// Handle case where user stops sharing via the Chrome browser UI bar
+stream.getVideoTracks()[0].onended = () => {
+stopRecording();
+};
+
+} catch (err) {
+console.error("Error: " + err);
+}
+});
+
+function startCountdown() {
+startBtn.style.display = 'none'; // Hide start button
+countdownOverlay.style.display = 'flex';
+let timeLeft = 10;
+countdownText.innerText = timeLeft;
+
+const timer = setInterval(() => {
+timeLeft--;
+countdownText.innerText = timeLeft;
+
+if (timeLeft <= 0) {
+clearInterval(timer);
+countdownOverlay.style.display = 'none';
+beginRecording();
+}
+}, 1000);
+}
+
+function beginRecording() {
+// Setup MediaRecorder
+// Try to use high quality VP9 codec, fallback to default if unavailable
+const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") 
+ ? "video/webm;codecs=vp9" 
+ : "video/webm";
+
+mediaRecorder = new MediaRecorder(stream, {
+mimeType: mimeType,
+videoBitsPerSecond: 5000000 // 5 Mbps bitrate for good quality
+});
+
+mediaRecorder.ondataavailable = handleDataAvailable;
+mediaRecorder.start();
+
+// UI Updates
+stopBtn.style.display = 'block';
+recDot.style.display = 'block';
+console.log("Recording started");
+}
+
+function handleDataAvailable(event) {
+if (event.data.size > 0) {
+recordedChunks.push(event.data);
+}
+}
+
+stopBtn.addEventListener('click', stopRecording);
+
+function stopRecording() {
+if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+
+mediaRecorder.stop();
+
+// Stop all tracks to release the camera/screen icon in browser
+stream.getTracks().forEach(track => track.stop());
+
+mediaRecorder.onstop = () => {
+const blob = new Blob(recordedChunks, {
+type: "video/webm"
+});
+
+// Automatic download
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+document.body.appendChild(a);
+a.style = "display: none";
+a.href = url;
+
+// Filename with timestamp
+const now = new Date();
+const filename = `screen-rec-${now.toISOString().slice(0,19).replace(/:/g,"-")}.webm`;
+
+a.download = filename;
+a.click();
+
+window.URL.revokeObjectURL(url);
+
+// Reset UI for next recording
+location.reload(); 
+};
+}
+</script>
+</body>
+</html>
