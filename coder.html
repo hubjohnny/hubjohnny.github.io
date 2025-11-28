@@ -639,9 +639,31 @@ handleEditorKeyDown(e) {
 const isCtrl = e.ctrlKey || e.metaKey;
 const isAlt = e.altKey;
 const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+const { selectionStart, selectionEnd, value } = this.elements.editor;
+if (Object.values(pairs).includes(e.key) && selectionStart === selectionEnd && !isCtrl && !isAlt) {
+if (value.charAt(selectionStart) === e.key) {
+e.preventDefault();
+this.elements.editor.setSelectionRange(selectionStart + 1, selectionStart + 1);
+return;
+}
+}
+if (e.key === 'Enter' && !isCtrl && !isAlt && !e.shiftKey) {
+const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+const currentLine = value.substring(lineStart, selectionStart);
+const match = currentLine.match(/^[ \t]*/);
+if (match && match[0].length > 0) {
+e.preventDefault();
+this.elements.editor.setRangeText('\n' + match[0], selectionStart, selectionEnd, 'end');
+this.setUnsavedChanges(true);
+this.updateLineNumbers();
+this.highlight();
+this.elements.editor.blur();
+this.elements.editor.focus();
+return;
+}
+}
 if (Object.keys(pairs).includes(e.key) && !isCtrl && !isAlt) {
 e.preventDefault();
-const { selectionStart, selectionEnd, value } = this.elements.editor;
 const closingChar = pairs[e.key];
 if (selectionStart !== selectionEnd) {
 const selectedText = value.substring(selectionStart, selectionEnd);
@@ -656,9 +678,8 @@ return;
 }
 if (e.key === 'Tab') {
 e.preventDefault();
-const { selectionStart, selectionEnd, value } = this.elements.editor;
 const indent = this.config.indentUnit;
-if (selectionStart !== selectionEnd && value.substring(selectionStart, selectionEnd).includes('\n')) {
+if (selectionStart !== selectionEnd) {
 let lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
 const affectedText = value.substring(lineStart, selectionEnd);
 let newText;
