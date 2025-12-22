@@ -1,1 +1,1 @@
-# [Free PC Browser Games & Tools 👉](https://hubjohnny.github.io/apps/)
+# [Free PC Browser Games & Tools](https://hubjohnny.github.io/apps/) 👉
